@@ -1,3 +1,5 @@
+export {}; // fait de ce fichier un module ESM (requis pour le top-level await)
+
 // Secret de test : les modules d'authentification refusent desormais de
 // fonctionner sans AUTH_SECRET (voir lib/auth/session.ts). Valeur factice,
 // utilisee uniquement par la suite de tests.
