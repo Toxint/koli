@@ -1,0 +1,427 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ── Enums ──────────────────────────────────────────────
+
+enum UserRole {
+  CLIENT
+  SELLER
+  DRIVER
+  ADMIN
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum SellerVerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  SUSPENDED
+}
+
+enum KycStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum OrderStatus {
+  DRAFT
+  PAYMENT_PENDING
+  PAYMENT_CONFIRMED
+  FUNDS_SECURED
+  SELLER_ACCEPTED
+  PACKAGE_PREPARING
+  READY_FOR_PICKUP
+  PICKED_UP
+  IN_TRANSIT
+  ARRIVED
+  DELIVERED
+  CUSTOMER_CONFIRMED
+  FUNDS_RELEASED
+  COMPLETED
+  CANCELLED
+  PAYMENT_FAILED
+  DELIVERY_FAILED
+  DISPUTE_OPEN
+  REFUND_PENDING
+  REFUNDED
+  RETURN_REQUESTED
+  RETURNED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
+enum PaymentProviderType {
+  TEST
+}
+
+enum TransactionType {
+  PAYMENT
+  COMMISSION
+  FUNDS_SECURED
+  FUNDS_RELEASED
+  REFUND
+}
+
+enum DeliveryStatus {
+  ASSIGNED
+  TO_PICK_UP
+  PICKED_UP
+  IN_TRANSIT
+  ARRIVED
+  TO_CONFIRM
+  CONFIRMED
+  FAILED
+}
+
+enum DisputeReason {
+  NOT_RECEIVED
+  WRONG_PRODUCT
+  DAMAGED
+  INCOMPLETE
+  NOT_AS_DESCRIBED
+  OTHER
+}
+
+enum DisputeStatus {
+  OPEN
+  ADMIN_REVIEW
+  SELLER_WINS
+  CUSTOMER_WINS
+}
+
+enum RefundStatus {
+  PENDING
+  COMPLETED
+  REJECTED
+}
+
+enum NotificationType {
+  PAYMENT_CONFIRMED
+  FUNDS_SECURED
+  ORDER_ACCEPTED
+  PACKAGE_READY
+  PICKED_UP
+  IN_TRANSIT
+  DELIVERED
+  CUSTOMER_CONFIRMED
+  FUNDS_RELEASED
+  DISPUTE_OPEN
+  REFUND
+}
+
+// ── Identité ────────────────────────────────────────────
+
+model User {
+  id           String     @id @default(cuid())
+  role         UserRole
+  name         String
+  phone        String     @unique
+  email        String?    @unique
+  passwordHash String
+  photoUrl     String?
+  status       UserStatus @default(ACTIVE)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  sellerProfile   SellerProfile?
+  customerProfile CustomerProfile?
+  driverProfile   DriverProfile?
+  notifications   Notification[]
+  auditLogs       AuditLog[]       @relation("AuditActor")
+}
+
+model SellerProfile {
+  id                     String                   @id @default(cuid())
+  userId                 String                   @unique
+  user                   User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  businessName           String?
+  verificationStatus     SellerVerificationStatus @default(PENDING)
+  commissionRateOverride Float?
+  createdAt              DateTime                 @default(now())
+
+  products Product[]
+  orders   Order[]
+  kyc      KycDocument[]
+}
+
+model CustomerProfile {
+  id      String  @id @default(cuid())
+  userId  String  @unique
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  address String?
+  city    String?
+  country String?
+
+  orders Order[]
+}
+
+model DriverProfile {
+  id      String  @id @default(cuid())
+  userId  String  @unique
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  vehicle String?
+
+  deliveries Delivery[]
+}
+
+// ── Catalogue ───────────────────────────────────────────
+
+model Product {
+  id          String   @id @default(cuid())
+  sellerId    String
+  seller      SellerProfile @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  category    String?
+  price       Int      // FCFA — entier, pas de centimes
+  quantity    Int      @default(0)
+  weightKg    Float?
+  status      String   @default("ACTIVE")
+  createdAt   DateTime @default(now())
+
+  images     ProductImage[]
+  orderItems OrderItem[]
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  url       String
+  position  Int     @default(0)
+}
+
+// ── Commandes ───────────────────────────────────────────
+
+model Order {
+  id         String   @id @default(cuid())
+  reference  String   @unique // "KOLI-000124"
+  sellerId   String
+  seller     SellerProfile @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  customerId String?
+  customer   CustomerProfile? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  buyerName     String
+  buyerPhone    String
+  buyerCountry  String
+  buyerCity     String
+  buyerAddress  String
+  buyerLandmark String?
+
+  deliveryFee Int         @default(0)
+  status      OrderStatus @default(DRAFT)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items         OrderItem[]
+  payment       Payment?
+  delivery      Delivery?
+  dispute       Dispute?
+  refund        Refund?
+  transactions  Transaction[]
+  invoice       Invoice?
+  statusHistory OrderStatusHistory[]
+  fund          Fund?
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity  Int
+  unitPrice Int
+}
+
+model OrderStatusHistory {
+  id          String       @id @default(cuid())
+  orderId     String
+  order       Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  fromStatus  OrderStatus?
+  toStatus    OrderStatus
+  actorUserId String?
+  createdAt   DateTime     @default(now())
+}
+
+// ── Paiement / argent (mode test) ──────────────────────
+
+model Payment {
+  id               String              @id @default(cuid())
+  orderId          String              @unique
+  order            Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  provider         PaymentProviderType @default(TEST)
+  status           PaymentStatus       @default(PENDING)
+  amount           Int
+  simulatedOutcome String?             // "SUCCESS" | "FAILURE", mode test uniquement
+  createdAt        DateTime            @default(now())
+  confirmedAt      DateTime?
+}
+
+model Transaction {
+  id        String          @id @default(cuid())
+  orderId   String
+  order     Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  type      TransactionType
+  amount    Int             // signé : + crédit / - débit
+  createdAt DateTime        @default(now())
+}
+
+model Fund {
+  id         String    @id @default(cuid())
+  orderId    String    @unique
+  order      Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  sellerId   String
+  amount     Int
+  secured    Boolean   @default(false)
+  released   Boolean   @default(false)
+  securedAt  DateTime?
+  releasedAt DateTime?
+}
+
+model Refund {
+  id          String       @id @default(cuid())
+  orderId     String       @unique
+  order       Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  amount      Int
+  status      RefundStatus @default(PENDING)
+  reason      String?
+  createdAt   DateTime     @default(now())
+  processedAt DateTime?
+}
+
+model Invoice {
+  id        String   @id @default(cuid())
+  orderId   String   @unique
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  number    String   @unique
+  createdAt DateTime @default(now())
+}
+
+model Commission {
+  id          String   @id @default(cuid())
+  ratePercent Float    @default(5)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
+// ── Livraison ───────────────────────────────────────────
+
+model Delivery {
+  id          String         @id @default(cuid())
+  orderId     String         @unique
+  order       Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  driverId    String?
+  driver      DriverProfile? @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  status      DeliveryStatus @default(ASSIGNED)
+  assignedAt  DateTime       @default(now())
+  pickedUpAt  DateTime?
+  arrivedAt   DateTime?
+  deliveredAt DateTime?
+
+  proof    DeliveryProof?
+  otpCodes OtpCode[]
+}
+
+model DeliveryProof {
+  id           String   @id @default(cuid())
+  deliveryId   String   @unique
+  delivery     Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  otpCode      String
+  confirmedAt  DateTime @default(now())
+  signatureUrl String?
+  photoUrl     String?
+  latitude     Float?
+  longitude    Float?
+}
+
+model OtpCode {
+  id          String    @id @default(cuid())
+  deliveryId  String
+  delivery    Delivery  @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  code        String
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(5)
+  consumedAt  DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+// ── Litiges ─────────────────────────────────────────────
+
+model Dispute {
+  id          String        @id @default(cuid())
+  orderId     String        @unique
+  order       Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  reason      DisputeReason
+  description String?
+  status      DisputeStatus @default(OPEN)
+  decision    String?
+  createdAt   DateTime      @default(now())
+  resolvedAt  DateTime?
+
+  messages DisputeMessage[]
+}
+
+model DisputeMessage {
+  id            String   @id @default(cuid())
+  disputeId     String
+  dispute       Dispute  @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+  authorUserId  String
+  body          String?
+  attachmentUrl String?
+  createdAt     DateTime @default(now())
+}
+
+// ── Notifications / audit / conformité ─────────────────
+
+model Notification {
+  id         String           @id @default(cuid())
+  userId     String
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       NotificationType
+  readAt     DateTime?
+  entityType String?
+  entityId   String?
+  createdAt  DateTime         @default(now())
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String?
+  actor       User?    @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  action      String   // ex. "FUNDS_RELEASE_TEST"
+  entityType  String
+  entityId    String
+  metadata    String?  // JSON sérialisé
+  createdAt   DateTime @default(now())
+}
+
+model KycDocument {
+  id        String        @id @default(cuid())
+  sellerId  String
+  seller    SellerProfile @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  type      String
+  fileUrl   String
+  status    KycStatus     @default(PENDING)
+  createdAt DateTime      @default(now())
+}
+
+model Setting {
+  key   String @id
+  value String // JSON sérialisé
+}
