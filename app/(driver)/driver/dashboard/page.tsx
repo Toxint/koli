@@ -82,7 +82,7 @@ export default async function DriverDashboardPage() {
                   (acc, item) => acc + item.unitPrice * item.quantity,
                   order.deliveryFee
                 );
-                const isDelivered = delivery.status === "DELIVERED";
+                const isDelivered = delivery.status === "CONFIRMED";
                 const otpCode = delivery.otpCodes[0]?.code || "1234";
 
                 return (
@@ -149,7 +149,7 @@ export default async function DriverDashboardPage() {
                           Tél Vendeur : <strong className="text-slate-800 dark:text-slate-200">{order.seller.user.phone}</strong>
                         </p>
                         <p className="text-xs text-slate-400 mt-1">
-                          Article : {order.items[0]?.title || "Colis KOLI"} (x{order.items[0]?.quantity || 1})
+                          Article : {order.items[0]?.product.name || "Colis KOLI"} (x{order.items[0]?.quantity || 1})
                         </p>
                       </div>
                     </div>

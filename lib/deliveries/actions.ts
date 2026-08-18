@@ -44,7 +44,7 @@ export async function validateDeliveryOtpAction(
       include: {
         order: {
           include: {
-            funds: true,
+            fund: true,
           },
         },
         otpCodes: true,
@@ -58,7 +58,7 @@ export async function validateDeliveryOtpAction(
       };
     }
 
-    if (delivery.status === "DELIVERED") {
+    if (delivery.status === "CONFIRMED") {
       return {
         success: false,
         error: "Cette livraison a déjà été marquée comme effectuée.",
@@ -67,7 +67,7 @@ export async function validateDeliveryOtpAction(
 
     // Verify OTP code match
     const matchingOtpRecord = delivery.otpCodes.find(
-      (otpRecord) => otpRecord.code === cleanedOtp && !otpRecord.isUsed
+      (otpRecord) => otpRecord.code === cleanedOtp && !otpRecord.consumedAt
     );
 
     // Fallback for test mode if OTP record isn't explicitly found but matches order reference or demo pattern
@@ -90,15 +90,15 @@ export async function validateDeliveryOtpAction(
       if (matchingOtpRecord) {
         await tx.otpCode.update({
           where: { id: matchingOtpRecord.id },
-          data: { isUsed: true, usedAt: now },
+          data: { consumedAt: now },
         });
       }
 
-      // 2. Mark delivery as DELIVERED
+      // 2. Mark delivery as CONFIRMED
       await tx.delivery.update({
         where: { id: deliveryId },
         data: {
-          status: "DELIVERED",
+          status: "CONFIRMED",
           deliveredAt: now,
         },
       });
