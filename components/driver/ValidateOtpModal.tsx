@@ -7,15 +7,18 @@ interface ValidateOtpModalProps {
   deliveryId: string;
   orderReference: string;
   buyerName: string;
-  expectedOtp?: string;
   isDelivered?: boolean;
 }
 
+/**
+ * Le code OTP n'est volontairement PAS transmis a ce composant : il n'appartient
+ * qu'au client (§27). Le livreur doit le lui demander de vive voix — c'est ce
+ * qui fait de l'OTP une preuve de remise (§28).
+ */
 export function ValidateOtpModal({
   deliveryId,
   orderReference,
   buyerName,
-  expectedOtp = "1234",
   isDelivered = false,
 }: ValidateOtpModalProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -65,7 +68,7 @@ export function ValidateOtpModal({
         <svg className="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
         </svg>
-        <span>Commande Livrée & Fonds Libérés</span>
+        <span>Colis remis — en attente de confirmation du client</span>
       </div>
     );
   }
@@ -108,25 +111,6 @@ export function ValidateOtpModal({
               Demandez au client <strong className="text-slate-900 dark:text-white">{buyerName}</strong> le code OTP reçu lors de sa commande (<strong className="font-mono text-amber-600 dark:text-amber-400">{orderReference}</strong>).
             </p>
 
-            {/* Test Helper Shortcut */}
-            <div className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 p-3 rounded-2xl flex items-center justify-between text-xs">
-              <div>
-                <span className="font-bold text-amber-800 dark:text-amber-300 block">
-                  💡 Code OTP de test du client :
-                </span>
-                <span className="font-mono font-extrabold text-amber-900 dark:text-amber-200 text-sm">
-                  {expectedOtp}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setOtpInput(expectedOtp)}
-                className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-[11px] transition-colors"
-              >
-                Remplir
-              </button>
-            </div>
-
             {error && (
               <div className="p-3.5 rounded-xl bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-xs font-medium flex items-center gap-2">
                 <span>⚠️</span>
@@ -148,11 +132,12 @@ export function ValidateOtpModal({
                 </label>
                 <input
                   type="text"
+                  inputMode="numeric"
                   maxLength={6}
                   required
                   value={otpInput}
                   onChange={(e) => setOtpInput(e.target.value)}
-                  placeholder="Ex: 1234"
+                  placeholder="••••"
                   className="w-full px-4 py-3.5 rounded-2xl border-2 border-amber-300 dark:border-amber-500/50 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-center text-2xl font-black tracking-[0.3em] focus:outline-none focus:ring-4 focus:ring-amber-500/30 focus:border-amber-500 transition-all placeholder:text-slate-400 placeholder:tracking-normal placeholder:text-sm"
                 />
               </div>
@@ -179,7 +164,7 @@ export function ValidateOtpModal({
                       <span>Validation...</span>
                     </>
                   ) : (
-                    "Valider & Débloquer Fonds"
+                    "Valider la livraison"
                   )}
                 </button>
               </div>

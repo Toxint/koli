@@ -5,6 +5,7 @@ import {
   canTransition,
   assertTransition,
   isTerminalStatus,
+  findTransitionPath,
   InvalidOrderTransitionError,
 } from "./statusMachine";
 
@@ -107,6 +108,56 @@ describe("machine a etats des commandes", () => {
     expect(canTransition(OrderStatus.DISPUTE_OPEN, OrderStatus.COMPLETED)).toBe(
       false
     );
+  });
+
+  describe("findTransitionPath", () => {
+    it("retourne un chemin vide pour un statut identique", () => {
+      expect(
+        findTransitionPath(OrderStatus.DELIVERED, OrderStatus.DELIVERED)
+      ).toEqual([]);
+    });
+
+    it("trouve le saut direct quand il existe", () => {
+      expect(
+        findTransitionPath(OrderStatus.DRAFT, OrderStatus.PAYMENT_PENDING)
+      ).toEqual([OrderStatus.PAYMENT_PENDING]);
+    });
+
+    it("traverse les jalons de livraison depuis FUNDS_SECURED", () => {
+      const chemin = findTransitionPath(
+        OrderStatus.FUNDS_SECURED,
+        OrderStatus.DELIVERED
+      );
+      expect(chemin).toEqual([
+        OrderStatus.SELLER_ACCEPTED,
+        OrderStatus.PACKAGE_PREPARING,
+        OrderStatus.READY_FOR_PICKUP,
+        OrderStatus.PICKED_UP,
+        OrderStatus.IN_TRANSIT,
+        OrderStatus.ARRIVED,
+        OrderStatus.DELIVERED,
+      ]);
+    });
+
+    it("ne produit que des sauts legaux", () => {
+      const chemin = findTransitionPath(
+        OrderStatus.FUNDS_SECURED,
+        OrderStatus.DELIVERED
+      );
+      let courant: OrderStatus = OrderStatus.FUNDS_SECURED;
+      for (const etape of chemin ?? []) {
+        expect(canTransition(courant, etape), `${courant} -> ${etape}`).toBe(
+          true
+        );
+        courant = etape;
+      }
+    });
+
+    it("retourne null quand aucun chemin n'existe", () => {
+      expect(
+        findTransitionPath(OrderStatus.COMPLETED, OrderStatus.FUNDS_SECURED)
+      ).toBeNull();
+    });
   });
 
   describe("assertTransition", () => {

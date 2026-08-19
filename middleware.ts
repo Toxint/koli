@@ -3,9 +3,20 @@ import type { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
 
 const COOKIE_NAME = "koli_session";
-const SECRET_KEY = new TextEncoder().encode(
-  process.env.AUTH_SECRET || "koli-dev-secret-key-super-secure-change-in-production"
-);
+
+/** Voir lib/auth/session.ts : aucune valeur de repli, jamais de secret en dur. */
+function getSecretKey(): Uint8Array {
+  const secret = process.env.AUTH_SECRET;
+
+  if (!secret || secret.trim().length < 32) {
+    throw new Error(
+      "AUTH_SECRET manquant ou trop court (32 caracteres minimum). " +
+        "Definissez-le dans .env — voir .env.example."
+    );
+  }
+
+  return new TextEncoder().encode(secret);
+}
 
 // Map paths to required roles
 const ROLE_ROUTES: { prefix: string; role: string; redirect: string }[] = [
@@ -23,7 +34,7 @@ export async function middleware(request: NextRequest) {
 
   if (token) {
     try {
-      const { payload } = await jwtVerify(token, SECRET_KEY, {
+      const { payload } = await jwtVerify(token, getSecretKey(), {
         algorithms: ["HS256"],
       });
       userPayload = payload as unknown as { userId: string; role: string };

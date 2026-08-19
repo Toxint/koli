@@ -1,21 +1,29 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
+import { OrderStatus } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/prisma";
-import { revalidatePath } from "next/cache";
+import { findTransitionPath } from "@/lib/orders/statusMachine";
 
 export type ValidateOtpResponse = {
   success: boolean;
   message?: string;
   error?: string;
+  /** Tentatives restantes, renseigne uniquement en cas de code errone. */
+  attemptsLeft?: number;
 };
 
 /**
- * Validates the OTP code entered by the driver upon delivery to the customer.
- * - Updates OtpCode to used
- * - Updates Delivery status to DELIVERED
- * - Updates Order status to DELIVERED
- * - Releases the seller's escrow funds (KOLI Hold -> Released)
+ * Validation par le livreur du code OTP remis par le client (§27).
+ *
+ * Effets : consomme le code, marque la livraison CONFIRMED, la commande
+ * DELIVERED, et enregistre la preuve de livraison (§28).
+ *
+ * Ce que cette action NE fait PAS : liberer les fonds. Le §29 est explicite —
+ * c'est le CLIENT qui confirme la reception, et c'est cette confirmation qui
+ * declenche la liberation (voir `confirmReceptionAction`). Livrer n'est pas
+ * etre paye : c'est toute la promesse de KOLI.
  */
 export async function validateDeliveryOtpAction(
   deliveryId: string,
@@ -26,35 +34,35 @@ export async function validateDeliveryOtpAction(
     if (!user || user.role !== "DRIVER" || !user.driverProfile) {
       return {
         success: false,
-        error: "Action non autorisée. Vous devez être connecté en tant que livreur.",
+        error:
+          "Action non autorisée. Vous devez être connecté en tant que livreur.",
       };
     }
 
     const cleanedOtp = otpInput.trim();
-    if (!cleanedOtp || cleanedOtp.length < 4) {
+    if (!/^\d{4,8}$/.test(cleanedOtp)) {
       return {
         success: false,
-        error: "Veuillez saisir un code OTP valide (ex: 4 chiffres).",
+        error: "Veuillez saisir un code OTP valide (4 chiffres).",
       };
     }
 
-    // Find delivery
     const delivery = await prisma.delivery.findUnique({
       where: { id: deliveryId },
-      include: {
-        order: {
-          include: {
-            fund: true,
-          },
-        },
-        otpCodes: true,
-      },
+      include: { order: true, otpCodes: true },
     });
 
     if (!delivery) {
+      return { success: false, error: "Livraison introuvable." };
+    }
+
+    // --- Verification de propriete (§47, §71) ---
+    // Le controle de role seul ne suffit pas : sans ce test, n'importe quel
+    // livreur authentifie pouvait valider la livraison d'un autre.
+    if (delivery.driverId !== user.driverProfile.id) {
       return {
         success: false,
-        error: "Livraison introuvable.",
+        error: "Cette livraison ne vous est pas assignée.",
       };
     }
 
@@ -65,80 +73,144 @@ export async function validateDeliveryOtpAction(
       };
     }
 
-    // Verify OTP code match
-    const matchingOtpRecord = delivery.otpCodes.find(
-      (otpRecord) => otpRecord.code === cleanedOtp && !otpRecord.consumedAt
-    );
+    // --- Code actif : le plus recent non encore consomme ---
+    const activeOtp = delivery.otpCodes
+      .filter((otp) => otp.consumedAt === null)
+      .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
 
-    // Fallback for test mode if OTP record isn't explicitly found but matches order reference or demo pattern
-    const isDemoOtpMatch =
-      cleanedOtp === "1234" ||
-      delivery.otpCodes.some((o) => o.code === cleanedOtp);
-
-    if (!matchingOtpRecord && !isDemoOtpMatch) {
+    if (!activeOtp) {
       return {
         success: false,
-        error: "Code OTP incorrect. Veuillez vérifier auprès du client.",
+        error: "Aucun code de livraison actif pour cette commande.",
       };
     }
 
-    // Execute atomic transaction to update delivery, order, and release funds
+    // --- Limitation des tentatives (§27) ---
+    if (activeOtp.attempts >= activeOtp.maxAttempts) {
+      return {
+        success: false,
+        error:
+          "Trop de tentatives incorrectes. Contactez le support KOLI pour débloquer cette livraison.",
+        attemptsLeft: 0,
+      };
+    }
+
+    if (activeOtp.code !== cleanedOtp) {
+      const updated = await prisma.otpCode.update({
+        where: { id: activeOtp.id },
+        data: { attempts: { increment: 1 } },
+      });
+
+      const attemptsLeft = Math.max(
+        updated.maxAttempts - updated.attempts,
+        0
+      );
+
+      return {
+        success: false,
+        error:
+          attemptsLeft > 0
+            ? `Code incorrect. Il vous reste ${attemptsLeft} tentative(s).`
+            : "Code incorrect. Nombre maximal de tentatives atteint.",
+        attemptsLeft,
+      };
+    }
+
+    // --- Chemin de statuts jusqu'a DELIVERED ---
+    // Les jalons intermediaires du livreur (colis recupere, en transit, arrive)
+    // n'ont pas encore d'interface dediee : ils seront poses un par un en
+    // phase 15. En attendant, on franchit le chemin d'un bloc — chaque saut
+    // reste une transition legale et chacun est journalise.
+    const path = findTransitionPath(delivery.order.status, OrderStatus.DELIVERED);
+
+    if (path === null) {
+      return {
+        success: false,
+        error: `Cette commande n'est pas dans un état permettant la livraison (${delivery.order.status}).`,
+      };
+    }
+
     const now = new Date();
 
     await prisma.$transaction(async (tx) => {
-      // 1. Mark OTP codes for this delivery as used
-      if (matchingOtpRecord) {
-        await tx.otpCode.update({
-          where: { id: matchingOtpRecord.id },
-          data: { consumedAt: now },
-        });
+      // Consommation du code, conditionnee pour rester idempotente face a un
+      // double envoi : si un autre appel l'a deja consomme, on s'arrete.
+      const consumed = await tx.otpCode.updateMany({
+        where: { id: activeOtp.id, consumedAt: null },
+        data: { consumedAt: now },
+      });
+
+      if (consumed.count === 0) {
+        throw new OtpAlreadyConsumedError();
       }
 
-      // 2. Mark delivery as CONFIRMED
       await tx.delivery.update({
         where: { id: deliveryId },
+        data: { status: "CONFIRMED", deliveredAt: now },
+      });
+
+      // Preuve de livraison (§28) : OTP, date, livreur, commande.
+      // Les champs signature / photo / geolocalisation restent prevus pour plus tard.
+      await tx.deliveryProof.create({
         data: {
-          status: "CONFIRMED",
-          deliveredAt: now,
+          deliveryId,
+          otpCode: activeOtp.code,
+          confirmedAt: now,
         },
       });
 
-      // 3. Mark order as DELIVERED
-      await tx.order.update({
-        where: { id: delivery.orderId },
-        data: {
-          status: "DELIVERED",
-        },
-      });
+      if (path.length > 0) {
+        await tx.order.update({
+          where: { id: delivery.orderId },
+          data: { status: OrderStatus.DELIVERED },
+        });
 
-      // 4. Release Escrow Funds for seller
-      await tx.fund.updateMany({
-        where: {
-          sellerId: delivery.order.sellerId,
-          secured: true,
-          released: false,
-        },
-        data: {
-          released: true,
-          releasedAt: now,
-        },
-      });
+        let from = delivery.order.status;
+        for (const to of path) {
+          await tx.orderStatusHistory.create({
+            data: {
+              orderId: delivery.orderId,
+              fromStatus: from,
+              toStatus: to,
+              actorUserId: user.id,
+            },
+          });
+          from = to;
+        }
+      }
     });
 
     revalidatePath("/driver/dashboard");
     revalidatePath("/seller/dashboard");
     revalidatePath("/seller/commandes");
-    revalidatePath(`/commande/${delivery.order.reference}`);
+    revalidatePath(`/pay/${delivery.order.reference}`);
 
     return {
       success: true,
-      message: `🎉 Code OTP validé ! La commande ${delivery.order.reference} a été livrée et les fonds du vendeur ont été libérés avec succès.`,
+      message:
+        `Code OTP validé. La commande ${delivery.order.reference} est marquée comme livrée. ` +
+        `Les fonds seront versés au vendeur dès que le client aura confirmé la réception.`,
     };
   } catch (error) {
+    if (error instanceof OtpAlreadyConsumedError) {
+      return {
+        success: false,
+        error: "Ce code a déjà été utilisé pour cette livraison.",
+      };
+    }
+
     console.error("Erreur lors de la validation OTP:", error);
     return {
       success: false,
-      error: "Erreur serveur lors de la validation du code OTP. Veuillez réessayer.",
+      error:
+        "Erreur serveur lors de la validation du code OTP. Veuillez réessayer.",
     };
+  }
+}
+
+class OtpAlreadyConsumedError extends Error {
+  constructor() {
+    super("Code OTP deja consomme par un appel concurrent.");
+    this.name = "OtpAlreadyConsumedError";
   }
 }

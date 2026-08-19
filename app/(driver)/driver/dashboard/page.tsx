@@ -22,7 +22,9 @@ export default async function DriverDashboardPage() {
           seller: { include: { user: true } },
         },
       },
-      otpCodes: true,
+      // Volontairement PAS d'`otpCodes` ici : les charger cote serveur les
+      // ferait transiter dans la charge utile envoyee au navigateur du livreur,
+      // ou ils seraient lisibles. Le code n'appartient qu'au client (§27).
     },
     orderBy: { assignedAt: "desc" },
   });
@@ -83,7 +85,6 @@ export default async function DriverDashboardPage() {
                   order.deliveryFee
                 );
                 const isDelivered = delivery.status === "CONFIRMED";
-                const otpCode = delivery.otpCodes[0]?.code || "1234";
 
                 return (
                   <div
@@ -170,7 +171,6 @@ export default async function DriverDashboardPage() {
                         deliveryId={delivery.id}
                         orderReference={order.reference}
                         buyerName={order.buyerName}
-                        expectedOtp={otpCode}
                         isDelivered={isDelivered}
                       />
                     </div>

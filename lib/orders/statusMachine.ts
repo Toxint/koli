@@ -77,6 +77,50 @@ export function canTransition(from: OrderStatus, to: OrderStatus): boolean {
 }
 
 /**
+ * Cherche le plus court enchainement de transitions LEGALES menant de `from`
+ * a `to`, bornes exclus/inclus : le tableau retourne commence au premier saut
+ * et se termine par `to`. Retourne `null` si aucun chemin n'existe.
+ *
+ * Utile tant que certaines etapes intermediaires n'ont pas d'interface dediee
+ * (ex. les jalons du livreur, phase 15) : on franchit le chemin d'un bloc, mais
+ * chaque saut reste valide et chaque etape est journalisee.
+ */
+export function findTransitionPath(
+  from: OrderStatus,
+  to: OrderStatus
+): OrderStatus[] | null {
+  if (from === to) return [];
+
+  const queue: OrderStatus[] = [from];
+  const previous = new Map<OrderStatus, OrderStatus>();
+  const seen = new Set<OrderStatus>([from]);
+
+  while (queue.length > 0) {
+    const current = queue.shift() as OrderStatus;
+
+    for (const next of ORDER_STATUS_TRANSITIONS[current]) {
+      if (seen.has(next)) continue;
+      seen.add(next);
+      previous.set(next, current);
+
+      if (next === to) {
+        const path: OrderStatus[] = [to];
+        let step = to;
+        while (previous.get(step) !== from) {
+          step = previous.get(step) as OrderStatus;
+          path.unshift(step);
+        }
+        return path;
+      }
+
+      queue.push(next);
+    }
+  }
+
+  return null;
+}
+
+/**
  * Erreur levee lorsqu'une transition interdite est tentee.
  * Distincte d'une Error generique pour que les actions serveur puissent la
  * rattraper et repondre proprement a l'utilisateur (§65).

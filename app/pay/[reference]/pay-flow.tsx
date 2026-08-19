@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { formatCFA } from "@/lib/format";
 import { simulatePaymentAction } from "@/lib/payments/actions";
+import { confirmReceptionAction } from "@/lib/orders/actions";
 
 interface PayFlowProps {
   order: {
@@ -41,11 +42,13 @@ export function PayFlow({ order }: PayFlowProps) {
     setLoading(true);
     setError(null);
     try {
-      const res = await simulatePaymentAction(order.id, outcome);
-      if (res.success && res.status) {
+      // L'action est indexee sur la reference : c'est elle qui circule dans le
+      // lien de paiement et qui fait office de capacite (voir lib/payments/actions.ts).
+      const res = await simulatePaymentAction(order.reference, outcome);
+      if (res.success) {
         setStatus(res.status);
       } else {
-        setError(res.error || "Échec du paiement");
+        setError(res.error);
       }
     } catch {
       setError("Erreur réseau");
@@ -54,17 +57,60 @@ export function PayFlow({ order }: PayFlowProps) {
     }
   };
 
-  if (status === "FUNDS_SECURED" || status === "CUSTOMER_CONFIRMED" || status === "DELIVERED" || status === "FUNDS_RELEASED" || status === "COMPLETED") {
+  const handleConfirmReception = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await confirmReceptionAction(order.reference);
+      if (res.success) {
+        setStatus(res.status);
+      } else {
+        setError(res.error);
+      }
+    } catch {
+      setError("Erreur réseau");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const estPaye =
+    status === "FUNDS_SECURED" ||
+    status === "CUSTOMER_CONFIRMED" ||
+    status === "DELIVERED" ||
+    status === "FUNDS_RELEASED" ||
+    status === "COMPLETED";
+
+  if (estPaye) {
+    // §29 : une fois le colis remis, le client doit confirmer la réception.
+    // C'est cette confirmation — et elle seule — qui libère les fonds au vendeur.
+    const attendConfirmation = status === "DELIVERED";
+    const estTermine = status === "FUNDS_RELEASED" || status === "COMPLETED";
+
     return (
       <div className="max-w-md mx-auto py-12 px-4 text-center space-y-4">
-        <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center text-3xl mx-auto shadow-lg shadow-emerald-500/20">
-          ✅
+        <div
+          className={`w-16 h-16 rounded-full flex items-center justify-center text-3xl mx-auto shadow-lg ${
+            attendConfirmation
+              ? "bg-amber-100 text-amber-600 shadow-amber-500/20"
+              : "bg-emerald-100 text-emerald-600 shadow-emerald-500/20"
+          }`}
+        >
+          {attendConfirmation ? "📦" : "✅"}
         </div>
         <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white">
-          Paiement Sécurisé KOLI Confirmé !
+          {attendConfirmation
+            ? "Avez-vous reçu votre commande ?"
+            : estTermine
+              ? "Commande terminée"
+              : "Paiement sécurisé KOLI confirmé"}
         </h1>
         <p className="text-sm text-slate-600 dark:text-slate-300">
-          Vos fonds sont conservés en **Mode Test (KOLI Hold)**. Le vendeur a été notifié et prépare l'expédition de votre colis.
+          {attendConfirmation
+            ? "Le livreur a marqué votre colis comme remis. Confirmez la réception pour que le vendeur soit payé."
+            : estTermine
+              ? "Vous avez confirmé la réception. Les fonds ont été versés au vendeur (mode test)."
+              : "Vos fonds sont conservés par KOLI (mode test). Le vendeur a été notifié et prépare l'expédition de votre colis."}
         </p>
 
         <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl text-left text-xs space-y-2">
@@ -85,6 +131,34 @@ export function PayFlow({ order }: PayFlowProps) {
             <span>{order.buyerAddress}, {order.buyerCity}</span>
           </div>
         </div>
+
+        {error && (
+          <div className="p-4 rounded-2xl bg-red-50 text-red-700 text-sm font-medium">
+            {error}
+          </div>
+        )}
+
+        {attendConfirmation && (
+          <div className="space-y-3 pt-2">
+            <button
+              type="button"
+              disabled={loading}
+              onClick={handleConfirmReception}
+              className="w-full min-h-[48px] py-4 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs uppercase tracking-wider shadow-lg shadow-emerald-600/25 transition-all disabled:opacity-50 cursor-pointer"
+            >
+              {loading ? "Traitement en cours…" : "Oui, j'ai reçu ma commande"}
+            </button>
+
+            <button
+              type="button"
+              disabled
+              title="La gestion des litiges arrive dans une prochaine étape."
+              className="w-full min-h-[48px] py-3 px-4 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-500 font-semibold text-xs disabled:opacity-60 cursor-not-allowed"
+            >
+              Signaler un problème (bientôt disponible)
+            </button>
+          </div>
+        )}
       </div>
     );
   }
@@ -195,7 +269,7 @@ export function PayFlow({ order }: PayFlowProps) {
           </div>
 
           <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 text-xs">
-            🛡️ <strong>Garantie KOLI Protect :</strong> Les fonds restent sous séquestre jusqu'à la livraison effective et la saisie du code OTP.
+            🛡️ <strong>Garantie KOLI Protect :</strong> Les fonds restent sous séquestre jusqu&apos;à ce que vous confirmiez avoir reçu votre commande. Le vendeur n&apos;est payé qu&apos;après votre validation.
           </div>
         </div>
       </div>
