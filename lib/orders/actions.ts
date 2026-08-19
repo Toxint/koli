@@ -235,13 +235,33 @@ export async function confirmReceptionAction(
     };
   }
 
+  // Seule une commande effectivement livree peut etre confirmee.
+  //
+  // On ne passe volontairement PAS par findTransitionPath ici : celui-ci
+  // trouverait un chemin depuis FUNDS_SECURED en traversant toute la chaine de
+  // livraison, et le client pourrait donc « confirmer » un colis jamais parti —
+  // ce qui viderait la garantie KOLI de son sens. La traversee multi-sauts n'a
+  // de sens que pour le livreur, qui a physiquement remis le colis.
+  const departsAutorises: OrderStatus[] = [
+    OrderStatus.DELIVERED,
+    // Reprise si une tentative precedente s'est interrompue entre les deux etapes.
+    OrderStatus.CUSTOMER_CONFIRMED,
+  ];
+
+  if (!departsAutorises.includes(order.status)) {
+    return {
+      success: false,
+      error:
+        "Cette commande n'a pas encore ete livree. La confirmation sera possible des reception du colis.",
+    };
+  }
+
   const path = findTransitionPath(order.status, OrderStatus.FUNDS_RELEASED);
 
   if (path === null) {
     return {
       success: false,
-      error:
-        "Cette commande n'a pas encore ete livree. La confirmation sera possible des reception du colis.",
+      error: "Cette commande ne peut pas etre confirmee dans son etat actuel.",
     };
   }
 
