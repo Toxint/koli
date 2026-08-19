@@ -1,6 +1,34 @@
 # KOLI — Document technique (Phase 0)
 
-Produit conformément à `docs/koli-plan.md` §79 et §87 : architecture, arborescence, schéma de base de données, rôles/permissions, workflows, routes, composants principaux — à valider avant le début de la Phase 1.
+Produit conformément à `docs/koli-plan.md` §79 et §87 : architecture, arborescence, schéma de base de données, rôles/permissions, workflows, routes, composants principaux.
+
+---
+
+## ⚠️ Correctifs post-validation (19/08/2026)
+
+Ce document a été validé, puis confronté au code réel. Quatre points ont dû être corrigés — ils sont signalés ici plutôt que réécrits en silence.
+
+**1. Les groupes de routes ne posaient pas le problème que je craignais.**
+J'avais annoncé que `(client)/`, `(seller)/`, `(driver)/`, `(admin)/` du §2 provoqueraient une collision d'URL. C'est faux dans la forme retenue : le motif utilisé est `app/(admin)/admin/…`, c'est-à-dire un groupe qui *contient* un vrai segment de même nom. Le groupe est transparent, le segment porte l'URL — aucune collision. Ma crainte n'était fondée que si le segment réel avait été omis.
+
+**2. §5 — la machine à états mélangeait deux enums.**
+Le tableau listait `ADMIN_REVIEW`, `SELLER_WINS` et `CUSTOMER_WINS` comme statuts de commande. Ils n'existent que dans `DisputeStatus` et vivent sur `Dispute.status`. Au niveau de la commande, la résolution d'un litige s'écrit `DISPUTE_OPEN → FUNDS_RELEASED` (vendeur) ou `DISPUTE_OPEN → REFUND_PENDING` (client). Corrigé dans `lib/orders/statusMachine.ts`, qui fait désormais foi.
+
+**3. §9 annonçait le schéma Prisma en Phase 1.** Il relève de la Phase 2 (`koli-plan.md` §78).
+
+**4. Modèle de libération des fonds — changement de fond (§29).**
+Le code livré libérait les fonds au vendeur dès la saisie du code OTP par le livreur. Le §29 impose une confirmation de réception **par le client** avant toute libération, et c'est le cœur même de la proposition de valeur (§82, priorité n°3). Le modèle retenu est donc :
+
+```
+Livreur saisit l'OTP  →  commande DELIVERED   (le vendeur n'est PAS payé)
+Client confirme       →  CUSTOMER_CONFIRMED → FUNDS_RELEASED
+```
+
+Second chemin possible, à construire en Phase 21 : la décision d'un administrateur sur un litige.
+
+**Complément d'arborescence** : le §2 omettait `livraisons/` (liste) côté livreur, ainsi que `clients/`, `livreurs/`, `transactions/` et `profil/` côté admin, tous présents au §9 du cahier des charges.
+
+**URLs** : les espaces sont en français — `/client`, `/vendeur`, `/livreur`, `/admin`.
 
 ---
 
@@ -514,15 +542,16 @@ READY_FOR_PICKUP → PICKED_UP
 PICKED_UP → IN_TRANSIT
 IN_TRANSIT → ARRIVED | DELIVERY_FAILED
 ARRIVED → DELIVERED
-DELIVERED → CUSTOMER_CONFIRMED | DISPUTE_OPEN
+DELIVERED → CUSTOMER_CONFIRMED | DISPUTE_OPEN | RETURN_REQUESTED
 CUSTOMER_CONFIRMED → FUNDS_RELEASED
 FUNDS_RELEASED → COMPLETED
-DISPUTE_OPEN → ADMIN_REVIEW
-ADMIN_REVIEW → (décision) → SELLER_WINS → FUNDS_RELEASED
-ADMIN_REVIEW → (décision) → CUSTOMER_WINS → REFUND_PENDING → REFUNDED
+DISPUTE_OPEN → FUNDS_RELEASED (décision admin : vendeur) | REFUND_PENDING (décision admin : client)
+REFUND_PENDING → REFUNDED
 ```
 
-Toute tentative de transition hors de cette table est rejetée côté serveur (`lib/orders/statusMachine.ts`). Tant qu'un litige est ouvert, aucun chemin ne mène à `FUNDS_RELEASED` (§33).
+`ADMIN_REVIEW`, `SELLER_WINS` et `CUSTOMER_WINS` **ne sont pas** des statuts de commande : ils appartiennent à `DisputeStatus` et vivent sur `Dispute.status` (voir correctif n°2 en tête de document).
+
+Toute tentative de transition hors de cette table est rejetée côté serveur (`lib/orders/statusMachine.ts`, qui fait foi). Tant qu'un litige est ouvert, seule une décision d'administrateur peut mener à `FUNDS_RELEASED` (§33) — la confirmation client est refusée dans cet état.
 
 ---
 
@@ -580,8 +609,40 @@ Aucun de ces points ne bloque le démarrage — ce sont des interprétations rai
 
 ---
 
-## 9. Prochaine étape
+## 9. État réel au 19/08/2026
 
-Une fois ce document validé : démarrage de la **Phase 1 — Initialisation du projet** (installation Prisma/Zod/bcrypt/jose/Vitest, mise en place de `middleware.ts`, création du schéma Prisma et première migration), suivie immédiatement de la **Phase 2 — Base de données**, en conservant à chaque étape le principe du §1 de `koli-plan.md` : implémenter → tester → vérifier erreurs/responsive/permissions/régressions → seulement ensuite avancer.
+### Implémenté et sécurisé
 
-**Dépendant de la réponse sur Antigravity :** si l'implémentation se fait dans un autre outil, cette section devient un simple pense-bête pour cet outil plutôt qu'une instruction pour cette session.
+| Domaine | État |
+|---|---|
+| Schéma de données | Complet — les 22 tables du §49, montants entiers FCFA, escrow en table `Fund` de premier ordre |
+| Authentification | Session JWT en cookie httpOnly, mots de passe bcrypt, garde de rôle dans `middleware.ts` + vérification serveur dans chaque action |
+| Machine à états | `lib/orders/statusMachine.ts` — transitions autorisées, chemins multi-sauts, états terminaux |
+| Abstraction paiement | `PaymentProvider` / `TestPaymentProvider`, sélection unique via `lib/config/mode.ts` |
+| Garde MODE TEST | Toute valeur de `PAYMENT_MODE` autre que `test` fait échouer l'application |
+| Idempotence | Paiement, validation OTP et libération des fonds : écritures conditionnelles, aucune double opération |
+| Parcours complet | Création commande → lien de paiement → paiement simulé → fonds sécurisés → OTP livreur → confirmation client → fonds libérés |
+| Preuve de livraison | `DeliveryProof` (OTP, date, commande) ; signature / photo / géolocalisation prévues plus tard |
+
+### Tables existantes mais encore vides (par choix, phases à venir)
+
+`Dispute`, `DisputeMessage` (Phase 21) · `Refund` (Phase 22) · `Invoice` (Phase 20) · `Notification` (Phase 25) · `AuditLog` (Phase 26) · `KycDocument` (Phase 24) · `Commission` — la table est alimentée, mais aucun prélèvement n'est calculé (Phase 19).
+
+### Manques connus, à traiter dans leur phase
+
+- **Navigation (§10)** — il n'existe aucune sidebar ni menu mobile. La navigation se réduit à un en-tête avec logo, badge de rôle et déconnexion. À construire quand il y aura des pages à desservir (Phase 5 revisitée).
+- **Jalons du livreur (§26)** — les étapes intermédiaires (colis récupéré, en transit, arrivé) n'ont pas d'interface. La validation OTP franchit le chemin d'un bloc, chaque saut restant une transition légale et journalisée. À remplacer par de vraies actions en Phase 15, avec un état « non assignée » à ajouter à l'enum `DeliveryStatus`.
+- **Assignation du livreur (§26)** — action explicite du vendeur, à construire (Phase 15). D'ici là, les livraisons n'apparaissent chez aucun livreur.
+- **Tableaux sur mobile (§8)** — défilement horizontal au lieu d'une conversion en cartes (Phase 28).
+- **Breakpoint tablette** — seuls `sm:` et `lg:` sont utilisés ; `md:` (768px, §7) est inexploité (Phase 28).
+- **`/pay/<référence>` inexistante** renvoie une page « Commande introuvable » avec un statut HTTP 200 plutôt qu'un 404.
+- **Convention Next.js** — Next 16 signale que `middleware.ts` est déprécié au profit de `proxy.ts`. Migration à planifier.
+- **Migrations Prisma** — la base est construite via `db push`, sans dossier `prisma/migrations/`. À mettre en place avant tout déploiement partagé.
+
+### Vérifications en place
+
+`npm run typecheck` · `npm run lint` · `npm test` (41 tests) · `npm run build` — tous propres. Les tests couvrent la machine à états, la génération des références, et les garde-fous de sécurité des actions serveur (autorisation, propriété, idempotence, plafond de tentatives OTP, portée de la libération d'escrow).
+
+### Point de reprise
+
+Consolidation terminée. La suite reprend la discipline phase par phase de `koli-plan.md` §78 — vraisemblablement **Phase 5 revisitée** (navigation vendeur) puis **Phase 6 (Produits)**. Aucune phase ne démarre sans validation explicite.
