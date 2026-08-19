@@ -20,8 +20,8 @@ function getSecretKey(): Uint8Array {
 
 // Map paths to required roles
 const ROLE_ROUTES: { prefix: string; role: string; redirect: string }[] = [
-  { prefix: "/seller", role: "SELLER", redirect: "/connexion" },
-  { prefix: "/driver", role: "DRIVER", redirect: "/connexion" },
+  { prefix: "/vendeur", role: "SELLER", redirect: "/connexion" },
+  { prefix: "/livreur", role: "DRIVER", redirect: "/connexion" },
   { prefix: "/client", role: "CLIENT", redirect: "/connexion" },
   { prefix: "/admin", role: "ADMIN", redirect: "/connexion" },
 ];
@@ -72,9 +72,9 @@ export async function middleware(request: NextRequest) {
 function getDefaultDashboardForRole(role: string): string {
   switch (role) {
     case "SELLER":
-      return "/seller/dashboard";
+      return "/vendeur/dashboard";
     case "DRIVER":
-      return "/driver/dashboard";
+      return "/livreur/dashboard";
     case "CLIENT":
       return "/client/dashboard";
     case "ADMIN":
@@ -86,8 +86,8 @@ function getDefaultDashboardForRole(role: string): string {
 
 export const config = {
   matcher: [
-    "/seller/:path*",
-    "/driver/:path*",
+    "/vendeur/:path*",
+    "/livreur/:path*",
     "/client/:path*",
     "/admin/:path*",
     "/connexion",

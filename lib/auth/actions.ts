@@ -216,9 +216,9 @@ export async function getCurrentUser() {
 function getDefaultDashboard(role: UserRole): string {
   switch (role) {
     case "SELLER":
-      return "/seller/dashboard";
+      return "/vendeur/dashboard";
     case "DRIVER":
-      return "/driver/dashboard";
+      return "/livreur/dashboard";
     case "CLIENT":
       return "/client/dashboard";
     case "ADMIN":

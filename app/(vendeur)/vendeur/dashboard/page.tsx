@@ -72,7 +72,7 @@ export default async function SellerDashboardPage() {
           </div>
           <div className="flex gap-3 relative z-10">
             <Link
-              href="/seller/commandes/nouvelle"
+              href="/vendeur/commandes/nouvelle"
               className="px-5 py-3 rounded-2xl bg-slate-950 text-amber-400 hover:text-amber-300 font-extrabold text-xs uppercase tracking-wider shadow-xl shadow-slate-950/30 hover:scale-[1.03] active:scale-[0.98] transition-all border border-amber-400/40 flex items-center gap-2"
             >
               <span>+ Créer une commande</span>
@@ -143,7 +143,7 @@ export default async function SellerDashboardPage() {
               </p>
             </div>
             <Link
-              href="/seller/commandes"
+              href="/vendeur/commandes"
               className="text-xs font-semibold text-emerald-600 hover:text-emerald-500"
             >
               Voir toutes les commandes →

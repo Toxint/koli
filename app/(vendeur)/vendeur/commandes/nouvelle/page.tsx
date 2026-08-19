@@ -73,7 +73,7 @@ export default function NewOrderPage() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <Link
-            href="/seller/dashboard"
+            href="/vendeur/dashboard"
             className="text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 flex items-center gap-1.5 transition-colors"
           >
             ← Retour au Tableau de bord

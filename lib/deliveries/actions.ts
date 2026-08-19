@@ -180,9 +180,9 @@ export async function validateDeliveryOtpAction(
       }
     });
 
-    revalidatePath("/driver/dashboard");
-    revalidatePath("/seller/dashboard");
-    revalidatePath("/seller/commandes");
+    revalidatePath("/livreur/dashboard");
+    revalidatePath("/vendeur/dashboard");
+    revalidatePath("/vendeur/commandes");
     revalidatePath(`/pay/${delivery.order.reference}`);
 
     return {

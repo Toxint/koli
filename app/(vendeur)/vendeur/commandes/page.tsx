@@ -41,7 +41,7 @@ export default async function SellerOrdersPage() {
           </div>
 
           <Link
-            href="/seller/commandes/nouvelle"
+            href="/vendeur/commandes/nouvelle"
             className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all flex items-center gap-2"
           >
             <span>+ Créer une commande</span>

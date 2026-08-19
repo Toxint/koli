@@ -294,7 +294,7 @@ export async function confirmReceptionAction(
 
   revalidatePath(`/pay/${order.reference}`);
   revalidatePath("/client/dashboard");
-  revalidatePath("/seller/dashboard");
+  revalidatePath("/vendeur/dashboard");
 
   return { success: true, status: OrderStatus.FUNDS_RELEASED };
 }
