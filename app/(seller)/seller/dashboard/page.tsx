@@ -84,25 +84,25 @@ export default async function SellerDashboardPage() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm hover:border-amber-400/50 transition-all">
             <span className="text-[11px] font-extrabold text-amber-600 dark:text-amber-400 uppercase tracking-wider block mb-1">
-              Solde Séquestré (KOLI Hold)
+              Fonds sécurisés (test)
             </span>
             <div className="text-2xl font-black text-amber-600 dark:text-amber-400">
               {formatCFA(securedAmount)}
             </div>
             <p className="text-[11px] text-slate-400 mt-1">
-              Fonds sécurisés en attente de livraison
+              En attente de confirmation de réception par le client
             </p>
           </div>
 
           <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-slate-200/80 dark:border-slate-800 shadow-sm hover:border-emerald-400/50 transition-all">
             <span className="text-[11px] font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block mb-1">
-              Solde Libéré & Disponible
+              Solde disponible (test)
             </span>
             <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
               {formatCFA(releasedAmount)}
             </div>
             <p className="text-[11px] text-slate-400 mt-1">
-              Fonds débloqués par validation OTP
+              Libéré après confirmation de réception par le client
             </p>
           </div>
 
@@ -154,7 +154,7 @@ export default async function SellerDashboardPage() {
             <div className="text-center py-12 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
               <span className="text-4xl block mb-2">📦</span>
               <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                Aucune commande enregistrée pour l'instant
+                Aucune commande enregistrée pour l&apos;instant
               </p>
               <p className="text-xs text-slate-400 mt-1">
                 Créez votre première commande pour générer un lien de paiement KOLI.

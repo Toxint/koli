@@ -73,7 +73,7 @@ export default async function DriverDashboardPage() {
                 Aucune livraison en attente
               </h3>
               <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
-                Les nouvelles commandes à livrer apparaîtront automatiquement dès qu'un vendeur vous en assignera une.
+                Les nouvelles commandes à livrer apparaîtront automatiquement dès qu&apos;un vendeur vous en assignera une.
               </p>
             </div>
           ) : (

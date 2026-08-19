@@ -146,7 +146,7 @@ async function main() {
     },
   });
 
-  const product2 = await prisma.product.create({
+  await prisma.product.create({
     data: {
       sellerId: sellerProfileId,
       name: "Sac en Cuir Artisanal",

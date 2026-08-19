@@ -240,7 +240,7 @@ export function PayFlow({ order }: PayFlowProps) {
               Simulation de Paiement Sécurisé
             </h2>
             <p className="text-xs text-slate-500 mt-1">
-              Aucun argent réel n'est prélevé. Choisissez le scénario de test pour continuer.
+              Aucun argent réel n&apos;est prélevé. Choisissez le scénario de test pour continuer.
             </p>
           </div>
 

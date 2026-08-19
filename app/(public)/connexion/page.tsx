@@ -171,12 +171,12 @@ export default function LoginPage() {
 
           <div className="mt-6 text-center">
             <p className="text-sm text-slate-600 dark:text-slate-400">
-              Vous n'avez pas encore de compte ?{" "}
+              Vous n&apos;avez pas encore de compte ?{" "}
               <Link
                 href="/inscription"
                 className="font-semibold text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 underline underline-offset-4"
               >
-                S'inscrire gratuitement
+                S&apos;inscrire gratuitement
               </Link>
             </p>
           </div>

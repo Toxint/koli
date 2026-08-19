@@ -1,13 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { createOrderAction } from "@/lib/orders/actions";
 import { formatCFA } from "@/lib/format";
 
 export default function NewOrderPage() {
-  const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createdReference, setCreatedReference] = useState<string | null>(null);
@@ -28,13 +26,10 @@ export default function NewOrderPage() {
   const subtotal = unitPrice * quantity;
   const grandTotal = subtotal + deliveryFee;
 
-  const [origin, setOrigin] = useState("");
-
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      setOrigin(window.location.origin);
-    }
-  }, []);
+  // Base du lien de paiement partage au client. Configuree explicitement
+  // (NEXT_PUBLIC_APP_URL) plutot que deduite de window dans un effet : ainsi le
+  // lien est correct des le premier rendu, y compris cote serveur.
+  const origin = process.env.NEXT_PUBLIC_APP_URL ?? "";
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -166,7 +161,7 @@ export default function NewOrderPage() {
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Nom de l'article / Produit
+                    Nom de l&apos;article / Produit
                   </label>
                   <input
                     type="text"
@@ -269,7 +264,7 @@ export default function NewOrderPage() {
                       onChange={(e) => setBuyerCountry(e.target.value)}
                       className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm"
                     >
-                      <option value="Côte d'Ivoire">Côte d'Ivoire</option>
+                      <option value="Côte d'Ivoire">Côte d&apos;Ivoire</option>
                       <option value="Sénégal">Sénégal</option>
                       <option value="Cameroun">Cameroun</option>
                       <option value="Bénin">Bénin</option>

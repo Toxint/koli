@@ -1,5 +1,35 @@
 @import "tailwindcss";
 
+/**
+ * Jetons de design KOLI.
+ *
+ * Avant ce bloc, aucun jeton n'existait : trois identites de marque
+ * coexistaient dans le code (emeraude sur les pages d'authentification,
+ * ambre/or sur les tableaux de bord, #0B7C63 sur l'ancien prototype).
+ * Changer la couleur de marque demandait un rechercher-remplacer sur
+ * une quinzaine de fichiers.
+ *
+ * Accent retenu : l'emeraude, deja utilisee sur les pages d'entree et qui
+ * porte la lecture « securite / confiance » attendue par le positionnement
+ * (§3, §56). L'ambre est conservee comme couleur d'ALERTE, notamment pour
+ * signaler le mode test (§75).
+ *
+ * Les utilitaires Tailwind correspondants sont generes automatiquement :
+ * bg-brand, text-brand, border-brand, bg-brand/10, etc.
+ */
+@theme {
+  --color-brand: #059669;
+  --color-brand-dark: #047857;
+  --color-brand-light: #d1fae5;
+
+  --color-test-mode: #b45309;
+  --color-test-mode-surface: #fef3c7;
+
+  --color-danger: #dc2626;
+  --color-warning: #d97706;
+  --color-success: #16a34a;
+}
+
 @layer utilities {
   @keyframes shimmer {
     0% {

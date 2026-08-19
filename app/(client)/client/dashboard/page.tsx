@@ -41,7 +41,7 @@ export default async function ClientDashboardPage() {
               Bienvenue, {user.name} 👋
             </h1>
             <p className="text-purple-100 text-sm mt-1">
-              Retrouvez l'ensemble de vos achats sécurisés et suivez la livraison de vos colis en direct.
+              Retrouvez l&apos;ensemble de vos achats sécurisés et suivez la livraison de vos colis en direct.
             </p>
           </div>
           <div className="bg-white/10 backdrop-blur-md px-4 py-2 rounded-xl text-xs font-semibold">
@@ -58,7 +58,7 @@ export default async function ClientDashboardPage() {
             <div className="text-center py-12 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-8">
               <span className="text-4xl block mb-2">🛒</span>
               <p className="text-sm font-semibold">
-                Vous n'avez effectué aucune commande pour le moment.
+                Vous n&apos;avez effectué aucune commande pour le moment.
               </p>
               <p className="text-xs text-slate-400 mt-1">
                 Lorsque vous effectuez un achat via un lien de paiement KOLI, il apparaît ici.
@@ -91,7 +91,7 @@ export default async function ClientDashboardPage() {
 
                     <div className="flex items-center gap-4 self-end sm:self-auto">
                       <div className="text-right">
-                        <span className="text-xs text-slate-400 block">Total payé</span>
+                        <span className="text-xs text-slate-400 block">Total payé (test)</span>
                         <span className="text-lg font-bold text-slate-900 dark:text-white">
                           {formatCFA(totalAmount)}
                         </span>

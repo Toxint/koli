@@ -30,25 +30,28 @@ export function DashboardNav({ userName, roleName, roleBadgeColor = "bg-amber-10
         </div>
 
         {/* User profile & logout */}
-        <div className="flex items-center gap-4">
-          <div className="text-right hidden sm:block">
-            <span className="block text-sm font-extrabold text-slate-900 dark:text-white">
-              {userName}
-            </span>
-            <span className="block text-[11px] text-amber-600 dark:text-amber-400 font-extrabold">
-              ⚡ Mode Test Actif
-            </span>
-          </div>
+        <div className="flex items-center gap-3 sm:gap-4">
+          {/* Le nom peut disparaitre sur petit ecran, pas l'indicateur de mode
+              test : §75 impose qu'il soit visible partout, et le mobile est
+              l'appareil principal de la cible. */}
+          <span className="hidden sm:block text-sm font-extrabold text-slate-900 dark:text-white text-right">
+            {userName}
+          </span>
+
+          <span className="shrink-0 px-2.5 py-1 rounded-full bg-test-mode-surface dark:bg-amber-950/80 text-test-mode dark:text-amber-300 text-[11px] font-extrabold border border-amber-300/60 dark:border-amber-700 whitespace-nowrap">
+            ⚡ Mode test
+          </span>
 
           <form action={logoutAction}>
             <button
               type="submit"
-              className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:border-red-200 dark:hover:border-red-900 text-xs font-medium transition-all flex items-center gap-1.5"
+              aria-label="Se déconnecter"
+              className="min-h-[44px] px-3 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-600 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:border-red-200 dark:hover:border-red-900 text-xs font-medium transition-all flex items-center gap-1.5"
             >
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
-              <span>Déconnexion</span>
+              <span className="hidden sm:inline">Déconnexion</span>
             </button>
           </form>
         </div>
