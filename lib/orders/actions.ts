@@ -1,11 +1,13 @@
 "use server";
 
+import { randomInt } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/db/prisma";
 import { getCurrentUser } from "@/lib/auth/actions";
 import { OrderStatus, PaymentStatus, PaymentProviderType, DeliveryStatus } from "@prisma/client";
 import { z } from "zod";
 import { findTransitionPath } from "@/lib/orders/statusMachine";
+import { generateOrderReference } from "@/lib/orders/reference";
 
 const orderSchema = z.object({
   buyerName: z.string().min(2, "Le nom du client est requis"),
@@ -14,10 +16,13 @@ const orderSchema = z.object({
   buyerCity: z.string().min(2, "La ville est requise"),
   buyerAddress: z.string().min(3, "L'adresse de livraison est requise"),
   buyerLandmark: z.string().optional(),
-  deliveryFee: z.coerce.number().min(0, "Frais de livraison invalides"),
+  // Montants en FCFA : entiers obligatoires, la base les stocke en Int.
+  // Sans `.int()`, une saisie comme 1500.7 passait la validation et faisait
+  // echouer Prisma a l'ecriture.
+  deliveryFee: z.coerce.number().int("Frais de livraison invalides").min(0, "Frais de livraison invalides"),
   productName: z.string().min(2, "Le nom du produit est requis"),
-  unitPrice: z.coerce.number().min(100, "Le prix unitaire doit être d'au moins 100 FCFA"),
-  quantity: z.coerce.number().min(1, "La quantité doit être d'au moins 1"),
+  unitPrice: z.coerce.number().int("Le prix unitaire doit être un nombre entier").min(100, "Le prix unitaire doit être d'au moins 100 FCFA"),
+  quantity: z.coerce.number().int("La quantité doit être un nombre entier").min(1, "La quantité doit être d'au moins 1"),
 });
 
 export async function createOrderAction(formData: FormData) {
@@ -53,10 +58,17 @@ export async function createOrderAction(formData: FormData) {
   const data = validation.data;
   const sellerProfileId = user.sellerProfile.id;
 
-  // Generate reference KOLI-XXXXXX
-  const count = await prisma.order.count();
-  const refNum = (count + 125).toString().padStart(6, "0");
-  const reference = `KOLI-${refNum}`;
+  // Reference non devinable : elle sert de capacite d'acces au lien de
+  // paiement (voir lib/orders/reference.ts).
+  const reference = generateOrderReference();
+
+  // Rattachement a un compte client existant, identifie par le telephone.
+  // Sans cela, `customerId` restait toujours nul et les commandes creees par
+  // le vendeur n'apparaissaient JAMAIS dans l'espace client.
+  const compteClient = await prisma.customerProfile.findFirst({
+    where: { user: { phone: data.buyerPhone } },
+    select: { id: true },
+  });
 
   // Find or create product
   let product = await prisma.product.findFirst({
@@ -78,21 +90,23 @@ export async function createOrderAction(formData: FormData) {
     });
   }
 
-  // Calculate total item price
+  // Montants.
+  // Convention : `Payment.amount` est le total regle par le client (articles +
+  // livraison), tandis que `Fund.amount` est ce qui revient au vendeur, donc
+  // hors frais de livraison. Les deux ne sont volontairement pas egaux.
+  // La commission KOLI (§41) sera prelevee sur Fund.amount en phase 19.
   const totalItemAmount = data.unitPrice * data.quantity;
   const grandTotal = totalItemAmount + data.deliveryFee;
 
-  // Generate 4-digit OTP code for delivery validation
-  const otpCode = Math.floor(1000 + Math.random() * 9000).toString();
+  // Code de reception remis au client (§27). randomInt (crypto) et non
+  // Math.random : ce code conditionne la remise du colis.
+  const otpCode = randomInt(1000, 10000).toString();
 
-  // Find default driver if available
-  const firstDriver = await prisma.driverProfile.findFirst();
-
-  // Create Order in DB
   const order = await prisma.order.create({
     data: {
       reference,
       sellerId: sellerProfileId,
+      customerId: compteClient?.id ?? null,
       buyerName: data.buyerName,
       buyerPhone: data.buyerPhone,
       buyerCountry: data.buyerCountry,
@@ -127,7 +141,15 @@ export async function createOrderAction(formData: FormData) {
       },
       delivery: {
         create: {
-          driverId: firstDriver?.id || null,
+          // Aucun livreur assigne a la creation. Le code precedent prenait le
+          // premier livreur venu (`driverProfile.findFirst()` sans filtre) et
+          // l'assignait a toutes les commandes de la plateforme. L'assignation
+          // est un acte explicite du vendeur (§26) — interface a construire en
+          // phase 15. Tant qu'elle est nulle, la livraison n'apparait dans le
+          // tableau de bord d'aucun livreur.
+          // NOTE schema : l'enum DeliveryStatus n'a pas d'etat « non assignee » ;
+          // a ajouter en phase 15.
+          driverId: null,
           status: DeliveryStatus.ASSIGNED,
           otpCodes: {
             create: [
