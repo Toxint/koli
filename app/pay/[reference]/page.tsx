@@ -1,6 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
 import { PayFlow } from "./pay-flow";
-import { getOrder as getMockOrder } from "@/data/orders";
 
 export default async function PayReferencePage({
   params,
@@ -9,11 +8,11 @@ export default async function PayReferencePage({
 }) {
   const { reference } = await params;
 
-  // 1. Check in Prisma DB
-  const dbOrder = await prisma.order.findFirst({
-    where: {
-      OR: [{ reference: reference }, { id: reference }],
-    },
+  // Recherche par reference uniquement : l'identifiant interne n'est pas cense
+  // circuler, et c'est la reference qui fait office de capacite d'acces
+  // (voir lib/payments/actions.ts).
+  const dbOrder = await prisma.order.findUnique({
+    where: { reference },
     include: {
       seller: { include: { user: true } },
       items: { include: { product: true } },
@@ -50,39 +49,7 @@ export default async function PayReferencePage({
     );
   }
 
-  // 2. Fallback check mock orders (e.g. CMD-001)
-  const mockOrder = getMockOrder(reference);
-  if (mockOrder) {
-    const formattedOrder = {
-      id: mockOrder.id,
-      reference: mockOrder.id,
-      buyerName: mockOrder.buyer.name,
-      buyerPhone: mockOrder.buyer.phone,
-      buyerCountry: mockOrder.buyer.countryCode === "CI" ? "Côte d'Ivoire" : mockOrder.buyer.countryCode,
-      buyerCity: mockOrder.buyer.city,
-      buyerAddress: mockOrder.buyer.landmark || mockOrder.buyer.city,
-      buyerLandmark: mockOrder.buyer.landmark,
-      deliveryFee: mockOrder.deliveryFee,
-      status: "PAYMENT_PENDING",
-      sellerName: mockOrder.merchantName,
-      items: [
-        {
-          id: "item-1",
-          name: mockOrder.product.name,
-          unitPrice: mockOrder.product.unitPrice,
-          quantity: mockOrder.product.quantity,
-        },
-      ],
-    };
-
-    return (
-      <main className="min-h-screen bg-slate-50 dark:bg-slate-950">
-        <PayFlow order={formattedOrder} />
-      </main>
-    );
-  }
-
-  // Not found
+  // Commande introuvable
   return (
     <main className="min-h-screen bg-white dark:bg-slate-950 flex items-center justify-center p-4">
       <div className="max-w-md w-full text-center space-y-4">
@@ -93,7 +60,7 @@ export default async function PayReferencePage({
           Commande introuvable
         </h1>
         <p className="text-sm text-slate-500">
-          La référence de commande <code className="bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded text-emerald-600">{reference}</code> n'existe pas ou a expiré.
+          La référence de commande <code className="bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded text-emerald-600">{reference}</code> n&apos;existe pas ou a expiré.
         </p>
       </div>
     </main>
