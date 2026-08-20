@@ -2,6 +2,7 @@
 import { getCurrentUser } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/prisma";
 import { DashboardNav } from "@/components/ui/DashboardNav";
+import { NAV_ADMIN } from "@/lib/navigation";
 import { formatCFA } from "@/lib/format";
 
 export default async function AdminDashboardPage() {
@@ -48,7 +49,7 @@ export default async function AdminDashboardPage() {
         roleName="Admin"
         roleBadgeColor="bg-brand-soft text-brand border border-brand-border"
         homeHref="/admin/dashboard"
-        navItems={[{ label: "Vue d'ensemble", href: "/admin/dashboard" }]}
+        navItems={NAV_ADMIN}
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">

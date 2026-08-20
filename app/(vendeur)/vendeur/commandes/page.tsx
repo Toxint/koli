@@ -1,34 +1,67 @@
 ﻿import { redirect } from "next/navigation";
+import type { Prisma, OrderStatus } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/prisma";
+import { BarreRecherche } from "@/components/ui/BarreRecherche";
+import { Pagination } from "@/components/ui/Pagination";
 import { DashboardNav } from "@/components/ui/DashboardNav";
+import { NAV_VENDEUR } from "@/lib/navigation";
 import { formatCFA } from "@/lib/format";
 import { libelleStatut, classesBadgeStatut } from "@/lib/orders/statusLabels";
 import { listAvailableDriversAction } from "@/lib/deliveries/assign";
 import { AssignerLivreur } from "@/components/domain/AssignerLivreur";
 import Link from "next/link";
 
-export default async function SellerOrdersPage() {
+const PAR_PAGE = 20;
+
+export default async function SellerOrdersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string; statut?: string; page?: string }>;
+}) {
   const user = await getCurrentUser();
   if (!user || user.role !== "SELLER" || !user.sellerProfile) {
     redirect("/connexion");
   }
 
-  const orders = await prisma.order.findMany({
-    where: { sellerId: user.sellerProfile.id },
-    include: {
-      items: { include: { product: true } },
-      payment: true,
-      // Volontairement PAS d'`otpCodes` : le code de reception n'appartient
-      // qu'au client (§27). Il etait charge ici sans jamais etre affiche, ce
-      // qui le faisait transiter dans la charge utile envoyee au vendeur.
-      delivery: { include: { driver: { include: { user: true } } } },
-      fund: true,
-    },
-    orderBy: { createdAt: "desc" },
-  });
+  const { q, statut, page: pageBrute } = await searchParams;
+  const page = Math.max(1, Number(pageBrute) || 1);
 
-  const livreurs = await listAvailableDriversAction();
+  // §46 : recherche, filtre et pagination effectues EN BASE. La page chargeait
+  // auparavant l'integralite des commandes du vendeur, sans limite.
+  const where: Prisma.OrderWhereInput = {
+    sellerId: user.sellerProfile.id,
+    ...(statut ? { status: statut as OrderStatus } : {}),
+    ...(q
+      ? {
+          OR: [
+            { reference: { contains: q } },
+            { buyerName: { contains: q } },
+            { buyerPhone: { contains: q } },
+          ],
+        }
+      : {}),
+  };
+
+  const [orders, total, livreurs] = await Promise.all([
+    prisma.order.findMany({
+      where,
+      include: {
+        items: { include: { product: true } },
+        payment: true,
+        // Volontairement PAS d'`otpCodes` : le code de reception n'appartient
+        // qu'au client (§27). Il etait charge ici sans jamais etre affiche, ce
+        // qui le faisait transiter dans la charge utile envoyee au vendeur.
+        delivery: { include: { driver: { include: { user: true } } } },
+        fund: true,
+      },
+      orderBy: { createdAt: "desc" },
+      skip: (page - 1) * PAR_PAGE,
+      take: PAR_PAGE,
+    }),
+    prisma.order.count({ where }),
+    listAvailableDriversAction(),
+  ]);
 
   return (
     <div className="min-h-screen bg-white dark:bg-slate-950 text-brand dark:text-white">
@@ -36,11 +69,7 @@ export default async function SellerOrdersPage() {
         userName={user.sellerProfile.businessName || user.name}
         roleName="Vendeur"
         homeHref="/vendeur/dashboard"
-        navItems={[
-          { label: "Tableau de bord", href: "/vendeur/dashboard" },
-          { label: "Commandes", href: "/vendeur/commandes" },
-          { label: "Nouvelle commande", href: "/vendeur/commandes/nouvelle" },
-        ]}
+        navItems={NAV_VENDEUR}
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -50,7 +79,7 @@ export default async function SellerOrdersPage() {
               Gestion de vos commandes
             </h1>
             <p className="text-xs text-ink-muted mt-1">
-              {orders.length} commande(s) générée(s)
+              {total} commande(s) générée(s)
             </p>
           </div>
 
@@ -62,11 +91,36 @@ export default async function SellerOrdersPage() {
           </Link>
         </div>
 
+        <BarreRecherche
+          placeholder="Référence, nom ou téléphone du client…"
+          filtres={[
+            { valeur: "PAYMENT_PENDING", libelle: "En attente de paiement" },
+            { valeur: "FUNDS_SECURED", libelle: "Paiement sécurisé" },
+            { valeur: "SELLER_ACCEPTED", libelle: "Acceptée" },
+            { valeur: "DELIVERED", libelle: "Livrée — à confirmer" },
+            { valeur: "COMPLETED", libelle: "Terminée" },
+          ]}
+        />
+
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-hairline dark:border-slate-800 shadow-sm p-6">
           {orders.length === 0 ? (
             <div className="text-center py-12">
-              <span className="text-4xl block mb-2">📦</span>
-              <p className="text-sm font-semibold">Aucune commande enregistrée</p>
+              <span className="text-4xl block mb-2" aria-hidden="true">
+                📦
+              </span>
+              <p className="text-sm font-semibold">
+                {q || statut
+                  ? "Aucune commande ne correspond à cette recherche"
+                  : "Aucune commande enregistrée"}
+              </p>
+              {!q && !statut && (
+                <Link
+                  href="/vendeur/commandes/nouvelle"
+                  className="inline-flex items-center justify-center min-h-[44px] px-5 mt-4 rounded-xl bg-brand hover:bg-brand-strong text-white text-xs font-semibold"
+                >
+                  Créer une commande
+                </Link>
+              )}
             </div>
           ) : (
             <div className="space-y-4 divide-y divide-hairline dark:divide-slate-800">
@@ -137,6 +191,14 @@ export default async function SellerOrdersPage() {
               })}
             </div>
           )}
+
+          <Pagination
+            page={page}
+            total={total}
+            parPage={PAR_PAGE}
+            parametres={{ q, statut }}
+            chemin="/vendeur/commandes"
+          />
         </div>
       </main>
     </div>

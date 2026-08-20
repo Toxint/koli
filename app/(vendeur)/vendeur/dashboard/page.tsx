@@ -2,6 +2,7 @@
 import { getCurrentUser } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/prisma";
 import { DashboardNav } from "@/components/ui/DashboardNav";
+import { NAV_VENDEUR } from "@/lib/navigation";
 import { formatCFA } from "@/lib/format";
 import { libelleStatut, classesBadgeStatut } from "@/lib/orders/statusLabels";
 import Link from "next/link";
@@ -54,11 +55,7 @@ export default async function SellerDashboardPage() {
         userName={user.sellerProfile.businessName || user.name}
         roleName="Vendeur"
         homeHref="/vendeur/dashboard"
-        navItems={[
-          { label: "Tableau de bord", href: "/vendeur/dashboard" },
-          { label: "Commandes", href: "/vendeur/commandes" },
-          { label: "Nouvelle commande", href: "/vendeur/commandes/nouvelle" },
-        ]}
+        navItems={NAV_VENDEUR}
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-fade-in">

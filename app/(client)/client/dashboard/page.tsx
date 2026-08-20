@@ -2,6 +2,7 @@
 import { getCurrentUser } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/prisma";
 import { DashboardNav } from "@/components/ui/DashboardNav";
+import { NAV_CLIENT } from "@/lib/navigation";
 import { formatCFA } from "@/lib/format";
 import { libelleStatut, classesBadgeStatut } from "@/lib/orders/statusLabels";
 import Link from "next/link";
@@ -34,7 +35,7 @@ export default async function ClientDashboardPage() {
         roleName="Client"
         roleBadgeColor="bg-brand-soft text-brand dark:bg-purple-950/80 dark:text-purple-300"
         homeHref="/client/dashboard"
-        navItems={[{ label: "Mes commandes", href: "/client/dashboard" }]}
+        navItems={NAV_CLIENT}
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">

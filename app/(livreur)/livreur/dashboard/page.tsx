@@ -2,6 +2,7 @@
 import { getCurrentUser } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/prisma";
 import { DashboardNav } from "@/components/ui/DashboardNav";
+import { NAV_LIVREUR } from "@/lib/navigation";
 import { ValidateOtpModal } from "@/components/driver/ValidateOtpModal";
 
 export default async function DriverDashboardPage() {
@@ -35,7 +36,7 @@ export default async function DriverDashboardPage() {
         roleName="Livreur"
         roleBadgeColor="bg-brand-soft text-brand dark:bg-amber-950/80 dark:text-amber-300 border border-brand-border dark:border-amber-700"
         homeHref="/livreur/dashboard"
-        navItems={[{ label: "Mes livraisons", href: "/livreur/dashboard" }]}
+        navItems={NAV_LIVREUR}
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-fade-in">

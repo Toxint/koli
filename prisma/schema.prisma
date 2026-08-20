@@ -138,6 +138,12 @@ model User {
   passwordHash String
   photoUrl     String?
   status       UserStatus @default(ACTIVE)
+
+  // Limitation des tentatives de connexion (§47). La contrainte existait pour
+  // l'OTP mais pas pour le mot de passe : le compte acceptait un nombre
+  // illimite d'essais.
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 

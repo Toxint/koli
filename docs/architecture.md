@@ -672,19 +672,24 @@ L'enum `DeliveryStatus` gagne l'état **`UNASSIGNED`** qui lui manquait : une li
 
 `Dispute`, `DisputeMessage` (Phase 21) · `Refund` (Phase 22) · `Invoice` (Phase 20) · `Notification` (Phase 25) · `AuditLog` (Phase 26) · `KycDocument` (Phase 24) · `Commission` — la table est alimentée, mais aucun prélèvement n'est calculé (Phase 19).
 
-### Écarts au cahier des charges relevés par l'audit, non encore traités
+## 8 quinquies. Complétion fonctionnelle (20/08/2026)
 
-Ces points sont réels et documentés ; ils relèvent de phases ultérieures ou d'arbitrages à faire.
+- **§47 — limitation des tentatives de connexion.** Elle existait pour l'OTP mais pas pour le mot de passe : le compte acceptait un nombre illimité d'essais. 5 tentatives, puis blocage 15 minutes (`User.failedLoginAttempts`, `User.lockedUntil`). Ajout d'une vérification factice quand l'identifiant est inconnu : sans elle, la différence de temps de réponse révélait quels comptes existent.
+- **§42-43 — page « Solde vendeur »** (`/vendeur/solde`) : fonds sécurisés, solde disponible, total gagné, historique des mouvements, et l'interface « Retirer mes fonds » désactivée avec la mention exigée par le §43.
+- **§64 — pages de profil** pour les quatre rôles, avec changement de mot de passe protégé par le mot de passe actuel. Le téléphone reste non modifiable : il identifie le compte et rattache les commandes passées en mode invité — le changer exigerait de vérifier le nouveau numéro par SMS (phase 31).
+- **§46 — recherche, filtre et pagination** sur les commandes vendeur et les utilisateurs admin. L'état vit dans l'URL (partageable, résistant au rafraîchissement) et le filtrage s'effectue **en base**, pas sur une liste déjà chargée.
+- **§35 — page admin « Utilisateurs »** avec suspension et réactivation, confirmation préalable (§58). Un administrateur ne peut pas se suspendre lui-même : ce serait le seul moyen de se verrouiller définitivement hors de la plateforme.
+- **§10 — navigation centralisée** dans `lib/navigation.ts`. Règle stricte : uniquement des routes existantes, un lien mort étant pire que pas de lien. La barre horizontale bascule à 1024px et non 768px — à cinq entrées, elle débordait sur tablette.
 
-- **§46 — ni recherche, ni filtre, ni tri, ni pagination** nulle part. Toutes les listes sont des `findMany` non bornés. Acceptable au volume actuel, à traiter avant toute mise en service.
-- **§42-43 — pas de page « Solde vendeur »** : « Total gagné », l'historique et l'interface « Retirer mes fonds » manquent.
-- **§64 — aucune page de profil** pour les quatre rôles.
-- **§62 — pas de lien « Mot de passe oublié ? »**.
-- **§58 — aucune confirmation avant action destructrice** (aucune action destructrice n'existe encore).
+---
+
+### Écarts au cahier des charges, non encore traités
+
+- **§58 — confirmation avant action destructrice** : faite pour la suspension de compte, à généraliser aux autres actions sensibles quand elles existeront.
 - **§18 — le formulaire de commande est d'un seul tenant** au lieu des 5 étapes prévues.
-- **§34-36 — le tableau de bord admin est partiel** : paiements, litiges, remboursements, commissions et activités récentes manquent ; suspendre/réactiver un compte n'est pas implémenté.
+- **§34, §36 — le tableau de bord admin reste partiel** : paiements, litiges, remboursements, commissions et activités récentes manquent ; la page de vérification des vendeurs n'existe pas.
 - **§28 — les preuves de livraison sont écrites mais jamais affichées.**
-- **§47 — pas de limitation des tentatives de connexion** (elle existe pour l'OTP).
+- **§62 — pas de lien « Mot de passe oublié ? »** : la réinitialisation exige un canal de contact vérifié (SMS ou e-mail), donc les phases 25 et 31.
 - **Intégrité** : `Fund.sellerId` est une chaîne sans clé étrangère ; aucun index sur les colonnes de jointure ; le total de commande est recalculé en six endroits au lieu d'être lu depuis `Payment.amount` ; aucune politique d'arrondi n'est définie pour la future commission (§41).
 - **`prisma/seed.ts`** produit une référence `KOLI-000124` au format devenu invalide (devinable).
 

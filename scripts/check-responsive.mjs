@@ -54,9 +54,15 @@ const PAGES_PRIVEES = [
   { chemin: "/vendeur/dashboard", nom: "vendeur-dashboard", compte: "vendeur" },
   { chemin: "/vendeur/commandes", nom: "vendeur-commandes", compte: "vendeur" },
   { chemin: "/vendeur/commandes/nouvelle", nom: "vendeur-nouvelle", compte: "vendeur" },
+  { chemin: "/vendeur/solde", nom: "vendeur-solde", compte: "vendeur" },
+  { chemin: "/vendeur/profil", nom: "vendeur-profil", compte: "vendeur" },
   { chemin: "/livreur/dashboard", nom: "livreur-dashboard", compte: "livreur" },
+  { chemin: "/livreur/profil", nom: "livreur-profil", compte: "livreur" },
   { chemin: "/client/dashboard", nom: "client-dashboard", compte: "client" },
+  { chemin: "/client/profil", nom: "client-profil", compte: "client" },
   { chemin: "/admin/dashboard", nom: "admin-dashboard", compte: "admin" },
+  { chemin: "/admin/utilisateurs", nom: "admin-utilisateurs", compte: "admin" },
+  { chemin: "/admin/profil", nom: "admin-profil", compte: "admin" },
 ];
 
 /** Audit execute dans la page. */

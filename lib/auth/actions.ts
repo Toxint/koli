@@ -14,6 +14,18 @@ export interface ActionResponse {
   redirectTo?: string;
 }
 
+/** §47 — limitation des tentatives de connexion. */
+const MAX_TENTATIVES_CONNEXION = 5;
+const DUREE_VERROUILLAGE_MS = 15 * 60 * 1000;
+
+/**
+ * Hachage bcrypt d'une valeur sans interet, utilise uniquement pour egaliser
+ * le temps de reponse quand l'identifiant n'existe pas. Sans cela, la
+ * difference de duree revele quels comptes existent sur la plateforme.
+ */
+const HACHAGE_FACTICE =
+  "$2b$10$N9qo8uLOickgx2ZMRZoMyeIjZAgcfl7p92ldGxad68LJZdL17lhWy";
+
 export async function loginAction(
   prevState: ActionResponse | null,
   formData: FormData
@@ -54,6 +66,10 @@ export async function loginAction(
   });
 
   if (!user) {
+    // Verification factice : sans elle, un identifiant inconnu repond
+    // nettement plus vite qu'un mot de passe errone, ce qui permet de
+    // decouvrir quels comptes existent (§47).
+    await verifyPassword(password, HACHAGE_FACTICE);
     return {
       success: false,
       error: "Identifiant ou mot de passe incorrect.",
@@ -67,12 +83,53 @@ export async function loginAction(
     };
   }
 
-  const passwordValid = await verifyPassword(password, user.passwordHash);
-  if (!passwordValid) {
+  // --- Limitation des tentatives (§47) ---
+  if (user.lockedUntil && user.lockedUntil > new Date()) {
+    const minutes = Math.max(
+      1,
+      Math.ceil((user.lockedUntil.getTime() - Date.now()) / 60000)
+    );
     return {
       success: false,
-      error: "Identifiant ou mot de passe incorrect.",
+      error: `Trop de tentatives. Réessayez dans ${minutes} minute(s).`,
     };
+  }
+
+  const passwordValid = await verifyPassword(password, user.passwordHash);
+  if (!passwordValid) {
+    const tentatives = user.failedLoginAttempts + 1;
+    const doitVerrouiller = tentatives >= MAX_TENTATIVES_CONNEXION;
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        failedLoginAttempts: doitVerrouiller ? 0 : tentatives,
+        lockedUntil: doitVerrouiller
+          ? new Date(Date.now() + DUREE_VERROUILLAGE_MS)
+          : null,
+      },
+    });
+
+    if (doitVerrouiller) {
+      return {
+        success: false,
+        error: `Trop de tentatives. Compte bloqué pendant ${DUREE_VERROUILLAGE_MS / 60000} minutes.`,
+      };
+    }
+
+    const restantes = MAX_TENTATIVES_CONNEXION - tentatives;
+    return {
+      success: false,
+      error: `Identifiant ou mot de passe incorrect. Il vous reste ${restantes} tentative(s).`,
+    };
+  }
+
+  // Connexion reussie : le compteur repart de zero.
+  if (user.failedLoginAttempts > 0 || user.lockedUntil) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { failedLoginAttempts: 0, lockedUntil: null },
+    });
   }
 
   // Create JWT session cookie

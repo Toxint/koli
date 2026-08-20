@@ -47,7 +47,7 @@ export function DashboardNav({
         {/* Navigation horizontale a partir de la tablette (§8 : « navigation
             complete » sur grand ecran). */}
         {navItems.length > 0 && (
-          <nav className="hidden md:flex items-center gap-1 min-w-0">
+          <nav className="hidden lg:flex items-center gap-1 min-w-0">
             {navItems.map((item) => (
               <Link
                 key={item.href}
@@ -61,7 +61,7 @@ export function DashboardNav({
         )}
 
         <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <span className="hidden lg:block text-sm font-semibold text-brand dark:text-white truncate max-w-[14rem]">
+          <span className="hidden xl:block text-sm font-semibold text-brand dark:text-white truncate max-w-[14rem]">
             {userName}
           </span>
 
@@ -70,7 +70,7 @@ export function DashboardNav({
             ⚡ Test
           </span>
 
-          <form action={logoutAction} className="hidden md:block shrink-0">
+          <form action={logoutAction} className="hidden lg:block shrink-0">
             <button
               type="submit"
               className="min-h-[44px] px-3 rounded-lg border border-hairline dark:border-slate-800 text-ink-muted dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:border-red-200 dark:hover:border-red-900 text-xs font-medium transition-all flex items-center gap-1.5"
@@ -100,7 +100,7 @@ export function DashboardNav({
             aria-expanded={menuOuvert}
             aria-controls="menu-espace"
             aria-label={menuOuvert ? "Fermer le menu" : "Ouvrir le menu"}
-            className="md:hidden min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg border border-hairline dark:border-slate-800 text-brand dark:text-slate-200"
+            className="lg:hidden min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg border border-hairline dark:border-slate-800 text-brand dark:text-slate-200"
           >
             <svg
               className="w-5 h-5"
@@ -132,7 +132,7 @@ export function DashboardNav({
       {menuOuvert && (
         <div
           id="menu-espace"
-          className="md:hidden border-t border-hairline dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 space-y-1"
+          className="lg:hidden border-t border-hairline dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 space-y-1"
         >
           <div className="pb-2 mb-1 border-b border-slate-100 dark:border-slate-800">
             <span className="block text-sm font-semibold text-brand dark:text-white truncate">
