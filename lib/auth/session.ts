@@ -55,12 +55,30 @@ export async function decryptSession(token: string): Promise<SessionPayload | nu
   }
 }
 
+/**
+ * L'attribut `secure` interdit au navigateur de renvoyer le cookie ailleurs
+ * qu'en HTTPS.
+ *
+ * Le lier a NODE_ENV etait un piege : un build de production servi en HTTP sur
+ * le reseau local (http://192.168.x.x, la facon normale de tester depuis un
+ * telephone) posait un cookie que le navigateur refusait ensuite de renvoyer.
+ * La connexion reussissait, puis l'utilisateur etait aussitot renvoye vers la
+ * page de connexion — sans le moindre message. Le defaut restait invisible sur
+ * `localhost`, que les navigateurs traitent comme une origine de confiance et
+ * ou les cookies `secure` sont acceptes en clair.
+ *
+ * On se fie donc au protocole reellement servi, declare dans NEXT_PUBLIC_APP_URL.
+ */
+function cookieSecurise(): boolean {
+  return (process.env.NEXT_PUBLIC_APP_URL ?? "").startsWith("https://");
+}
+
 export async function createSessionCookie(payload: SessionPayload) {
   const token = await encryptSession(payload);
   const cookieStore = await cookies();
   cookieStore.set(COOKIE_NAME, token, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production",
+    secure: cookieSecurise(),
     sameSite: "lax",
     path: "/",
     maxAge: 7 * 24 * 60 * 60, // 7 jours
