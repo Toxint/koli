@@ -42,88 +42,88 @@ export default async function AdminDashboardPage() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white">
+    <div className="min-h-screen bg-white dark:bg-slate-950 text-brand dark:text-white">
       <DashboardNav
         userName={user.name}
         roleName="Admin"
-        roleBadgeColor="bg-red-100 text-red-800 dark:bg-red-950/80 dark:text-red-300"
+        roleBadgeColor="bg-brand-soft text-brand border border-brand-border"
         homeHref="/admin/dashboard"
         navItems={[{ label: "Vue d'ensemble", href: "/admin/dashboard" }]}
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-emerald-950 rounded-2xl p-6 sm:p-8 text-white shadow-xl shadow-slate-900/20 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border border-slate-800">
+        <div className="bg-brand rounded-2xl p-6 sm:p-8 text-white shadow-lg shadow-brand/20 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border border-brand-border">
           <div>
-            <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-mono font-bold uppercase tracking-wider mb-2 inline-block">
-              Super-Admin Control Panel
+            <span className="px-3 py-1 rounded-full bg-white/20 text-white text-xs font-mono font-bold uppercase tracking-wider mb-2 inline-block">
+              Console d&apos;administration
             </span>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              Console Administrateur KOLI 🛡️
+            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-white">
+              Administration KOLI 🛡️
             </h1>
-            <p className="text-slate-500 text-sm mt-1">
-              Supervision globale des utilisateurs, fonds sécurisés, livraisons et litiges (Mode Test MVP).
+            <p className="text-white/90 text-sm mt-1">
+              Supervision des utilisateurs, des fonds sécurisés, des livraisons et des litiges (mode test).
             </p>
           </div>
         </div>
 
         {/* Global KPIs */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-hairline dark:border-slate-800 shadow-sm">
+            <span className="text-xs font-bold text-ink-muted uppercase tracking-wider block mb-1">
               Total Utilisateurs
             </span>
-            <div className="text-2xl font-black text-slate-900 dark:text-white">
+            <div className="text-2xl font-bold text-brand dark:text-white">
               {usersCount}
             </div>
-            <p className="text-[11px] text-slate-500 mt-1">
+            <p className="text-[11px] text-ink-muted mt-1">
               {sellersCount} Vendeurs • {driversCount} Livreurs • {customersCount} Clients
             </p>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-hairline dark:border-slate-800 shadow-sm">
+            <span className="text-xs font-bold text-ink-muted uppercase tracking-wider block mb-1">
               Commandes Total
             </span>
-            <div className="text-2xl font-black text-slate-900 dark:text-white">
+            <div className="text-2xl font-bold text-brand dark:text-white">
               {totalOrdersCount}
             </div>
-            <p className="text-[11px] text-slate-500 mt-1">
+            <p className="text-[11px] text-ink-muted mt-1">
               Sur toute la plateforme
             </p>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-hairline dark:border-slate-800 shadow-sm">
+            <span className="text-xs font-bold text-ink-muted uppercase tracking-wider block mb-1">
               Volume Séquestré (Test)
             </span>
-            <div className="text-2xl font-black text-amber-600 dark:text-amber-400">
+            <div className="text-2xl font-bold text-brand dark:text-amber-400">
               {formatCFA(totalSecuredAmount)}
             </div>
-            <p className="text-[11px] text-slate-500 mt-1">
+            <p className="text-[11px] text-ink-muted mt-1">
               Fonds actuellement bloqués
             </p>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
+          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-hairline dark:border-slate-800 shadow-sm">
+            <span className="text-xs font-bold text-ink-muted uppercase tracking-wider block mb-1">
               Volume Libéré (Test)
             </span>
-            <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
+            <div className="text-2xl font-bold text-brand dark:text-emerald-400">
               {formatCFA(totalReleasedAmount)}
             </div>
-            <p className="text-[11px] text-slate-500 mt-1">
+            <p className="text-[11px] text-ink-muted mt-1">
               Fonds transférés aux vendeurs
             </p>
           </div>
         </div>
 
         {/* Users Table */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-hairline dark:border-slate-800 shadow-sm p-6">
           <div className="mb-6">
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+            <h2 className="text-lg font-bold text-brand dark:text-white">
               Derniers utilisateurs inscrits
             </h2>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-ink-muted">
               Vérification des comptes et statuts
             </p>
           </div>
@@ -131,15 +131,15 @@ export default async function AdminDashboardPage() {
           {/* §8 et §68 : cartes sur mobile, grille a partir de la tablette.
               Le tableau a 5 colonnes demandait ~509px pour une carte de 240px. */}
           {users.length === 0 ? (
-            <div className="text-center py-12 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+            <div className="text-center py-12 border-2 border-dashed border-hairline dark:border-slate-800 rounded-xl">
               <span className="text-4xl block mb-2">👥</span>
-              <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+              <p className="text-sm font-semibold text-brand dark:text-slate-300">
                 Aucun utilisateur inscrit pour l&apos;instant
               </p>
             </div>
           ) : (
-            <ul className="space-y-3 md:space-y-0 md:divide-y md:divide-slate-100 md:dark:divide-slate-800/60">
-              <li className="hidden md:grid md:grid-cols-[1.2fr_1.6fr_.8fr_.9fr_1fr] md:gap-4 md:pb-3 border-b border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            <ul className="space-y-3 md:space-y-0 md:divide-y md:divide-hairline md:dark:divide-slate-800/60">
+              <li className="hidden md:grid md:grid-cols-[1.2fr_1.6fr_.8fr_.9fr_1fr] md:gap-4 md:pb-3 border-b border-hairline dark:border-slate-800 text-xs font-bold text-ink-muted dark:text-slate-400 uppercase tracking-wider">
                 <span>Nom</span>
                 <span>Contact</span>
                 <span>Rôle</span>
@@ -150,32 +150,32 @@ export default async function AdminDashboardPage() {
               {users.map((u) => (
                 <li
                   key={u.id}
-                  className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 md:border-0 md:rounded-none md:p-0 md:py-4 md:grid md:grid-cols-[1.2fr_1.6fr_.8fr_.9fr_1fr] md:gap-4 md:items-center"
+                  className="rounded-2xl border border-hairline dark:border-slate-800 p-4 md:border-0 md:rounded-none md:p-0 md:py-4 md:grid md:grid-cols-[1.2fr_1.6fr_.8fr_.9fr_1fr] md:gap-4 md:items-center"
                 >
                   <span className="block font-bold break-words">{u.name}</span>
 
                   <div className="mt-1 md:mt-0 min-w-0">
                     <a
                       href={`tel:${u.phone.replace(/\s/g, "")}`}
-                      className="inline-flex items-center min-h-[44px] md:min-h-0 text-xs font-mono text-slate-600 dark:text-slate-400 whitespace-nowrap hover:text-emerald-700"
+                      className="inline-flex items-center min-h-[44px] md:min-h-0 text-xs font-mono text-ink-muted dark:text-slate-400 whitespace-nowrap hover:text-brand"
                     >
                       {u.phone}
                     </a>
                     {u.email && (
-                      <span className="block text-xs text-slate-600 dark:text-slate-400 break-all">
+                      <span className="block text-xs text-ink-muted dark:text-slate-400 break-all">
                         {u.email}
                       </span>
                     )}
                   </div>
 
                   <div className="mt-2 md:mt-0 flex flex-wrap gap-2">
-                    <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-brand-soft text-brand dark:bg-slate-800 dark:text-slate-300">
                       {u.role}
                     </span>
                     <span
                       className={`md:hidden px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                         u.status === "ACTIVE"
-                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                          ? "bg-brand-soft text-brand dark:bg-emerald-950 dark:text-emerald-300"
                           : "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300"
                       }`}
                     >
@@ -192,7 +192,7 @@ export default async function AdminDashboardPage() {
                     <span
                       className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                         u.status === "ACTIVE"
-                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                          ? "bg-brand-soft text-brand dark:bg-emerald-950 dark:text-emerald-300"
                           : "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300"
                       }`}
                     >
@@ -206,7 +206,7 @@ export default async function AdminDashboardPage() {
                         {u.sellerProfile.verificationStatus}
                       </span>
                     ) : (
-                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                      <span className="text-xs text-ink-muted dark:text-slate-400">
                         Non applicable
                       </span>
                     )}

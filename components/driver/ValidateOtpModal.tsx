@@ -64,7 +64,7 @@ export function ValidateOtpModal({
 
   if (isDelivered) {
     return (
-      <div className="flex items-start gap-2 px-3 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-300 text-xs font-bold">
+      <div className="flex items-start gap-2 px-3 py-2 rounded-xl bg-brand-soft dark:bg-emerald-950/80 border border-brand-border dark:border-emerald-700 text-brand dark:text-emerald-300 text-xs font-bold">
         <svg
           className="w-4 h-4 shrink-0 mt-0.5"
           aria-hidden="true"
@@ -84,7 +84,7 @@ export function ValidateOtpModal({
       <button
         type="button"
         onClick={handleOpen}
-        className="w-full sm:w-auto min-h-[48px] px-4 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 font-extrabold text-xs uppercase tracking-wider shadow-md shadow-amber-500/20 hover:shadow-amber-500/40 active:scale-[0.98] transition-all flex items-center justify-center gap-2 border border-amber-300/50 cursor-pointer"
+        className="w-full sm:w-auto min-h-[48px] px-4 rounded-xl bg-brand hover:bg-brand-strong text-white font-semibold text-xs uppercase tracking-wider shadow-md shadow-brand/25 hover:shadow-brand/40 active:scale-[0.98] transition-all flex items-center justify-center gap-2 border border-brand-border/50 cursor-pointer"
       >
         <span className="text-sm">🔑</span>
         <span>Valider la Livraison (Code OTP)</span>
@@ -101,20 +101,20 @@ export function ValidateOtpModal({
           onKeyDown={(e) => {
             if (e.key === "Escape") handleClose();
           }}
-          className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 overflow-y-auto bg-slate-950/70 animate-fade-in"
+          className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 overflow-y-auto bg-ink/60 animate-fade-in"
         >
-          <div className="bg-white dark:bg-slate-900 border border-amber-400/40 dark:border-amber-500/30 rounded-3xl p-6 sm:p-8 max-w-md w-full my-auto shadow-2xl shadow-amber-500/10 space-y-6 relative overflow-hidden">
+          <div className="bg-white dark:bg-slate-900 border border-white/30 dark:border-amber-500/30 rounded-3xl p-6 sm:p-8 max-w-md w-full my-auto shadow-2xl shadow-brand/20 space-y-6 relative overflow-hidden">
             {/* Top Golden Sheen Header */}
-            <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-600" />
+            <div className="absolute top-0 left-0 right-0 h-2 bg-brand" />
 
             <div className="flex justify-between items-center">
               <div>
-                <span className="text-[11px] font-extrabold text-amber-600 dark:text-amber-400 uppercase tracking-widest block">
+                <span className="text-[11px] font-semibold text-brand dark:text-amber-400 uppercase tracking-widest block">
                   Confirmation de Livraison
                 </span>
                 <h3
                   id="titre-modale-otp"
-                  className="text-xl font-black text-slate-900 dark:text-white mt-0.5"
+                  className="text-xl font-bold text-brand dark:text-white mt-0.5"
                 >
                   Code de réception
                 </h3>
@@ -123,14 +123,14 @@ export function ValidateOtpModal({
                 type="button"
                 onClick={handleClose}
                 aria-label="Fermer"
-                className="shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white text-lg rounded-lg transition-colors"
+                className="shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center text-ink-muted hover:text-brand dark:text-slate-300 dark:hover:text-white text-lg rounded-lg transition-colors"
               >
                 ✕
               </button>
             </div>
 
-            <p className="text-xs text-slate-600 dark:text-slate-300">
-              Demandez au client <strong className="text-slate-900 dark:text-white">{buyerName}</strong> le code reçu lors de sa commande (<strong className="font-mono text-amber-700 dark:text-amber-400 break-all">{orderReference}</strong>).
+            <p className="text-xs text-ink-muted dark:text-slate-300">
+              Demandez au client <strong className="text-brand dark:text-white">{buyerName}</strong> le code reçu lors de sa commande (<strong className="font-mono text-brand dark:text-amber-400 break-all">{orderReference}</strong>).
             </p>
 
             {error && (
@@ -144,7 +144,7 @@ export function ValidateOtpModal({
             )}
 
             {successMsg && (
-              <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/80 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 text-xs font-bold space-y-1 text-center animate-gold-pulse">
+              <div className="p-4 rounded-2xl bg-brand-soft dark:bg-amber-950/80 border border-brand-border dark:border-amber-700 text-brand dark:text-amber-200 text-xs font-bold space-y-1 text-center animate-gold-pulse">
                 <div className="text-2xl">🎉</div>
                 <p>{successMsg}</p>
               </div>
@@ -154,7 +154,7 @@ export function ValidateOtpModal({
               <div>
                 <label
                   htmlFor="champ-otp"
-                  className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2"
+                  className="block text-xs font-bold text-brand dark:text-slate-300 uppercase tracking-wider mb-2"
                 >
                   Saisir le code à 4 chiffres
                 </label>
@@ -172,7 +172,7 @@ export function ValidateOtpModal({
                     setOtpInput(e.target.value.replace(/\D/g, "").slice(0, 4))
                   }
                   placeholder="••••"
-                  className="w-full px-4 py-3.5 rounded-2xl border-2 border-amber-300 dark:border-amber-500/50 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-center text-2xl font-black tracking-[0.3em] focus:outline-none focus:ring-4 focus:ring-amber-500/30 focus:border-amber-500 transition-all placeholder:text-slate-500 placeholder:tracking-normal placeholder:text-sm"
+                  className="w-full px-4 py-3.5 rounded-2xl border-2 border-brand-border dark:border-amber-500/50 bg-white dark:bg-slate-800 text-brand dark:text-white font-mono text-center text-2xl font-bold tracking-[0.3em] focus:outline-none focus:ring-4 focus:ring-amber-500/30 focus:border-amber-500 transition-all placeholder:text-ink-muted placeholder:tracking-normal placeholder:text-sm"
                 />
               </div>
 
@@ -180,14 +180,14 @@ export function ValidateOtpModal({
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="flex-1 min-h-[48px] px-4 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                  className="flex-1 min-h-[48px] px-4 rounded-xl border border-hairline dark:border-slate-700 text-brand dark:text-slate-300 font-bold text-xs hover:bg-brand-soft dark:hover:bg-slate-800 transition-all"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
                   disabled={loading || !!successMsg}
-                  className="flex-[2] min-h-[48px] px-4 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 font-extrabold text-xs uppercase tracking-wider shadow-lg shadow-amber-500/25 transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                  className="flex-[2] min-h-[48px] px-4 rounded-xl bg-brand hover:bg-brand-strong text-white font-semibold text-xs uppercase tracking-wider shadow-lg shadow-brand/25 transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {loading ? (
                     <>

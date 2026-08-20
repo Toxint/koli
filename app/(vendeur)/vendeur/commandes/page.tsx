@@ -23,7 +23,7 @@ export default async function SellerOrdersPage() {
   });
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white">
+    <div className="min-h-screen bg-white dark:bg-slate-950 text-brand dark:text-white">
       <DashboardNav
         userName={user.sellerProfile.businessName || user.name}
         roleName="Vendeur"
@@ -38,30 +38,30 @@ export default async function SellerOrdersPage() {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
-            <h1 className="text-2xl font-extrabold tracking-tight">
+            <h1 className="text-2xl font-semibold tracking-tight">
               Gestion de vos commandes
             </h1>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-ink-muted mt-1">
               {orders.length} commande(s) générée(s)
             </p>
           </div>
 
           <Link
             href="/vendeur/commandes/nouvelle"
-            className="min-h-[48px] px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2"
+            className="min-h-[48px] px-4 rounded-xl bg-brand hover:bg-brand-strong text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2"
           >
             <span>+ Créer une commande</span>
           </Link>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-hairline dark:border-slate-800 shadow-sm p-6">
           {orders.length === 0 ? (
             <div className="text-center py-12">
               <span className="text-4xl block mb-2">📦</span>
               <p className="text-sm font-semibold">Aucune commande enregistrée</p>
             </div>
           ) : (
-            <div className="space-y-4 divide-y divide-slate-100 dark:divide-slate-800">
+            <div className="space-y-4 divide-y divide-hairline dark:divide-slate-800">
               {orders.map((order) => {
                 const totalAmount = order.items.reduce(
                   (acc, item) => acc + item.unitPrice * item.quantity,
@@ -72,31 +72,31 @@ export default async function SellerOrdersPage() {
                   <div key={order.id} className="pt-4 first:pt-0 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
                       <div className="flex items-center gap-2">
-                        <span className="font-mono font-bold text-emerald-600 text-sm">
+                        <span className="font-mono font-bold text-brand text-sm">
                           {order.reference}
                         </span>
-                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300">
+                        <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-brand-soft text-amber-800 dark:bg-amber-950 dark:text-amber-300">
                           {order.status}
                         </span>
                       </div>
                       <h3 className="font-bold text-base mt-1">
                         Client : {order.buyerName} ({order.buyerPhone})
                       </h3>
-                      <p className="text-xs text-slate-500">
+                      <p className="text-xs text-ink-muted">
                         {order.buyerAddress}, {order.buyerCity}
                       </p>
                     </div>
 
                     <div className="flex items-center gap-4">
                       <div className="text-right">
-                        <span className="text-xs text-slate-500 block">Total</span>
-                        <span className="text-base font-extrabold">{formatCFA(totalAmount)}</span>
+                        <span className="text-xs text-ink-muted block">Total</span>
+                        <span className="text-base font-semibold">{formatCFA(totalAmount)}</span>
                       </div>
 
                       <Link
                         href={`/pay/${order.reference}`}
                         aria-label={`Ouvrir le lien de paiement de la commande ${order.reference}`}
-                        className="inline-flex items-center justify-center min-h-[44px] px-3 rounded-lg bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-300 text-xs font-bold transition-all"
+                        className="inline-flex items-center justify-center min-h-[44px] px-3 rounded-lg bg-brand-soft text-brand hover:bg-brand-soft dark:bg-emerald-950/60 dark:text-emerald-300 text-xs font-bold transition-all"
                       >
                         Lien 🔗
                       </Link>

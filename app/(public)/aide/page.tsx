@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
@@ -34,12 +34,12 @@ export default function AidePage() {
     <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
       <Link
         href="/"
-        className="inline-flex items-center min-h-[44px] text-sm font-semibold text-emerald-700 dark:text-emerald-400"
+        className="inline-flex items-center min-h-[44px] text-sm font-semibold text-brand dark:text-emerald-400"
       >
         ← Retour à l&apos;accueil
       </Link>
 
-      <h1 className="mt-4 text-3xl sm:text-4xl font-black tracking-tight">
+      <h1 className="mt-4 text-3xl sm:text-4xl font-bold tracking-tight">
         Aide
       </h1>
 
@@ -47,22 +47,22 @@ export default function AidePage() {
         {questions.map((item) => (
           <div
             key={item.q}
-            className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6"
+            className="bg-white dark:bg-slate-900 rounded-2xl border border-hairline dark:border-slate-800 p-6"
           >
             <dt className="font-bold">{item.q}</dt>
-            <dd className="mt-1.5 text-sm text-slate-600 dark:text-slate-300">
+            <dd className="mt-1.5 text-sm text-ink-muted dark:text-slate-300">
               {item.r}
             </dd>
           </div>
         ))}
       </dl>
 
-      <p className="mt-10 text-sm text-slate-600 dark:text-slate-400">
+      <p className="mt-10 text-sm text-ink-muted dark:text-slate-400">
         Vous ne trouvez pas votre réponse ?
       </p>
       <Link
         href="/comment-ca-marche"
-        className="inline-flex items-center min-h-[44px] mt-1 font-semibold text-sm text-emerald-700 dark:text-emerald-400 underline underline-offset-4"
+        className="inline-flex items-center min-h-[44px] mt-1 font-semibold text-sm text-brand dark:text-emerald-400 underline underline-offset-4"
       >
         Consultez le fonctionnement détaillé
       </Link>

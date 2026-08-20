@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
@@ -38,20 +38,20 @@ export default function ConfidentialitePage() {
     <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
       <Link
         href="/"
-        className="inline-flex items-center min-h-[44px] text-sm font-semibold text-emerald-700 dark:text-emerald-400"
+        className="inline-flex items-center min-h-[44px] text-sm font-semibold text-brand dark:text-emerald-400"
       >
         ← Retour à l&apos;accueil
       </Link>
 
-      <h1 className="mt-4 text-3xl sm:text-4xl font-black tracking-tight">
+      <h1 className="mt-4 text-3xl sm:text-4xl font-bold tracking-tight">
         Politique de confidentialité
       </h1>
 
-      <div className="mt-6 bg-test-mode-surface dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 rounded-2xl p-6">
+      <div className="mt-6 bg-test-mode-surface dark:bg-amber-950/60 border border-brand-border dark:border-amber-800 rounded-2xl p-6">
         <p className="font-bold text-test-mode dark:text-amber-300">
           ⚡ Document en cours de préparation
         </p>
-        <p className="mt-2 text-sm text-slate-700 dark:text-slate-300">
+        <p className="mt-2 text-sm text-brand dark:text-slate-300">
           La politique définitive sera publiée avec le cadre réglementaire
           applicable. Voici, en attendant, ce que la plateforme collecte
           réellement aujourd&apos;hui.
@@ -63,10 +63,10 @@ export default function ConfidentialitePage() {
         {donnees.map((d) => (
           <div
             key={d.titre}
-            className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6"
+            className="bg-white dark:bg-slate-900 rounded-2xl border border-hairline dark:border-slate-800 p-6"
           >
             <dt className="font-bold">{d.titre}</dt>
-            <dd className="mt-1.5 text-sm text-slate-600 dark:text-slate-300">
+            <dd className="mt-1.5 text-sm text-ink-muted dark:text-slate-300">
               {d.texte}
             </dd>
           </div>
@@ -74,7 +74,7 @@ export default function ConfidentialitePage() {
       </dl>
 
       <h2 className="mt-10 text-xl font-bold">Ce que KOLI ne fait pas</h2>
-      <ul className="mt-4 space-y-2 text-sm text-slate-600 dark:text-slate-300 list-disc pl-5">
+      <ul className="mt-4 space-y-2 text-sm text-ink-muted dark:text-slate-300 list-disc pl-5">
         <li>
           Aucune donnée bancaire n&apos;est collectée : la plateforme est en
           mode test et ne traite aucun paiement réel.

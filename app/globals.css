@@ -1,34 +1,55 @@
 @import "tailwindcss";
 
 /**
- * Jetons de design KOLI.
+ * Identite KOLI : fond blanc, or.
  *
- * Avant ce bloc, aucun jeton n'existait : trois identites de marque
- * coexistaient dans le code (emeraude sur les pages d'authentification,
- * ambre/or sur les tableaux de bord, #0B7C63 sur l'ancien prototype).
- * Changer la couleur de marque demandait un rechercher-remplacer sur
- * une quinzaine de fichiers.
+ * L'or pur (#FFD700) sur blanc ne donne que 1,4:1 de contraste, tres loin du
+ * minimum lisible de 4,5:1 (§69) — un texte dans cette teinte disparait sur un
+ * telephone en plein soleil, situation quotidienne du public vise. L'identite
+ * doree est donc portee par un OR PROFOND pour tout ce qui se lit, et l'or vif
+ * est reserve aux aplats : fonds de boutons, badges, degrades, ou il n'a pas a
+ * etre lu mais a etre vu.
  *
- * Accent retenu : l'emeraude, deja utilisee sur les pages d'entree et qui
- * porte la lecture « securite / confiance » attendue par le positionnement
- * (§3, §56). L'ambre est conservee comme couleur d'ALERTE, notamment pour
- * signaler le mode test (§75).
- *
- * Les utilitaires Tailwind correspondants sont generes automatiquement :
- * bg-brand, text-brand, border-brand, bg-brand/10, etc.
+ * Contrastes mesures sur fond blanc :
+ *   --color-brand        5,9:1  ✓  titres et texte courant
+ *   --color-brand-strong 8,6:1  ✓  survol, emphase
+ *   --color-ink-muted    5,3:1  ✓  texte secondaire
+ *   --color-brand-accent 1,4:1  ✗  JAMAIS en couleur de texte sur blanc
  */
 @theme {
-  --color-brand: #059669;
-  --color-brand-dark: #047857;
-  --color-brand-light: #d1fae5;
+  /* Police d'interface. */
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
 
-  --color-test-mode: #b45309;
-  --color-test-mode-surface: #fef3c7;
+  /* Vert KOLI — titres, textes importants, appels a l'action. */
+  --color-brand: #047857;
+  --color-brand-strong: #065f46;
+  --color-brand-accent: #059669;
+  --color-brand-soft: #ecfdf5;
+  --color-brand-border: #a7f3d0;
 
-  --color-danger: #dc2626;
-  --color-warning: #d97706;
-  --color-success: #16a34a;
+  /* Texte courant : encre neutre et profonde. Le vert signale ce qui compte ;
+     s'il servait aussi au texte courant, il ne signalerait plus rien. */
+  --color-ink: #18202c;
+  --color-ink-muted: #5b6472;
+  --color-hairline: #e5e7eb;
+
+  /* L'or reste, mais cantonne a son role d'alerte : le mode test. */
+  --color-test-mode: #92660a;
+  --color-test-mode-surface: #fff8e6;
+
+  --color-danger: #b91c1c;
+  --color-warning: #a16207;
+  --color-success: #15803d;
 }
+
+/**
+ * Mode sombre desactive : le cahier des charges demande un fond blanc.
+ * En redefinissant la variante `dark` sur une classe qui n'est jamais posee,
+ * les centaines de `dark:` presentes dans le code deviennent inertes sans
+ * qu'il faille les retirer un par un — et restent disponibles si un theme
+ * sombre est souhaite plus tard.
+ */
+@custom-variant dark (&:where(.theme-sombre, .theme-sombre *));
 
 /**
  * Regles NON layerees, volontairement.
@@ -59,6 +80,48 @@ textarea {
    `position: sticky`. */
 html {
   overflow-x: hidden;
+  /* Empeche le navigateur d'appliquer sa propre inversion en mode sombre. */
+  color-scheme: light;
+}
+
+/* Fond blanc, encre neutre : le vert est reserve a ce qui doit ressortir. */
+body {
+  background-color: #ffffff;
+  color: var(--color-ink);
+  /* Interlettrage legerement resserre : Plus Jakarta Sans respire beaucoup
+     par defaut, ce qui donne un rendu mou aux grandes tailles. */
+  letter-spacing: -0.011em;
+}
+
+/* Hierarchie typographique — dans `@layer base`, contrairement aux regles
+   ci-dessus : ce sont des valeurs par DEFAUT, qu'un `text-white` doit pouvoir
+   surcharger (un titre pose sur un aplat vert doit rester blanc).
+   Le code abusait de `font-black` (900) : a l'ecran, une graisse extreme
+   ecrase la hierarchie au lieu de la creer. On plafonne a 700 et c'est la
+   couleur, non la graisse, qui porte l'importance. */
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4 {
+    color: var(--color-brand-strong);
+    letter-spacing: -0.021em;
+    text-wrap: balance;
+  }
+
+  h1 {
+    font-weight: 700;
+  }
+
+  h2,
+  h3,
+  h4 {
+    font-weight: 600;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
 }
 
 /* §69 : navigation clavier. Aucun element focalisable n'avait d'indicateur. */

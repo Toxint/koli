@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/db/prisma";
+﻿import { prisma } from "@/lib/db/prisma";
 import { getCurrentUser } from "@/lib/auth/actions";
 import { PayFlow } from "./pay-flow";
 
@@ -63,7 +63,7 @@ export default async function PayReferencePage({
     };
 
     return (
-      <main className="min-h-screen bg-slate-50 dark:bg-slate-950">
+      <main className="min-h-screen bg-white dark:bg-slate-950">
         <PayFlow
           order={formattedOrder}
           estLeClient={estLeClient}
@@ -77,14 +77,14 @@ export default async function PayReferencePage({
   return (
     <main className="min-h-screen bg-white dark:bg-slate-950 flex items-center justify-center p-4">
       <div className="max-w-md w-full text-center space-y-4">
-        <div className="w-16 h-16 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-3xl mx-auto">
+        <div className="w-16 h-16 rounded-full bg-brand-soft text-brand flex items-center justify-center text-3xl mx-auto">
           ⚠️
         </div>
-        <h1 className="text-xl font-bold text-slate-900 dark:text-white">
+        <h1 className="text-xl font-bold text-brand dark:text-white">
           Commande introuvable
         </h1>
-        <p className="text-sm text-slate-500">
-          La référence de commande <code className="bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded text-emerald-600">{reference}</code> n&apos;existe pas ou a expiré.
+        <p className="text-sm text-ink-muted">
+          La référence de commande <code className="bg-brand-soft dark:bg-slate-800 px-1 py-0.5 rounded text-brand">{reference}</code> n&apos;existe pas ou a expiré.
         </p>
       </div>
     </main>

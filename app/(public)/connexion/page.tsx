@@ -45,14 +45,14 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col justify-center px-4 py-8 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-white dark:bg-slate-950 flex flex-col justify-center px-4 py-8 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <AuthHeader
           title="Connexion à votre espace KOLI"
           subtitle="Accédez à votre compte Vendeur, Client, Livreur ou Administrateur"
         />
 
-        <div className="bg-white dark:bg-slate-900 shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-200/80 dark:border-slate-800 rounded-2xl p-6 sm:p-8">
+        <div className="bg-white dark:bg-slate-900 shadow-xl shadow-slate-200/50 dark:shadow-none border border-hairline/80 dark:border-slate-800 rounded-2xl p-6 sm:p-8">
           {error && (
             <div role="alert" className="mb-6 p-4 rounded-xl bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-sm flex items-start gap-3">
               <svg className="w-5 h-5 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -64,7 +64,7 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label htmlFor="identifier" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">
+              <label htmlFor="identifier" className="block text-xs font-semibold text-brand dark:text-slate-300 uppercase tracking-wider mb-2">
                 Téléphone ou Email
               </label>
               <input
@@ -80,11 +80,11 @@ export default function LoginPage() {
                 // passe pas a la ligne.
                 placeholder="Téléphone ou email"
                 aria-describedby="aide-identifiant"
-                className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-sm"
+                className="w-full px-4 py-3 rounded-xl border border-hairline dark:border-slate-700 bg-white dark:bg-slate-800 text-brand dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand-border transition-all text-sm"
               />
               <p
                 id="aide-identifiant"
-                className="mt-1 text-xs text-slate-600 dark:text-slate-400"
+                className="mt-1 text-xs text-ink-muted dark:text-slate-400"
               >
                 Ex. : +225 07 01 02 03 04 ou vendeur@koli.ci
               </p>
@@ -92,7 +92,7 @@ export default function LoginPage() {
 
             <div>
               <div className="flex justify-between items-center mb-2">
-                <label htmlFor="password" className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                <label htmlFor="password" className="block text-xs font-semibold text-brand dark:text-slate-300 uppercase tracking-wider">
                   Mot de passe
                 </label>
               </div>
@@ -108,7 +108,7 @@ export default function LoginPage() {
                   placeholder="••••••••"
                   // `pr-24` : le bouton « Afficher » recouvrait le texte saisi,
                   // l'ancien `pr-12` ne reservait que 48px pour un bouton de 68px.
-                  className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-sm pr-24"
+                  className="w-full px-4 py-3 rounded-xl border border-hairline dark:border-slate-700 bg-white dark:bg-slate-800 text-brand dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand-border transition-all text-sm pr-24"
                 />
                 <button
                   type="button"
@@ -118,7 +118,7 @@ export default function LoginPage() {
                       ? "Masquer le mot de passe"
                       : "Afficher le mot de passe"
                   }
-                  className="absolute right-1 top-1/2 -translate-y-1/2 min-h-[44px] px-3 flex items-center text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 text-xs font-medium"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 min-h-[44px] px-3 flex items-center text-ink-muted hover:text-brand dark:text-slate-400 dark:hover:text-slate-200 text-xs font-medium"
                 >
                   {showPassword ? "Masquer" : "Afficher"}
                 </button>
@@ -128,7 +128,7 @@ export default function LoginPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold text-sm shadow-md shadow-emerald-600/20 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full py-3.5 px-4 rounded-xl bg-brand hover:bg-brand-strong text-white font-semibold text-sm shadow-md shadow-brand/25 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>
@@ -145,55 +145,55 @@ export default function LoginPage() {
           </form>
 
           {/* Quick Demo Login Shortcut Section */}
-          <div className="mt-8 pt-6 border-t border-slate-200 dark:border-slate-800">
-            <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider mb-3 text-center">
+          <div className="mt-8 pt-6 border-t border-hairline dark:border-slate-800">
+            <p className="text-xs font-bold text-ink-muted dark:text-slate-400 uppercase tracking-wider mb-3 text-center">
               ⚡ Raccourcis comptes de test MVP (Mode Démo)
             </p>
             <div className="grid grid-cols-2 gap-2 text-xs">
               <button
                 type="button"
                 onClick={() => fillDemoAccount("vendeur@koli.ci")}
-                className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 bg-slate-50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300 font-medium text-left transition-colors"
+                className="p-2.5 rounded-lg border border-hairline dark:border-slate-800 hover:border-brand-border dark:hover:border-brand-border bg-white dark:bg-slate-800/50 text-brand dark:text-slate-300 font-medium text-left transition-colors"
               >
-                🛍️ <span className="font-semibold text-slate-900 dark:text-white">Vendeur</span>
-                <span className="block text-[10px] text-slate-500">vendeur@koli.ci</span>
+                🛍️ <span className="font-semibold text-brand dark:text-white">Vendeur</span>
+                <span className="block text-[10px] text-ink-muted">vendeur@koli.ci</span>
               </button>
               <button
                 type="button"
                 onClick={() => fillDemoAccount("client@koli.ci")}
-                className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 bg-slate-50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300 font-medium text-left transition-colors"
+                className="p-2.5 rounded-lg border border-hairline dark:border-slate-800 hover:border-brand-border dark:hover:border-brand-border bg-white dark:bg-slate-800/50 text-brand dark:text-slate-300 font-medium text-left transition-colors"
               >
-                👤 <span className="font-semibold text-slate-900 dark:text-white">Client</span>
-                <span className="block text-[10px] text-slate-500">client@koli.ci</span>
+                👤 <span className="font-semibold text-brand dark:text-white">Client</span>
+                <span className="block text-[10px] text-ink-muted">client@koli.ci</span>
               </button>
               <button
                 type="button"
                 onClick={() => fillDemoAccount("livreur@koli.ci")}
-                className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 bg-slate-50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300 font-medium text-left transition-colors"
+                className="p-2.5 rounded-lg border border-hairline dark:border-slate-800 hover:border-brand-border dark:hover:border-brand-border bg-white dark:bg-slate-800/50 text-brand dark:text-slate-300 font-medium text-left transition-colors"
               >
-                🛵 <span className="font-semibold text-slate-900 dark:text-white">Livreur</span>
-                <span className="block text-[10px] text-slate-500">livreur@koli.ci</span>
+                🛵 <span className="font-semibold text-brand dark:text-white">Livreur</span>
+                <span className="block text-[10px] text-ink-muted">livreur@koli.ci</span>
               </button>
               <button
                 type="button"
                 onClick={() => fillDemoAccount("admin@koli.ci")}
-                className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 bg-slate-50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300 font-medium text-left transition-colors"
+                className="p-2.5 rounded-lg border border-hairline dark:border-slate-800 hover:border-brand-border dark:hover:border-brand-border bg-white dark:bg-slate-800/50 text-brand dark:text-slate-300 font-medium text-left transition-colors"
               >
-                🛡️ <span className="font-semibold text-slate-900 dark:text-white">Admin</span>
-                <span className="block text-[10px] text-slate-500">admin@koli.ci</span>
+                🛡️ <span className="font-semibold text-brand dark:text-white">Admin</span>
+                <span className="block text-[10px] text-ink-muted">admin@koli.ci</span>
               </button>
             </div>
-            <p className="text-[11px] text-center text-slate-500 mt-2">
-              Mot de passe universel : <code className="bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded text-emerald-600 font-mono">Password123!</code>
+            <p className="text-[11px] text-center text-ink-muted mt-2">
+              Mot de passe universel : <code className="bg-brand-soft dark:bg-slate-800 px-1 py-0.5 rounded text-brand font-mono">Password123!</code>
             </p>
           </div>
 
           <div className="mt-6 text-center">
-            <p className="text-sm text-slate-600 dark:text-slate-400">
+            <p className="text-sm text-ink-muted dark:text-slate-400">
               Vous n&apos;avez pas encore de compte ?{" "}
               <Link
                 href="/inscription"
-                className="inline-flex items-center min-h-[44px] font-semibold text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 underline underline-offset-4"
+                className="inline-flex items-center min-h-[44px] font-semibold text-brand hover:text-brand-strong dark:text-emerald-400 underline underline-offset-4"
               >
                 S&apos;inscrire gratuitement
               </Link>

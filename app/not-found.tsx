@@ -1,4 +1,4 @@
-import Link from "next/link";
+﻿import Link from "next/link";
 
 /**
  * §65 : « Toutes les erreurs doivent être compréhensibles. »
@@ -11,14 +11,14 @@ export default function PageIntrouvable() {
         <span className="text-5xl block" aria-hidden="true">
           🧭
         </span>
-        <h1 className="text-2xl font-black">Cette page n&apos;existe pas</h1>
-        <p className="text-sm text-slate-600 dark:text-slate-400">
+        <h1 className="text-2xl font-bold">Cette page n&apos;existe pas</h1>
+        <p className="text-sm text-ink-muted dark:text-slate-400">
           Le lien que vous avez suivi est peut-être incorrect, ou la page a été
           déplacée.
         </p>
         <Link
           href="/"
-          className="inline-flex items-center justify-center min-h-[48px] px-6 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm transition-colors"
+          className="inline-flex items-center justify-center min-h-[48px] px-6 rounded-2xl bg-brand hover:bg-brand-strong text-white font-bold text-sm transition-colors"
         >
           Retour à l&apos;accueil
         </Link>

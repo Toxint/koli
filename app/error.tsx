@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useEffect } from "react";
 import Link from "next/link";
@@ -26,8 +26,8 @@ export default function ErreurApplication({
         <span className="text-5xl block" aria-hidden="true">
           ⚠️
         </span>
-        <h1 className="text-2xl font-black">Une erreur est survenue</h1>
-        <p className="text-sm text-slate-600 dark:text-slate-400">
+        <h1 className="text-2xl font-bold">Une erreur est survenue</h1>
+        <p className="text-sm text-ink-muted dark:text-slate-400">
           Nous n&apos;avons pas pu afficher cette page. Aucune opération n&apos;a
           été enregistrée. Vous pouvez réessayer.
         </p>
@@ -36,20 +36,20 @@ export default function ErreurApplication({
           <button
             type="button"
             onClick={reset}
-            className="inline-flex items-center justify-center min-h-[48px] px-6 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm transition-colors"
+            className="inline-flex items-center justify-center min-h-[48px] px-6 rounded-2xl bg-brand hover:bg-brand-strong text-white font-bold text-sm transition-colors"
           >
             Réessayer
           </button>
           <Link
             href="/"
-            className="inline-flex items-center justify-center min-h-[48px] px-6 rounded-2xl border border-slate-300 dark:border-slate-700 font-bold text-sm"
+            className="inline-flex items-center justify-center min-h-[48px] px-6 rounded-2xl border border-hairline dark:border-slate-700 font-bold text-sm"
           >
             Retour à l&apos;accueil
           </Link>
         </div>
 
         {error.digest && (
-          <p className="text-xs text-slate-500 pt-2">
+          <p className="text-xs text-ink-muted pt-2">
             Référence technique : <code>{error.digest}</code>
           </p>
         )}

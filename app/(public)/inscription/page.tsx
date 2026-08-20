@@ -53,14 +53,14 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex flex-col justify-center px-4 py-8 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-white dark:bg-slate-950 flex flex-col justify-center px-4 py-8 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-xl">
         <AuthHeader
           title="Créer votre compte KOLI"
           subtitle="Rejoignez la plateforme qui sécurise les achats et ventes en ligne en Afrique"
         />
 
-        <div className="bg-white dark:bg-slate-900 shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-200/80 dark:border-slate-800 rounded-2xl p-6 sm:p-8">
+        <div className="bg-white dark:bg-slate-900 shadow-xl shadow-slate-200/50 dark:shadow-none border border-hairline/80 dark:border-slate-800 rounded-2xl p-6 sm:p-8">
           {error && (
             <div role="alert" className="mb-6 p-4 rounded-xl bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-sm flex items-start gap-3">
               <svg className="w-5 h-5 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -77,7 +77,7 @@ export default function RegisterPage() {
             <div>
               <span
                 id="libelle-role"
-                className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-3"
+                className="block text-xs font-semibold text-brand dark:text-slate-300 uppercase tracking-wider mb-3"
               >
                 Vous souhaitez vous inscrire en tant que :
               </span>
@@ -93,13 +93,13 @@ export default function RegisterPage() {
                   aria-checked={role === "SELLER"}
                   className={`p-4 rounded-xl border-2 text-left transition-all ${
                     role === "SELLER"
-                      ? "border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/30 text-emerald-950 dark:text-emerald-200 shadow-sm"
-                      : "border-slate-200 dark:border-slate-800 hover:border-slate-300 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300"
+                      ? "border-brand-border bg-brand-soft/50 dark:bg-emerald-950/30 text-brand dark:text-emerald-200 shadow-sm"
+                      : "border-hairline dark:border-slate-800 hover:border-hairline bg-white dark:bg-slate-800 text-brand dark:text-slate-300"
                   }`}
                 >
                   <span className="text-2xl block mb-1">🛍️</span>
                   <span className="font-bold text-sm block">Vendeur</span>
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5">
+                  <span className="text-[11px] text-ink-muted dark:text-slate-400 block mt-0.5">
                     Sécurisez vos ventes WhatsApp & RS
                   </span>
                 </button>
@@ -111,13 +111,13 @@ export default function RegisterPage() {
                   aria-checked={role === "DRIVER"}
                   className={`p-4 rounded-xl border-2 text-left transition-all ${
                     role === "DRIVER"
-                      ? "border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/30 text-emerald-950 dark:text-emerald-200 shadow-sm"
-                      : "border-slate-200 dark:border-slate-800 hover:border-slate-300 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300"
+                      ? "border-brand-border bg-brand-soft/50 dark:bg-emerald-950/30 text-brand dark:text-emerald-200 shadow-sm"
+                      : "border-hairline dark:border-slate-800 hover:border-hairline bg-white dark:bg-slate-800 text-brand dark:text-slate-300"
                   }`}
                 >
                   <span className="text-2xl block mb-1">🛵</span>
                   <span className="font-bold text-sm block">Livreur</span>
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5">
+                  <span className="text-[11px] text-ink-muted dark:text-slate-400 block mt-0.5">
                     Effectuez les livraisons et validez par OTP
                   </span>
                 </button>
@@ -129,13 +129,13 @@ export default function RegisterPage() {
                   aria-checked={role === "CLIENT"}
                   className={`p-4 rounded-xl border-2 text-left transition-all ${
                     role === "CLIENT"
-                      ? "border-emerald-500 bg-emerald-50/50 dark:bg-emerald-950/30 text-emerald-950 dark:text-emerald-200 shadow-sm"
-                      : "border-slate-200 dark:border-slate-800 hover:border-slate-300 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300"
+                      ? "border-brand-border bg-brand-soft/50 dark:bg-emerald-950/30 text-brand dark:text-emerald-200 shadow-sm"
+                      : "border-hairline dark:border-slate-800 hover:border-hairline bg-white dark:bg-slate-800 text-brand dark:text-slate-300"
                   }`}
                 >
                   <span className="text-2xl block mb-1">👤</span>
                   <span className="font-bold text-sm block">Client</span>
-                  <span className="text-[11px] text-slate-500 dark:text-slate-400 block mt-0.5">
+                  <span className="text-[11px] text-ink-muted dark:text-slate-400 block mt-0.5">
                     Achetez en toute confiance
                   </span>
                 </button>
@@ -146,7 +146,7 @@ export default function RegisterPage() {
               <div>
                 <label
                   htmlFor="name"
-                  className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5"
+                  className="block text-xs font-semibold text-brand dark:text-slate-300 uppercase tracking-wider mb-1.5"
                 >
                   Nom complet / Prénom
                 </label>
@@ -158,14 +158,14 @@ export default function RegisterPage() {
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   placeholder="Ex: Koffi Emmanuel"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-sm"
+                  className="w-full px-4 py-3 rounded-xl border border-hairline dark:border-slate-700 bg-white dark:bg-slate-800 text-brand dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand-border transition-all text-sm"
                 />
               </div>
 
               <div>
                 <label
                   htmlFor="phone"
-                  className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5"
+                  className="block text-xs font-semibold text-brand dark:text-slate-300 uppercase tracking-wider mb-1.5"
                 >
                   Numéro de téléphone
                 </label>
@@ -178,7 +178,7 @@ export default function RegisterPage() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="+225 07 00 00 00 00"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-sm"
+                  className="w-full px-4 py-3 rounded-xl border border-hairline dark:border-slate-700 bg-white dark:bg-slate-800 text-brand dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand-border transition-all text-sm"
                 />
               </div>
             </div>
@@ -187,9 +187,9 @@ export default function RegisterPage() {
               <div>
                 <label
                   htmlFor="email"
-                  className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5"
+                  className="block text-xs font-semibold text-brand dark:text-slate-300 uppercase tracking-wider mb-1.5"
                 >
-                  Email <span className="text-slate-500 dark:text-slate-400 font-normal lowercase">(optionnel)</span>
+                  Email <span className="text-ink-muted dark:text-slate-400 font-normal lowercase">(optionnel)</span>
                 </label>
                 <input
                   id="email"
@@ -199,14 +199,14 @@ export default function RegisterPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="exemple@domaine.com"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-sm"
+                  className="w-full px-4 py-3 rounded-xl border border-hairline dark:border-slate-700 bg-white dark:bg-slate-800 text-brand dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand-border transition-all text-sm"
                 />
               </div>
 
               <div>
                 <label
                   htmlFor="password"
-                  className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5"
+                  className="block text-xs font-semibold text-brand dark:text-slate-300 uppercase tracking-wider mb-1.5"
                 >
                   Mot de passe
                 </label>
@@ -220,13 +220,13 @@ export default function RegisterPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Au moins 6 caractères"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-sm"
+                  className="w-full px-4 py-3 rounded-xl border border-hairline dark:border-slate-700 bg-white dark:bg-slate-800 text-brand dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand-border transition-all text-sm"
                 />
                 {/* L'exigence ne vivait que dans le placeholder, qui disparait
                     des la premiere frappe et n'est lu par aucun lecteur d'ecran. */}
                 <p
                   id="aide-mot-de-passe"
-                  className="mt-1 text-xs text-slate-600 dark:text-slate-400"
+                  className="mt-1 text-xs text-ink-muted dark:text-slate-400"
                 >
                   6 caractères minimum.
                 </p>
@@ -238,7 +238,7 @@ export default function RegisterPage() {
               <div>
                 <label
                   htmlFor="businessName"
-                  className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5"
+                  className="block text-xs font-semibold text-brand dark:text-slate-300 uppercase tracking-wider mb-1.5"
                 >
                   Nom de votre boutique / commerce
                 </label>
@@ -249,7 +249,7 @@ export default function RegisterPage() {
                   value={businessName}
                   onChange={(e) => setBusinessName(e.target.value)}
                   placeholder="Ex: Abidjan Mode Express"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-sm"
+                  className="w-full px-4 py-3 rounded-xl border border-hairline dark:border-slate-700 bg-white dark:bg-slate-800 text-brand dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand-border transition-all text-sm"
                 />
               </div>
             )}
@@ -258,7 +258,7 @@ export default function RegisterPage() {
               <div>
                 <label
                   htmlFor="vehicle"
-                  className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5"
+                  className="block text-xs font-semibold text-brand dark:text-slate-300 uppercase tracking-wider mb-1.5"
                 >
                   Type de véhicule / immatriculation
                 </label>
@@ -268,7 +268,7 @@ export default function RegisterPage() {
                   value={vehicle}
                   onChange={(e) => setVehicle(e.target.value)}
                   placeholder="Ex: Moto Yamaha YBR - AB-999-CI"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-sm"
+                  className="w-full px-4 py-3 rounded-xl border border-hairline dark:border-slate-700 bg-white dark:bg-slate-800 text-brand dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand-border transition-all text-sm"
                 />
               </div>
             )}
@@ -277,7 +277,7 @@ export default function RegisterPage() {
               <div>
                 <label
                   htmlFor="city"
-                  className="block text-xs font-semibold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1.5"
+                  className="block text-xs font-semibold text-brand dark:text-slate-300 uppercase tracking-wider mb-1.5"
                 >
                   Ville de résidence
                 </label>
@@ -288,7 +288,7 @@ export default function RegisterPage() {
                   value={city}
                   onChange={(e) => setCity(e.target.value)}
                   placeholder="Ex: Abidjan, Bouaké, San-Pédro"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-sm"
+                  className="w-full px-4 py-3 rounded-xl border border-hairline dark:border-slate-700 bg-white dark:bg-slate-800 text-brand dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand-border transition-all text-sm"
                 />
               </div>
             )}
@@ -296,7 +296,7 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3.5 px-4 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-semibold text-sm shadow-md shadow-emerald-600/20 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+              className="w-full py-3.5 px-4 rounded-xl bg-brand hover:bg-brand-strong text-white font-semibold text-sm shadow-md shadow-brand/25 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>
@@ -313,11 +313,11 @@ export default function RegisterPage() {
           </form>
 
           <div className="mt-6 text-center">
-            <p className="text-sm text-slate-600 dark:text-slate-400">
+            <p className="text-sm text-ink-muted dark:text-slate-400">
               Vous avez déjà un compte ?{" "}
               <Link
                 href="/connexion"
-                className="inline-flex items-center min-h-[44px] font-semibold text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 underline underline-offset-4"
+                className="inline-flex items-center min-h-[44px] font-semibold text-brand hover:text-brand-strong dark:text-emerald-400 underline underline-offset-4"
               >
                 Se connecter
               </Link>

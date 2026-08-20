@@ -128,7 +128,83 @@ async function auditerPage(page, largeur) {
       }
     }
 
-    // 4. Champs de saisie sous 16px -> zoom automatique iOS.
+    // 4. Contraste du texte (§69 : « contraste suffisant »).
+    // Seuil WCAG AA : 4,5:1 pour le texte courant, 3:1 pour le grand texte
+    // (>=24px, ou >=18.66px en gras). Verifie ici sur les couleurs REELLEMENT
+    // calculees par le navigateur, pas sur les classes.
+    {
+      const luminance = (r, g, b) => {
+        const c = [r, g, b].map((v) => {
+          const s = v / 255;
+          return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+        });
+        return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+      };
+      const lire = (couleur) => {
+        const m = couleur.match(/rgba?\(([^)]+)\)/);
+        if (!m) return null;
+        const p = m[1].split(",").map((x) => parseFloat(x));
+        if (p.length > 3 && p[3] === 0) return null; // transparent
+        return p;
+      };
+      // Remonte jusqu'au premier ancetre ayant un fond opaque.
+      const fondEffectif = (el) => {
+        for (let n = el; n; n = n.parentElement) {
+          const p = lire(getComputedStyle(n).backgroundColor);
+          if (p && (p.length < 4 || p[3] > 0.5)) return p;
+        }
+        return [255, 255, 255];
+      };
+
+      const fautes = [];
+      const parcourus = new Set();
+      for (const el of document.querySelectorAll("body *")) {
+        // Uniquement les elements portant directement du texte visible.
+        const texte = Array.from(el.childNodes)
+          .filter((n) => n.nodeType === 3)
+          .map((n) => n.textContent.trim())
+          .join(" ")
+          .trim();
+        if (!texte) continue;
+        const r = el.getBoundingClientRect();
+        if (r.width === 0 || r.height === 0) continue;
+
+        const st = getComputedStyle(el);
+        if (st.visibility === "hidden" || st.opacity === "0") continue;
+
+        const avant = lire(st.color);
+        if (!avant) continue;
+        const arriere = fondEffectif(el);
+
+        const l1 = luminance(avant[0], avant[1], avant[2]);
+        const l2 = luminance(arriere[0], arriere[1], arriere[2]);
+        const ratio =
+          (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+
+        const taille = parseFloat(st.fontSize);
+        const gras = parseInt(st.fontWeight, 10) >= 700;
+        const grandTexte = taille >= 24 || (gras && taille >= 18.66);
+        const seuil = grandTexte ? 3 : 4.5;
+
+        if (ratio < seuil) {
+          const cle = `${st.color}|${taille}`;
+          if (parcourus.has(cle)) continue;
+          parcourus.add(cle);
+          fautes.push(
+            `"${texte.slice(0, 26)}" ${st.color} ${ratio.toFixed(2)}:1 (min ${seuil})`
+          );
+        }
+      }
+      if (fautes.length) {
+        problemes.push({
+          gravite: "IMPORTANT",
+          type: "contraste-insuffisant",
+          detail: fautes.slice(0, 6).join(" | "),
+        });
+      }
+    }
+
+    // 5. Champs de saisie sous 16px -> zoom automatique iOS.
     if (largeurVue < 768) {
       const petitTexte = [];
       for (const el of document.querySelectorAll("input, select, textarea")) {

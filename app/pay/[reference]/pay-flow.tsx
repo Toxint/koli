@@ -101,20 +101,20 @@ export function PayFlow({
         <div
           className={`w-16 h-16 rounded-full flex items-center justify-center text-3xl mx-auto shadow-lg ${
             attendConfirmation
-              ? "bg-amber-100 text-amber-600 shadow-amber-500/20"
-              : "bg-emerald-100 text-emerald-600 shadow-emerald-500/20"
+              ? "bg-brand-soft text-brand shadow-brand/25"
+              : "bg-brand-soft text-brand shadow-brand/25"
           }`}
         >
           {attendConfirmation ? "📦" : "✅"}
         </div>
-        <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white">
+        <h1 className="text-2xl font-semibold text-brand dark:text-white">
           {attendConfirmation
             ? "Avez-vous reçu votre commande ?"
             : estTermine
               ? "Commande terminée"
               : "Paiement sécurisé KOLI confirmé"}
         </h1>
-        <p className="text-sm text-slate-600 dark:text-slate-300">
+        <p className="text-sm text-ink-muted dark:text-slate-300">
           {attendConfirmation
             ? "Le livreur a marqué votre colis comme remis. Confirmez la réception pour que le vendeur soit payé (simulation)."
             : estTermine
@@ -122,20 +122,20 @@ export function PayFlow({
               : "Votre paiement simulé est enregistré. Aucun argent réel n'a été prélevé ni détenu. Le vendeur voit la commande comme payée et prépare l'expédition."}
         </p>
 
-        <span className="inline-block px-3 py-1 rounded-full bg-test-mode-surface dark:bg-amber-950/80 text-test-mode dark:text-amber-300 text-[11px] font-black uppercase tracking-wider border border-amber-300/60">
+        <span className="inline-block px-3 py-1 rounded-full bg-test-mode-surface dark:bg-amber-950/80 text-test-mode dark:text-amber-300 text-[11px] font-bold uppercase tracking-wider border border-brand-border/60">
           ⚡ Mode test — aucun paiement réel
         </span>
 
         {/* Code de réception (§27) — visible du seul client authentifié. */}
         {codeReception && !estTermine && (
-          <div className="bg-emerald-50 dark:bg-emerald-950/50 border-2 border-emerald-300 dark:border-emerald-800 rounded-2xl p-5 space-y-2">
-            <span className="block text-[11px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
+          <div className="bg-brand-soft dark:bg-emerald-950/50 border-2 border-brand-border dark:border-emerald-800 rounded-2xl p-5 space-y-2">
+            <span className="block text-[11px] font-bold uppercase tracking-widest text-brand dark:text-emerald-400">
               Votre code de réception
             </span>
-            <span className="block font-mono text-4xl font-black tracking-[0.25em] text-emerald-800 dark:text-emerald-300">
+            <span className="block font-mono text-4xl font-bold tracking-[0.25em] text-brand dark:text-emerald-300">
               {codeReception}
             </span>
-            <p className="text-xs text-emerald-800/80 dark:text-emerald-300/80">
+            <p className="text-xs text-brand/80 dark:text-emerald-300/80">
               Communiquez ce code au livreur <strong>uniquement</strong> lorsque
               vous avez le colis entre les mains. Ne le partagez avec personne
               d&apos;autre.
@@ -143,21 +143,21 @@ export function PayFlow({
           </div>
         )}
 
-        <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl text-left text-xs space-y-2">
+        <div className="bg-white dark:bg-slate-900 border border-hairline dark:border-slate-800 p-4 rounded-xl text-left text-xs space-y-2">
           <div className="flex justify-between font-medium">
-            <span className="text-slate-500">Référence :</span>
-            <span className="font-mono font-bold text-emerald-600">{order.reference}</span>
+            <span className="text-ink-muted">Référence :</span>
+            <span className="font-mono font-bold text-brand">{order.reference}</span>
           </div>
           <div className="flex justify-between font-medium">
-            <span className="text-slate-500">Montant total :</span>
-            <span className="font-bold text-slate-900 dark:text-white">{formatCFA(grandTotal)}</span>
+            <span className="text-ink-muted">Montant total :</span>
+            <span className="font-bold text-brand dark:text-white">{formatCFA(grandTotal)}</span>
           </div>
           <div className="flex justify-between font-medium">
-            <span className="text-slate-500">Destinataire :</span>
+            <span className="text-ink-muted">Destinataire :</span>
             <span>{order.buyerName} ({order.buyerPhone})</span>
           </div>
           <div className="flex justify-between font-medium">
-            <span className="text-slate-500">Adresse :</span>
+            <span className="text-ink-muted">Adresse :</span>
             <span>{order.buyerAddress}, {order.buyerCity}</span>
           </div>
         </div>
@@ -174,7 +174,7 @@ export function PayFlow({
               type="button"
               disabled={loading}
               onClick={handleConfirmReception}
-              className="w-full min-h-[48px] py-4 px-4 rounded-2xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs uppercase tracking-wider shadow-lg shadow-emerald-600/25 transition-all disabled:opacity-50 cursor-pointer"
+              className="w-full min-h-[48px] py-4 px-4 rounded-2xl bg-brand hover:bg-brand-strong text-white font-semibold text-xs uppercase tracking-wider shadow-lg shadow-emerald-600/25 transition-all disabled:opacity-50 cursor-pointer"
             >
               {loading ? "Traitement en cours…" : "Oui, j'ai reçu ma commande"}
             </button>
@@ -183,7 +183,7 @@ export function PayFlow({
               type="button"
               disabled
               title="La gestion des litiges arrive dans une prochaine étape."
-              className="w-full min-h-[48px] py-3 px-4 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-500 font-semibold text-xs disabled:opacity-60 cursor-not-allowed"
+              className="w-full min-h-[48px] py-3 px-4 rounded-xl border border-hairline dark:border-slate-700 text-ink-muted font-semibold text-xs disabled:opacity-60 cursor-not-allowed"
             >
               Signaler un problème (bientôt disponible)
             </button>
@@ -197,11 +197,11 @@ export function PayFlow({
           <div className="pt-2">
             <Link
               href={`/connexion?redirect=/pay/${order.reference}`}
-              className="inline-flex items-center justify-center w-full min-h-[48px] px-4 rounded-2xl border border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 font-bold text-xs"
+              className="inline-flex items-center justify-center w-full min-h-[48px] px-4 rounded-2xl border border-brand-border dark:border-emerald-800 text-brand dark:text-emerald-400 font-bold text-xs"
             >
               Connectez-vous pour confirmer la réception
             </Link>
-            <p className="mt-2 text-xs text-slate-500">
+            <p className="mt-2 text-xs text-ink-muted">
               Seul le client destinataire peut confirmer avoir reçu la commande.
             </p>
           </div>
@@ -215,18 +215,18 @@ export function PayFlow({
       {/* Header */}
       <div className="text-center space-y-2">
         <div className="inline-flex items-center gap-2 mb-2">
-          <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-amber-500 via-amber-400 to-yellow-500 flex items-center justify-center text-slate-950 font-black text-2xl shadow-lg shadow-amber-500/20 border border-amber-300/40 animate-float">
+          <div className="w-11 h-11 rounded-2xl bg-brand flex items-center justify-center text-white font-bold text-2xl shadow-lg shadow-brand/25 border border-brand-border/40 animate-float">
             K
           </div>
-          <span className="font-black text-2xl tracking-tight text-slate-900 dark:text-white">
-            KOLI <span className="text-amber-500 font-mono text-sm uppercase tracking-widest font-extrabold">PAY</span>
+          <span className="font-bold text-2xl tracking-tight text-brand dark:text-white">
+            KOLI <span className="text-amber-500 font-mono text-sm uppercase tracking-widest font-semibold">PAY</span>
           </span>
         </div>
-        <h1 className="text-2xl font-black text-slate-900 dark:text-white">
+        <h1 className="text-2xl font-bold text-brand dark:text-white">
           Paiement Sécurisé de la Commande {order.reference}
         </h1>
-        <p className="text-xs text-slate-500">
-          Vendu par <span className="font-bold text-amber-600 dark:text-amber-400">{order.sellerName}</span>
+        <p className="text-xs text-ink-muted">
+          Vendu par <span className="font-bold text-brand dark:text-amber-400">{order.sellerName}</span>
         </p>
       </div>
 
@@ -238,55 +238,55 @@ export function PayFlow({
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
         {/* Order Summary Card */}
-        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200/80 dark:border-slate-800 p-6 shadow-sm space-y-4">
-          <h2 className="text-xs font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-hairline/80 dark:border-slate-800 p-6 shadow-sm space-y-4">
+          <h2 className="text-xs font-bold uppercase tracking-wider text-brand dark:text-amber-400">
             Récapitulatif de la commande
           </h2>
 
-          <div className="divide-y divide-slate-100 dark:divide-slate-800">
+          <div className="divide-y divide-hairline dark:divide-slate-800">
             {order.items.map((item) => (
               <div key={item.id} className="py-3 flex justify-between items-center text-sm">
                 <div>
-                  <span className="font-bold text-slate-900 dark:text-white block">
+                  <span className="font-bold text-brand dark:text-white block">
                     {item.name}
                   </span>
-                  <span className="text-xs text-slate-500">
+                  <span className="text-xs text-ink-muted">
                     Quantité : {item.quantity} × {formatCFA(item.unitPrice)}
                   </span>
                 </div>
-                <span className="font-black text-slate-900 dark:text-white">
+                <span className="font-bold text-brand dark:text-white">
                   {formatCFA(item.unitPrice * item.quantity)}
                 </span>
               </div>
             ))}
           </div>
 
-          <div className="pt-3 border-t border-slate-200 dark:border-slate-800 text-xs space-y-2">
-            <div className="flex justify-between text-slate-500">
+          <div className="pt-3 border-t border-hairline dark:border-slate-800 text-xs space-y-2">
+            <div className="flex justify-between text-ink-muted">
               <span>Sous-total articles :</span>
               <span className="font-semibold">{formatCFA(subtotal)}</span>
             </div>
-            <div className="flex justify-between text-slate-500">
+            <div className="flex justify-between text-ink-muted">
               <span>Frais de livraison :</span>
               <span className="font-semibold">{formatCFA(order.deliveryFee)}</span>
             </div>
-            <div className="flex justify-between text-base font-black text-slate-900 dark:text-white pt-2 border-t border-slate-200 dark:border-slate-800">
+            <div className="flex justify-between text-base font-bold text-brand dark:text-white pt-2 border-t border-hairline dark:border-slate-800">
               <span>Total à régler :</span>
-              <span className="text-amber-600 dark:text-amber-400">{formatCFA(grandTotal)}</span>
+              <span className="text-brand dark:text-amber-400">{formatCFA(grandTotal)}</span>
             </div>
           </div>
         </div>
 
         {/* Payment Simulation Box */}
-        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-amber-300/40 dark:border-amber-500/20 p-6 shadow-xl shadow-amber-500/5 space-y-6">
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-brand-border/40 dark:border-amber-500/20 p-6 shadow-xl shadow-amber-500/5 space-y-6">
           <div>
-            <div className="inline-block px-3 py-1 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-900 dark:text-amber-300 text-[10px] font-black uppercase tracking-wider mb-2 border border-amber-300/50">
+            <div className="inline-block px-3 py-1 rounded-full bg-brand-soft dark:bg-amber-950 text-brand dark:text-amber-300 text-[10px] font-bold uppercase tracking-wider mb-2 border border-brand-border/50">
               ⚡ Mode Test MVP
             </div>
-            <h2 className="text-lg font-black text-slate-900 dark:text-white">
+            <h2 className="text-lg font-bold text-brand dark:text-white">
               Simulation de Paiement Sécurisé
             </h2>
-            <p className="text-xs text-slate-500 mt-1">
+            <p className="text-xs text-ink-muted mt-1">
               Aucun argent réel n&apos;est prélevé. Choisissez le scénario de test pour continuer.
             </p>
           </div>
@@ -296,7 +296,7 @@ export function PayFlow({
               type="button"
               disabled={loading}
               onClick={() => handleSimulatePayment("SUCCESS")}
-              className="w-full py-4 px-4 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 font-extrabold text-xs uppercase tracking-wider shadow-lg shadow-amber-500/25 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer border border-amber-300/60"
+              className="w-full py-4 px-4 rounded-2xl bg-brand hover:bg-brand-strong text-white font-semibold text-xs uppercase tracking-wider shadow-lg shadow-brand/25 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer border border-brand-border/60"
             >
               {loading ? (
                 <span>Traitement en cours...</span>
@@ -309,7 +309,7 @@ export function PayFlow({
               type="button"
               disabled={loading}
               onClick={() => handleSimulatePayment("FAILURE")}
-              className="w-full py-3 px-4 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors"
+              className="w-full py-3 px-4 rounded-xl border border-hairline dark:border-slate-700 hover:bg-brand-soft dark:hover:bg-slate-800 text-brand dark:text-slate-300 font-semibold text-xs transition-colors"
             >
               ❌ Simuler un paiement échoué
             </button>

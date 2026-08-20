@@ -90,28 +90,28 @@ export default function NewOrderPage() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-white dark:bg-slate-950 text-brand dark:text-white py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto space-y-6">
         {/* §75 : cette page affiche des montants et n'avait aucun indicateur de
             mode test — elle est la seule page connectée sans en-tête KOLI. */}
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <Link
             href="/vendeur/dashboard"
-            className="inline-flex items-center min-h-[44px] gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
+            className="inline-flex items-center min-h-[44px] gap-1.5 text-xs font-bold text-ink-muted hover:text-brand dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
           >
             ← Retour au tableau de bord
           </Link>
-          <span className="px-3 py-1 rounded-full bg-test-mode-surface dark:bg-amber-950/80 text-test-mode dark:text-amber-300 text-[11px] font-extrabold border border-amber-300/60 dark:border-amber-700 whitespace-nowrap">
+          <span className="px-3 py-1 rounded-full bg-test-mode-surface dark:bg-amber-950/80 text-test-mode dark:text-amber-300 text-[11px] font-semibold border border-brand-border/60 dark:border-amber-700 whitespace-nowrap">
             ⚡ Mode test — aucun paiement réel
           </span>
         </div>
 
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 sm:p-8 shadow-xl shadow-slate-200/50 dark:shadow-none space-y-6">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-hairline dark:border-slate-800 p-6 sm:p-8 shadow-xl shadow-slate-200/50 dark:shadow-none space-y-6">
           <div>
-            <h1 className="text-2xl font-extrabold tracking-tight">
+            <h1 className="text-2xl font-semibold tracking-tight">
               Créer une nouvelle commande
             </h1>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+            <p className="text-xs text-ink-muted dark:text-slate-400 mt-1">
               Renseignez les détails du produit et du client pour générer instantanément un lien de paiement sécurisé.
             </p>
           </div>
@@ -124,32 +124,32 @@ export default function NewOrderPage() {
 
           {createdReference ? (
             /* Success Modal / Display */
-            <div className="bg-emerald-50 dark:bg-emerald-950/40 border-2 border-emerald-500 rounded-2xl p-6 sm:p-8 text-center space-y-4">
+            <div className="bg-brand-soft dark:bg-emerald-950/40 border-2 border-brand-border rounded-2xl p-6 sm:p-8 text-center space-y-4">
               <div className="w-14 h-14 rounded-2xl bg-emerald-500 text-white flex items-center justify-center mx-auto text-2xl shadow-lg shadow-emerald-500/30">
                 ✅
               </div>
-              <h2 className="text-xl font-extrabold text-emerald-950 dark:text-emerald-200">
+              <h2 className="text-xl font-semibold text-brand dark:text-emerald-200">
                 Commande {createdReference} créée avec succès !
               </h2>
-              <p className="text-xs text-slate-600 dark:text-slate-300 max-w-md mx-auto">
+              <p className="text-xs text-ink-muted dark:text-slate-300 max-w-md mx-auto">
                 Partagez ce lien à votre client sur WhatsApp, TikTok ou Facebook pour recevoir le paiement sécurisé.
               </p>
 
-              <div className="bg-white dark:bg-slate-900 border border-emerald-300 dark:border-emerald-700 p-3 rounded-xl space-y-2 max-w-lg mx-auto">
+              <div className="bg-white dark:bg-slate-900 border border-brand-border dark:border-emerald-700 p-3 rounded-xl space-y-2 max-w-lg mx-auto">
                 {/* `break-all` plutot que `truncate` : le vendeur doit pouvoir
                     LIRE le lien, notamment si la copie echoue. */}
-                <span className="block text-xs font-mono text-slate-800 dark:text-slate-200 break-all select-all text-left">
+                <span className="block text-xs font-mono text-brand dark:text-slate-200 break-all select-all text-left">
                   {shareUrl}
                 </span>
                 <button
                   type="button"
                   onClick={handleCopierLien}
-                  className="w-full min-h-[44px] px-3 rounded-lg bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-700 transition-colors"
+                  className="w-full min-h-[44px] px-3 rounded-lg bg-brand text-white font-bold text-xs hover:bg-brand-strong transition-colors"
                 >
                   {copie ? "✓ Lien copié" : "Copier le lien 📋"}
                 </button>
                 {erreurCopie && (
-                  <p role="alert" className="text-xs text-amber-700 dark:text-amber-400">
+                  <p role="alert" className="text-xs text-brand dark:text-amber-400">
                     La copie automatique n&apos;est pas disponible ici.
                     Sélectionnez le lien ci-dessus pour le copier manuellement.
                   </p>
@@ -173,7 +173,7 @@ export default function NewOrderPage() {
                 <Link
                   href={`/pay/${createdReference}`}
                   target="_blank"
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white font-bold text-xs shadow-md hover:shadow-lg transition-all"
+                  className="px-5 py-2.5 rounded-xl bg-brand text-white font-bold text-xs shadow-md hover:shadow-lg transition-all"
                 >
                   Ouvrir la page de paiement 🔗
                 </Link>
@@ -186,7 +186,7 @@ export default function NewOrderPage() {
                     setBuyerAddress("");
                     setBuyerLandmark("");
                   }}
-                  className="px-5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-semibold text-xs hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                  className="px-5 py-2.5 rounded-xl border border-hairline dark:border-slate-700 text-brand dark:text-slate-300 font-semibold text-xs hover:bg-white dark:hover:bg-slate-800 transition-colors"
                 >
                   + Créer une autre commande
                 </button>
@@ -196,12 +196,12 @@ export default function NewOrderPage() {
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Product Info Section */}
               <div className="space-y-4 border-b border-slate-100 dark:border-slate-800 pb-6">
-                <h2 className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-brand dark:text-emerald-400">
                   1. Informations du Produit / Service
                 </h2>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block text-xs font-semibold text-brand dark:text-slate-300 mb-1">
                     Nom de l&apos;article / Produit
                   </label>
                   <input
@@ -210,13 +210,13 @@ export default function NewOrderPage() {
                     value={productName}
                     onChange={(e) => setProductName(e.target.value)}
                     placeholder="Ex: Robe Wax Traditionnelle"
-                    className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+                    className="w-full px-4 py-3 rounded-xl border border-hairline dark:border-slate-700 bg-white dark:bg-slate-800 text-brand dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand text-sm"
                   />
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <label className="block text-xs font-semibold text-brand dark:text-slate-300 mb-1">
                       Prix Unitaire (FCFA)
                     </label>
                     <input
@@ -225,12 +225,12 @@ export default function NewOrderPage() {
                       min={100}
                       value={unitPrice}
                       onChange={(e) => setUnitPrice(Number(e.target.value))}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm"
+                      className="w-full px-4 py-3 rounded-xl border border-hairline dark:border-slate-700 bg-white dark:bg-slate-800 text-brand dark:text-white text-sm"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <label className="block text-xs font-semibold text-brand dark:text-slate-300 mb-1">
                       Quantité
                     </label>
                     <input
@@ -239,12 +239,12 @@ export default function NewOrderPage() {
                       min={1}
                       value={quantity}
                       onChange={(e) => setQuantity(Number(e.target.value))}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm"
+                      className="w-full px-4 py-3 rounded-xl border border-hairline dark:border-slate-700 bg-white dark:bg-slate-800 text-brand dark:text-white text-sm"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <label className="block text-xs font-semibold text-brand dark:text-slate-300 mb-1">
                       Frais de Livraison (FCFA)
                     </label>
                     <input
@@ -253,7 +253,7 @@ export default function NewOrderPage() {
                       min={0}
                       value={deliveryFee}
                       onChange={(e) => setDeliveryFee(Number(e.target.value))}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm"
+                      className="w-full px-4 py-3 rounded-xl border border-hairline dark:border-slate-700 bg-white dark:bg-slate-800 text-brand dark:text-white text-sm"
                     />
                   </div>
                 </div>
@@ -261,13 +261,13 @@ export default function NewOrderPage() {
 
               {/* Customer Info Section */}
               <div className="space-y-4 border-b border-slate-100 dark:border-slate-800 pb-6">
-                <h2 className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-brand dark:text-emerald-400">
                   2. Informations du Client Destinataire
                 </h2>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <label className="block text-xs font-semibold text-brand dark:text-slate-300 mb-1">
                       Nom complet du Client
                     </label>
                     <input
@@ -276,12 +276,12 @@ export default function NewOrderPage() {
                       value={buyerName}
                       onChange={(e) => setBuyerName(e.target.value)}
                       placeholder="Ex: Awa Koné"
-                      className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm"
+                      className="w-full px-4 py-3 rounded-xl border border-hairline dark:border-slate-700 bg-white dark:bg-slate-800 text-brand dark:text-white text-sm"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <label className="block text-xs font-semibold text-brand dark:text-slate-300 mb-1">
                       Numéro de Téléphone Client
                     </label>
                     <input
@@ -290,7 +290,7 @@ export default function NewOrderPage() {
                       value={buyerPhone}
                       onChange={(e) => setBuyerPhone(e.target.value)}
                       placeholder="Ex: +225 05 05 05 05 05"
-                      className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm"
+                      className="w-full px-4 py-3 rounded-xl border border-hairline dark:border-slate-700 bg-white dark:bg-slate-800 text-brand dark:text-white text-sm"
                     />
                   </div>
                 </div>
@@ -299,7 +299,7 @@ export default function NewOrderPage() {
                   <div>
                     <label
                       htmlFor="buyerCountry"
-                      className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1"
+                      className="block text-xs font-semibold text-brand dark:text-slate-300 mb-1"
                     >
                       Pays
                     </label>
@@ -310,7 +310,7 @@ export default function NewOrderPage() {
                       id="buyerCountry"
                       value={buyerCountry}
                       onChange={(e) => setBuyerCountry(e.target.value)}
-                      className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm"
+                      className="w-full px-4 py-3 rounded-xl border border-hairline dark:border-slate-700 bg-white dark:bg-slate-800 text-brand dark:text-white text-sm"
                     >
                       {markets.map((marche) => (
                         <option key={marche.code} value={marche.name}>
@@ -321,7 +321,7 @@ export default function NewOrderPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <label className="block text-xs font-semibold text-brand dark:text-slate-300 mb-1">
                       Ville
                     </label>
                     <input
@@ -330,13 +330,13 @@ export default function NewOrderPage() {
                       value={buyerCity}
                       onChange={(e) => setBuyerCity(e.target.value)}
                       placeholder="Ex: Abidjan"
-                      className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm"
+                      className="w-full px-4 py-3 rounded-xl border border-hairline dark:border-slate-700 bg-white dark:bg-slate-800 text-brand dark:text-white text-sm"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  <label className="block text-xs font-semibold text-brand dark:text-slate-300 mb-1">
                     Adresse / Quartier de livraison
                   </label>
                   <input
@@ -345,33 +345,33 @@ export default function NewOrderPage() {
                     value={buyerAddress}
                     onChange={(e) => setBuyerAddress(e.target.value)}
                     placeholder="Ex: Cocody Angré 8ème Tranche"
-                    className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm"
+                    className="w-full px-4 py-3 rounded-xl border border-hairline dark:border-slate-700 bg-white dark:bg-slate-800 text-brand dark:text-white text-sm"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Repère de livraison <span className="text-slate-500 font-normal">(optionnel)</span>
+                  <label className="block text-xs font-semibold text-brand dark:text-slate-300 mb-1">
+                    Repère de livraison <span className="text-ink-muted font-normal">(optionnel)</span>
                   </label>
                   <input
                     type="text"
                     value={buyerLandmark}
                     onChange={(e) => setBuyerLandmark(e.target.value)}
                     placeholder="Ex: Près de la pharmacie du Soleil"
-                    className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm"
+                    className="w-full px-4 py-3 rounded-xl border border-hairline dark:border-slate-700 bg-white dark:bg-slate-800 text-brand dark:text-white text-sm"
                   />
                 </div>
               </div>
 
               {/* Total Calculation Card */}
-              <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-4 flex justify-between items-center">
+              <div className="bg-white dark:bg-slate-800/60 rounded-xl p-4 flex justify-between items-center">
                 <div>
-                  <span className="text-xs text-slate-500 block">Total estimé de la commande</span>
-                  <span className="text-xs text-slate-500">
+                  <span className="text-xs text-ink-muted block">Total estimé de la commande</span>
+                  <span className="text-xs text-ink-muted">
                     {formatCFA(subtotal)} + {formatCFA(deliveryFee)} (livraison)
                   </span>
                 </div>
-                <div className="text-xl font-black text-amber-600 dark:text-amber-400">
+                <div className="text-xl font-bold text-brand dark:text-amber-400">
                   {formatCFA(grandTotal)}
                 </div>
               </div>
@@ -379,7 +379,7 @@ export default function NewOrderPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-4 px-4 rounded-2xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 font-extrabold text-xs uppercase tracking-wider shadow-lg shadow-amber-500/25 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer border border-amber-300/60"
+                className="w-full py-4 px-4 rounded-2xl bg-brand hover:bg-brand-strong text-white font-semibold text-xs uppercase tracking-wider shadow-lg shadow-brand/25 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer border border-brand-border/60"
               >
                 {loading ? (
                   <span>Génération du lien en cours...</span>
