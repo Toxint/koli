@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { formatCFA } from "@/lib/format";
 import { simulatePaymentAction } from "@/lib/payments/actions";
 import { confirmReceptionAction } from "@/lib/orders/actions";
@@ -25,9 +26,17 @@ interface PayFlowProps {
       quantity: number;
     }[];
   };
+  /** Vrai uniquement si le visiteur est le client authentifié de cette commande. */
+  estLeClient?: boolean;
+  /** Code de réception (§27) — transmis au seul client, jamais au vendeur ni au livreur. */
+  codeReception?: string | null;
 }
 
-export function PayFlow({ order }: PayFlowProps) {
+export function PayFlow({
+  order,
+  estLeClient = false,
+  codeReception = null,
+}: PayFlowProps) {
   const [status, setStatus] = useState(order.status);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -107,11 +116,32 @@ export function PayFlow({ order }: PayFlowProps) {
         </h1>
         <p className="text-sm text-slate-600 dark:text-slate-300">
           {attendConfirmation
-            ? "Le livreur a marqué votre colis comme remis. Confirmez la réception pour que le vendeur soit payé."
+            ? "Le livreur a marqué votre colis comme remis. Confirmez la réception pour que le vendeur soit payé (simulation)."
             : estTermine
-              ? "Vous avez confirmé la réception. Les fonds ont été versés au vendeur (mode test)."
-              : "Vos fonds sont conservés par KOLI (mode test). Le vendeur a été notifié et prépare l'expédition de votre colis."}
+              ? "Vous avez confirmé la réception. Les fonds seraient versés au vendeur — aucun mouvement réel n'a lieu en mode test."
+              : "Votre paiement simulé est enregistré. Aucun argent réel n'a été prélevé. Le vendeur a été notifié et prépare l'expédition de votre colis."}
         </p>
+
+        <span className="inline-block px-3 py-1 rounded-full bg-test-mode-surface dark:bg-amber-950/80 text-test-mode dark:text-amber-300 text-[11px] font-black uppercase tracking-wider border border-amber-300/60">
+          ⚡ Mode test — aucun paiement réel
+        </span>
+
+        {/* Code de réception (§27) — visible du seul client authentifié. */}
+        {codeReception && !estTermine && (
+          <div className="bg-emerald-50 dark:bg-emerald-950/50 border-2 border-emerald-300 dark:border-emerald-800 rounded-2xl p-5 space-y-2">
+            <span className="block text-[11px] font-black uppercase tracking-widest text-emerald-700 dark:text-emerald-400">
+              Votre code de réception
+            </span>
+            <span className="block font-mono text-4xl font-black tracking-[0.25em] text-emerald-800 dark:text-emerald-300">
+              {codeReception}
+            </span>
+            <p className="text-xs text-emerald-800/80 dark:text-emerald-300/80">
+              Communiquez ce code au livreur <strong>uniquement</strong> lorsque
+              vous avez le colis entre les mains. Ne le partagez avec personne
+              d&apos;autre.
+            </p>
+          </div>
+        )}
 
         <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl text-left text-xs space-y-2">
           <div className="flex justify-between font-medium">
@@ -138,7 +168,7 @@ export function PayFlow({ order }: PayFlowProps) {
           </div>
         )}
 
-        {attendConfirmation && (
+        {attendConfirmation && estLeClient && (
           <div className="space-y-3 pt-2">
             <button
               type="button"
@@ -157,6 +187,23 @@ export function PayFlow({ order }: PayFlowProps) {
             >
               Signaler un problème (bientôt disponible)
             </button>
+          </div>
+        )}
+
+        {/* Le vendeur et le livreur atteignent aussi cette page via le lien
+            partagé : seul le client peut confirmer, et donc déclencher le
+            versement. */}
+        {attendConfirmation && !estLeClient && (
+          <div className="pt-2">
+            <Link
+              href={`/connexion?redirect=/pay/${order.reference}`}
+              className="inline-flex items-center justify-center w-full min-h-[48px] px-4 rounded-2xl border border-emerald-300 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 font-bold text-xs"
+            >
+              Connectez-vous pour confirmer la réception
+            </Link>
+            <p className="mt-2 text-xs text-slate-500">
+              Seul le client destinataire peut confirmer avoir reçu la commande.
+            </p>
           </div>
         )}
       </div>

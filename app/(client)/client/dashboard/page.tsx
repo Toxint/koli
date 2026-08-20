@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/prisma";
 import { DashboardNav } from "@/components/ui/DashboardNav";
 import { formatCFA } from "@/lib/format";
+import { libelleStatut, classesBadgeStatut } from "@/lib/orders/statusLabels";
 import Link from "next/link";
 
 export default async function ClientDashboardPage() {
@@ -30,8 +31,10 @@ export default async function ClientDashboardPage() {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white">
       <DashboardNav
         userName={user.name}
-        roleName="Espace Client Acheteur"
+        roleName="Client"
         roleBadgeColor="bg-purple-100 text-purple-800 dark:bg-purple-950/80 dark:text-purple-300"
+        homeHref="/client/dashboard"
+        navItems={[{ label: "Mes commandes", href: "/client/dashboard" }]}
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -84,9 +87,14 @@ export default async function ClientDashboardPage() {
                       <h3 className="font-bold text-base text-slate-900 dark:text-white mt-0.5">
                         {order.items.map((i) => i.product.name).join(", ")}
                       </h3>
-                      <p className="text-xs text-slate-400 mt-1">
-                        Vendeur : {order.seller.businessName} • Statut : {order.status}
+                      <p className="text-xs text-slate-600 dark:text-slate-400 mt-1">
+                        Vendeur : {order.seller.businessName}
                       </p>
+                      <span
+                        className={`inline-flex items-center mt-2 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${classesBadgeStatut(order.status)}`}
+                      >
+                        {libelleStatut(order.status)}
+                      </span>
                     </div>
 
                     <div className="flex items-center gap-4 self-end sm:self-auto">
@@ -99,9 +107,10 @@ export default async function ClientDashboardPage() {
 
                       <Link
                         href={`/pay/${order.reference}`}
-                        className="px-4 py-2 rounded-xl bg-purple-50 text-purple-700 hover:bg-purple-100 dark:bg-purple-950 dark:text-purple-300 font-bold text-xs transition-all"
+                        aria-label={`Suivre la commande ${order.reference}`}
+                        className="inline-flex items-center justify-center min-h-[44px] px-4 rounded-xl bg-purple-50 text-purple-800 hover:bg-purple-100 dark:bg-purple-950 dark:text-purple-300 font-bold text-xs transition-all whitespace-nowrap"
                       >
-                        Suivi Commande 📦
+                        Suivi 📦
                       </Link>
                     </div>
                   </div>

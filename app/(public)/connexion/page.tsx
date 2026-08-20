@@ -99,7 +99,7 @@ export default function LoginPage() {
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-xs font-medium px-1 py-1"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 min-h-[44px] px-3 flex items-center text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 text-xs font-medium"
                 >
                   {showPassword ? "Masquer" : "Afficher"}
                 </button>
@@ -174,7 +174,7 @@ export default function LoginPage() {
               Vous n&apos;avez pas encore de compte ?{" "}
               <Link
                 href="/inscription"
-                className="font-semibold text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 underline underline-offset-4"
+                className="inline-flex items-center min-h-[44px] font-semibold text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 underline underline-offset-4"
               >
                 S&apos;inscrire gratuitement
               </Link>

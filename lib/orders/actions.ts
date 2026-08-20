@@ -199,9 +199,17 @@ export type ConfirmReceptionResult =
  * chemin possible est la resolution d'un litige par un administrateur (§32),
  * qui sera implemente en phase 21.
  *
- * Autorisation : comme pour le paiement, c'est la possession de la reference
- * (contenue dans le lien recu par l'acheteur) qui fait office de capacite —
- * l'achat invite est explicitement prevu.
+ * AUTORISATION — point critique.
+ *
+ * Contrairement au paiement, la possession de la reference ne peut PAS servir
+ * de capacite ici. La reference est precisement ce que le vendeur partage : il
+ * l'a dans son tableau de bord, et le livreur la voit sur sa fiche de course.
+ * S'en contenter reviendrait a laisser le vendeur — et le livreur — declencher
+ * le versement au vendeur. Toute la garantie KOLI (§29, §82) s'effondrerait.
+ *
+ * On exige donc une session client rattachee a cette commande. L'acheteur
+ * invite dont le telephone correspond peut revendiquer sa commande en se
+ * connectant : le rattachement se fait alors automatiquement.
  *
  * La liberation est bornee a `{ orderId }` : elle ne doit toucher que les fonds
  * de CETTE commande.
@@ -220,6 +228,41 @@ export async function confirmReceptionAction(
 
   if (!order || !order.fund) {
     return { success: false, error: "Commande introuvable." };
+  }
+
+  const user = await getCurrentUser();
+
+  if (!user) {
+    return {
+      success: false,
+      error:
+        "Connectez-vous a votre compte client pour confirmer la reception de cette commande.",
+    };
+  }
+
+  // Le vendeur de la commande ne peut jamais se payer lui-meme, meme s'il est
+  // par ailleurs client sur la plateforme.
+  if (user.sellerProfile && user.sellerProfile.id === order.sellerId) {
+    return {
+      success: false,
+      error:
+        "Seul le client peut confirmer la reception. Un vendeur ne peut pas valider sa propre commande.",
+    };
+  }
+
+  const estLeClient =
+    (order.customerId !== null &&
+      user.customerProfile?.id === order.customerId) ||
+    // Commande passee en mode invite : l'acheteur la revendique par son numero.
+    (order.customerId === null &&
+      user.customerProfile != null &&
+      user.phone === order.buyerPhone);
+
+  if (!estLeClient) {
+    return {
+      success: false,
+      error: "Cette commande n'est pas rattachee a votre compte client.",
+    };
   }
 
   // --- Idempotence (§30) : les fonds ne se liberent jamais deux fois. ---
@@ -291,7 +334,14 @@ export async function confirmReceptionAction(
 
       await tx.order.update({
         where: { id: order.id },
-        data: { status: OrderStatus.FUNDS_RELEASED },
+        data: {
+          status: OrderStatus.FUNDS_RELEASED,
+          // Rattachement d'une commande passee en mode invite au compte qui
+          // vient de la revendiquer : elle apparaitra desormais dans son espace.
+          ...(order.customerId === null && user.customerProfile
+            ? { customerId: user.customerProfile.id }
+            : {}),
+        },
       });
 
       let from = order.status;

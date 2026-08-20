@@ -49,7 +49,7 @@ export async function validateDeliveryOtpAction(
 
     const delivery = await prisma.delivery.findUnique({
       where: { id: deliveryId },
-      include: { order: true, otpCodes: true },
+      include: { order: { include: { fund: true } }, otpCodes: true },
     });
 
     if (!delivery) {
@@ -70,6 +70,20 @@ export async function validateDeliveryOtpAction(
       return {
         success: false,
         error: "Cette livraison a déjà été marquée comme effectuée.",
+      };
+    }
+
+    // Une commande dont les fonds ne sont pas sequestres n'a rien a etre livree.
+    // Sans ce garde-fou, findTransitionPath trouvait un chemin depuis
+    // PAYMENT_PENDING et inscrivait dans l'historique des etapes de paiement
+    // qui n'ont jamais eu lieu — un journal d'audit fausse (§48).
+    // Place APRES le controle de propriete : un livreur non autorise ne doit
+    // rien apprendre de l'etat de paiement d'une commande qui n'est pas la sienne.
+    if (!delivery.order.fund?.secured) {
+      return {
+        success: false,
+        error:
+          "Le paiement de cette commande n'est pas encore sécurisé. La livraison ne peut pas être validée.",
       };
     }
 

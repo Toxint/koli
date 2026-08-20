@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/prisma";
 import { DashboardNav } from "@/components/ui/DashboardNav";
-import { formatCFA } from "@/lib/format";
 import { ValidateOtpModal } from "@/components/driver/ValidateOtpModal";
 
 export default async function DriverDashboardPage() {
@@ -33,8 +32,10 @@ export default async function DriverDashboardPage() {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white">
       <DashboardNav
         userName={user.name}
-        roleName="Espace Livreur"
+        roleName="Livreur"
         roleBadgeColor="bg-amber-100 text-amber-900 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-700"
+        homeHref="/livreur/dashboard"
+        navItems={[{ label: "Mes livraisons", href: "/livreur/dashboard" }]}
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-fade-in">
@@ -80,10 +81,8 @@ export default async function DriverDashboardPage() {
             <div className="grid grid-cols-1 gap-6">
               {deliveries.map((delivery) => {
                 const order = delivery.order;
-                const totalAmount = order.items.reduce(
-                  (acc, item) => acc + item.unitPrice * item.quantity,
-                  order.deliveryFee
-                );
+                // Aucun montant n'est calcule ici : §25 interdit d'exposer au
+                // livreur des informations financieres qui ne lui servent pas.
                 const isDelivered = delivery.status === "CONFIRMED";
 
                 return (
@@ -93,17 +92,22 @@ export default async function DriverDashboardPage() {
                   >
                     {/* Header */}
                     <div className="flex flex-wrap justify-between items-center gap-3 border-b border-slate-100 dark:border-slate-800/80 pb-4">
-                      <div className="flex items-center gap-3">
-                        <span className="px-3 py-1 rounded-xl text-xs font-mono font-black bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300 border border-amber-300/60 dark:border-amber-700">
+                      <div className="flex flex-wrap items-center gap-2 sm:gap-3 min-w-0">
+                        <span className="shrink-0 px-3 py-1 rounded-xl text-xs font-mono font-black bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-300 border border-amber-300/60 dark:border-amber-700">
                           {order.reference}
                         </span>
-                        <div>
-                          <h3 className="font-extrabold text-base text-slate-900 dark:text-white">
+                        <div className="min-w-0">
+                          <h3 className="font-extrabold text-base text-slate-900 dark:text-white break-words">
                             Client : {order.buyerName}
                           </h3>
-                          <span className="text-xs text-slate-500 font-medium">
+                          {/* Lien telephonique : le livreur appelle d'un tap
+                              plutot que de recopier le numero a la main. */}
+                          <a
+                            href={`tel:${order.buyerPhone.replace(/\s/g, "")}`}
+                            className="inline-flex items-center min-h-[44px] text-xs text-slate-600 dark:text-slate-400 font-medium whitespace-nowrap hover:text-emerald-700"
+                          >
                             📞 {order.buyerPhone}
-                          </span>
+                          </a>
                         </div>
                       </div>
 
@@ -146,9 +150,15 @@ export default async function DriverDashboardPage() {
                         <p className="font-bold text-slate-900 dark:text-slate-100">
                           {order.seller.businessName || order.seller.user.name}
                         </p>
-                        <p className="text-xs text-slate-500">
-                          Tél Vendeur : <strong className="text-slate-800 dark:text-slate-200">{order.seller.user.phone}</strong>
-                        </p>
+                        <a
+                          href={`tel:${order.seller.user.phone.replace(/\s/g, "")}`}
+                          className="inline-flex items-center min-h-[44px] text-xs text-slate-600 dark:text-slate-400 whitespace-nowrap hover:text-emerald-700"
+                        >
+                          Tél vendeur :&nbsp;
+                          <strong className="text-slate-800 dark:text-slate-200">
+                            {order.seller.user.phone}
+                          </strong>
+                        </a>
                         <p className="text-xs text-slate-400 mt-1">
                           Article : {order.items[0]?.product.name || "Colis KOLI"} (x{order.items[0]?.quantity || 1})
                         </p>
@@ -157,12 +167,16 @@ export default async function DriverDashboardPage() {
 
                     {/* Footer CTA & OTP Validation Modal */}
                     <div className="flex flex-wrap justify-between items-center pt-3 gap-4 border-t border-slate-100 dark:border-slate-800">
+                      {/* §25 : ne jamais afficher au livreur d'informations
+                          financieres inutiles. La commande est deja payee et
+                          sequestree — le livreur n'encaisse rien, le montant
+                          n'a donc aucune utilite operationnelle pour lui. */}
                       <div>
                         <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
-                          Montant à vérifier
+                          Paiement
                         </span>
-                        <span className="text-xl font-black text-amber-600 dark:text-amber-400">
-                          {formatCFA(totalAmount)}
+                        <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">
+                          Déjà réglé — rien à encaisser
                         </span>
                       </div>
 

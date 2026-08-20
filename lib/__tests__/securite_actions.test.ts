@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+﻿import { describe, it, expect, vi, beforeEach } from "vitest";
 
 /**
  * Tests des garde-fous de securite des actions serveur.
@@ -55,6 +55,8 @@ describe("simulatePaymentAction", () => {
     prismaMock.order.findUnique.mockResolvedValue({
       id: "o1",
       reference: "KOLI-ABCDEFGH",
+      sellerId: "s1",
+      customerId: "c1",
       status: "FUNDS_SECURED",
       payment: { status: "SUCCEEDED", amount: 20500 },
       fund: { amount: 18500 },
@@ -124,7 +126,7 @@ describe("validateDeliveryOtpAction", () => {
       driverId: "d1",
       orderId: "o1",
       status: "ASSIGNED",
-      order: { status: "FUNDS_SECURED", reference: "KOLI-ABCDEFGH" },
+      order: { status: "FUNDS_SECURED", reference: "KOLI-ABCDEFGH", fund: { secured: true } },
       otpCodes: [
         {
           id: "otp1",
@@ -151,7 +153,7 @@ describe("validateDeliveryOtpAction", () => {
       driverId: "d1",
       orderId: "o1",
       status: "ASSIGNED",
-      order: { status: "FUNDS_SECURED", reference: "KOLI-ABCDEFGH" },
+      order: { status: "FUNDS_SECURED", reference: "KOLI-ABCDEFGH", fund: { secured: true } },
       otpCodes: [
         {
           id: "otp1",
@@ -181,7 +183,7 @@ describe("validateDeliveryOtpAction", () => {
       driverId: "d1",
       orderId: "o1",
       status: "ASSIGNED",
-      order: { status: "FUNDS_SECURED", reference: "KOLI-ABCDEFGH" },
+      order: { status: "FUNDS_SECURED", reference: "KOLI-ABCDEFGH", fund: { secured: true } },
       otpCodes: [
         {
           id: "otp1",
@@ -209,7 +211,7 @@ describe("validateDeliveryOtpAction", () => {
       driverId: "d1",
       orderId: "o1",
       status: "ASSIGNED",
-      order: { status: "FUNDS_SECURED", reference: "KOLI-ABCDEFGH" },
+      order: { status: "FUNDS_SECURED", reference: "KOLI-ABCDEFGH", fund: { secured: true } },
       otpCodes: [
         {
           id: "otp1",
@@ -227,13 +229,139 @@ describe("validateDeliveryOtpAction", () => {
     expect(res.success).toBe(false);
     expect(prismaMock.$transaction).not.toHaveBeenCalled();
   });
+
+  it("refuse de livrer une commande dont les fonds ne sont pas sequestres", async () => {
+    getCurrentUserMock.mockResolvedValue(livreur);
+    prismaMock.delivery.findUnique.mockResolvedValue({
+      id: "del1",
+      driverId: "d1",
+      orderId: "o1",
+      status: "ASSIGNED",
+      // Commande jamais payee.
+      order: {
+        status: "PAYMENT_PENDING",
+        reference: "KOLI-ABCDEFGH",
+        fund: { secured: false },
+      },
+      otpCodes: [
+        {
+          id: "otp1",
+          code: "4821",
+          attempts: 0,
+          maxAttempts: 5,
+          consumedAt: null,
+          createdAt: new Date(),
+        },
+      ],
+    });
+
+    const res = await validateDeliveryOtpAction("del1", "4821");
+
+    expect(res.success).toBe(false);
+    // Sans ce garde-fou, l'historique enregistrait des etapes de paiement
+    // qui n'ont jamais eu lieu.
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
+  });
+});
+
+describe("confirmReceptionAction — autorisation", () => {
+  const commandeLivree = {
+    id: "o1",
+    reference: "KOLI-ABCDEFGH",
+    sellerId: "s1",
+    customerId: "c1",
+    buyerPhone: "+2250505050505",
+    status: "DELIVERED",
+    fund: { amount: 18500, released: false, secured: true },
+  };
+
+  it("refuse un visiteur non connecte", async () => {
+    prismaMock.order.findUnique.mockResolvedValue(commandeLivree);
+    getCurrentUserMock.mockResolvedValue(null);
+
+    const res = await confirmReceptionAction("KOLI-ABCDEFGH");
+
+    expect(res.success).toBe(false);
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("refuse le VENDEUR de la commande — il ne peut pas se payer lui-meme", async () => {
+    // Le scenario concret : le vendeur ouvre son propre bouton « Partager le
+    // lien » et clique sur « Oui, j'ai recu ma commande ».
+    prismaMock.order.findUnique.mockResolvedValue(commandeLivree);
+    getCurrentUserMock.mockResolvedValue({
+      id: "u-vendeur",
+      role: "SELLER",
+      sellerProfile: { id: "s1" },
+      customerProfile: { id: "autre" },
+    });
+
+    const res = await confirmReceptionAction("KOLI-ABCDEFGH");
+
+    expect(res.success).toBe(false);
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("refuse un client tiers detenteur du lien", async () => {
+    prismaMock.order.findUnique.mockResolvedValue(commandeLivree);
+    getCurrentUserMock.mockResolvedValue({
+      id: "u-autre",
+      role: "CLIENT",
+      phone: "+2250700000000",
+      customerProfile: { id: "c2" },
+    });
+
+    const res = await confirmReceptionAction("KOLI-ABCDEFGH");
+
+    expect(res.success).toBe(false);
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("accepte le client rattache a la commande", async () => {
+    prismaMock.order.findUnique.mockResolvedValue(commandeLivree);
+    getCurrentUserMock.mockResolvedValue({
+      id: "u-client",
+      role: "CLIENT",
+      phone: "+2250505050505",
+      customerProfile: { id: "c1" },
+    });
+
+    const tx = {
+      fund: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+      transaction: { create: vi.fn() },
+      order: { update: vi.fn() },
+      orderStatusHistory: { create: vi.fn() },
+    };
+    prismaMock.$transaction.mockImplementation(
+      async (cb: (t: typeof tx) => unknown) => cb(tx)
+    );
+
+    const res = await confirmReceptionAction("KOLI-ABCDEFGH");
+
+    expect(res.success).toBe(true);
+  });
 });
 
 describe("confirmReceptionAction", () => {
+  // Session cliente valide, commune a ce bloc : l'autorisation est verifiee
+  // dans le bloc precedent, ici on teste la logique metier.
+  const clientLegitime = {
+    id: "u-client",
+    role: "CLIENT",
+    phone: "+2250505050505",
+    customerProfile: { id: "c1" },
+  };
+
+  beforeEach(() => {
+    getCurrentUserMock.mockResolvedValue(clientLegitime);
+  });
+
   it("est idempotent : des fonds deja liberes ne le sont pas deux fois", async () => {
     prismaMock.order.findUnique.mockResolvedValue({
       id: "o1",
       reference: "KOLI-ABCDEFGH",
+      sellerId: "s1",
+      customerId: "c1",
       status: "FUNDS_RELEASED",
       fund: { amount: 18500, released: true, secured: true },
     });
@@ -248,6 +376,8 @@ describe("confirmReceptionAction", () => {
     prismaMock.order.findUnique.mockResolvedValue({
       id: "o1",
       reference: "KOLI-ABCDEFGH",
+      sellerId: "s1",
+      customerId: "c1",
       status: "DISPUTE_OPEN",
       fund: { amount: 18500, released: false, secured: true },
     });
@@ -262,6 +392,8 @@ describe("confirmReceptionAction", () => {
     prismaMock.order.findUnique.mockResolvedValue({
       id: "o1",
       reference: "KOLI-ABCDEFGH",
+      sellerId: "s1",
+      customerId: "c1",
       status: "FUNDS_SECURED",
       fund: { amount: 18500, released: false, secured: true },
     });
@@ -276,6 +408,8 @@ describe("confirmReceptionAction", () => {
     prismaMock.order.findUnique.mockResolvedValue({
       id: "o1",
       reference: "KOLI-ABCDEFGH",
+      sellerId: "s1",
+      customerId: "c1",
       status: "DELIVERED",
       fund: { amount: 18500, released: false, secured: true },
     });

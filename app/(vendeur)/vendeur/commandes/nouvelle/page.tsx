@@ -74,7 +74,7 @@ export default function NewOrderPage() {
         <div className="flex items-center justify-between">
           <Link
             href="/vendeur/dashboard"
-            className="text-xs font-bold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200 flex items-center gap-1.5 transition-colors"
+            className="inline-flex items-center min-h-[44px] gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
           >
             ← Retour au Tableau de bord
           </Link>

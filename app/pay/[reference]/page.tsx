@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
+import { getCurrentUser } from "@/lib/auth/actions";
 import { PayFlow } from "./pay-flow";
 
 export default async function PayReferencePage({
@@ -17,11 +18,30 @@ export default async function PayReferencePage({
       seller: { include: { user: true } },
       items: { include: { product: true } },
       payment: true,
-      delivery: true,
+      delivery: { include: { otpCodes: true } },
     },
   });
 
   if (dbOrder) {
+    // Cette page est atteignable par toute personne detenant le lien — donc
+    // aussi par le vendeur, qui le partage, et par le livreur, qui voit la
+    // reference sur sa fiche. Deux informations sont donc reservees au CLIENT
+    // authentifie et rattache a la commande : le code de reception, et le
+    // bouton de confirmation qui declenche le versement au vendeur.
+    const user = await getCurrentUser();
+
+    const estLeClient =
+      user != null &&
+      user.customerProfile != null &&
+      !(user.sellerProfile && user.sellerProfile.id === dbOrder.sellerId) &&
+      (dbOrder.customerId === user.customerProfile.id ||
+        (dbOrder.customerId === null && user.phone === dbOrder.buyerPhone));
+
+    const codeReception = estLeClient
+      ? (dbOrder.delivery?.otpCodes.find((o) => o.consumedAt === null)?.code ??
+        null)
+      : null;
+
     const formattedOrder = {
       id: dbOrder.id,
       reference: dbOrder.reference,
@@ -44,7 +64,11 @@ export default async function PayReferencePage({
 
     return (
       <main className="min-h-screen bg-slate-50 dark:bg-slate-950">
-        <PayFlow order={formattedOrder} />
+        <PayFlow
+          order={formattedOrder}
+          estLeClient={estLeClient}
+          codeReception={codeReception}
+        />
       </main>
     );
   }

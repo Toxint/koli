@@ -40,37 +40,46 @@ export default function AccueilPage() {
       {/* En-tete (§59) */}
       <header className="border-b border-slate-200 dark:border-slate-800">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
-          <Link href="/" className="flex items-center gap-2 shrink-0">
+          <Link
+            href="/"
+            aria-label="Accueil KOLI"
+            className="flex items-center gap-2 shrink-0 min-h-[44px]"
+          >
             <span className="w-9 h-9 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-black text-lg">
               K
             </span>
             <span className="font-black text-xl tracking-tight">KOLI</span>
           </Link>
 
-          <nav className="flex items-center gap-1 sm:gap-2">
+          {/* Sur mobile on ne garde que les deux actions ; les rubriques
+              editoriales restent atteignables depuis le corps de page et le
+              pied de page (elles etaient auparavant simplement inaccessibles
+              sous 768px). */}
+          <nav className="flex items-center gap-1 sm:gap-2 min-w-0">
             <Link
               href="/comment-ca-marche"
-              className="hidden md:inline-flex items-center min-h-[44px] px-3 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-emerald-700 dark:hover:text-emerald-400"
+              className="hidden lg:inline-flex items-center min-h-[44px] px-3 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-emerald-700 dark:hover:text-emerald-400"
             >
               Comment ça marche
             </Link>
             <Link
               href="/pour-les-vendeurs"
-              className="hidden md:inline-flex items-center min-h-[44px] px-3 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-emerald-700 dark:hover:text-emerald-400"
+              className="hidden lg:inline-flex items-center min-h-[44px] px-3 text-sm font-medium text-slate-600 dark:text-slate-300 hover:text-emerald-700 dark:hover:text-emerald-400"
             >
               Pour les vendeurs
             </Link>
             <Link
               href="/connexion"
-              className="inline-flex items-center min-h-[44px] px-3 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:text-emerald-700 dark:hover:text-emerald-400"
+              className="inline-flex items-center min-h-[44px] px-2 sm:px-3 text-sm font-semibold text-slate-700 dark:text-slate-200 hover:text-emerald-700 dark:hover:text-emerald-400 whitespace-nowrap"
             >
               Connexion
             </Link>
             <Link
               href="/inscription"
-              className="inline-flex items-center min-h-[44px] px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold transition-colors"
+              className="inline-flex items-center min-h-[44px] px-3 sm:px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold transition-colors whitespace-nowrap"
             >
-              Créer un compte
+              <span className="sm:hidden">S&apos;inscrire</span>
+              <span className="hidden sm:inline">Créer un compte</span>
             </Link>
           </nav>
         </div>
@@ -136,6 +145,15 @@ export default function AccueilPage() {
               Le paiement est sécurisé jusqu&apos;à la confirmation de réception
               selon les règles applicables.
             </p>
+
+            <div className="mt-6 text-center">
+              <Link
+                href="/comment-ca-marche"
+                className="inline-flex items-center min-h-[44px] px-4 text-sm font-semibold text-emerald-700 dark:text-emerald-400 underline underline-offset-4"
+              >
+                En savoir plus sur le fonctionnement
+              </Link>
+            </div>
           </div>
         </section>
 
@@ -175,14 +193,23 @@ export default function AccueilPage() {
       <footer className="border-t border-slate-200 dark:border-slate-800">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-slate-500">
           <span>© {new Date().getFullYear()} KOLI — Mode test</span>
-          <nav className="flex flex-wrap gap-4 justify-center">
-            <Link href="/aide" className="hover:text-emerald-700 dark:hover:text-emerald-400">
+          <nav className="flex flex-wrap gap-x-2 gap-y-1 justify-center">
+            <Link
+              href="/aide"
+              className="inline-flex items-center min-h-[44px] px-2 hover:text-emerald-700 dark:hover:text-emerald-400"
+            >
               Aide
             </Link>
-            <Link href="/conditions" className="hover:text-emerald-700 dark:hover:text-emerald-400">
+            <Link
+              href="/conditions"
+              className="inline-flex items-center min-h-[44px] px-2 hover:text-emerald-700 dark:hover:text-emerald-400"
+            >
               Conditions
             </Link>
-            <Link href="/confidentialite" className="hover:text-emerald-700 dark:hover:text-emerald-400">
+            <Link
+              href="/confidentialite"
+              className="inline-flex items-center min-h-[44px] px-2 hover:text-emerald-700 dark:hover:text-emerald-400"
+            >
               Confidentialité
             </Link>
           </nav>

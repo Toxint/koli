@@ -64,8 +64,14 @@ export function ValidateOtpModal({
 
   if (isDelivered) {
     return (
-      <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-700 text-emerald-700 dark:text-emerald-300 text-xs font-bold">
-        <svg className="w-4 h-4 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <div className="flex items-start gap-2 px-3 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/80 border border-emerald-300 dark:border-emerald-700 text-emerald-800 dark:text-emerald-300 text-xs font-bold">
+        <svg
+          className="w-4 h-4 shrink-0 mt-0.5"
+          aria-hidden="true"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+        >
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
         </svg>
         <span>Colis remis — en attente de confirmation du client</span>
@@ -78,15 +84,26 @@ export function ValidateOtpModal({
       <button
         type="button"
         onClick={handleOpen}
-        className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 font-extrabold text-xs uppercase tracking-wider shadow-md shadow-amber-500/20 hover:shadow-amber-500/40 hover:scale-[1.02] active:scale-[0.98] transition-all flex items-center gap-2 border border-amber-300/50 cursor-pointer"
+        className="w-full sm:w-auto min-h-[48px] px-4 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 font-extrabold text-xs uppercase tracking-wider shadow-md shadow-amber-500/20 hover:shadow-amber-500/40 active:scale-[0.98] transition-all flex items-center justify-center gap-2 border border-amber-300/50 cursor-pointer"
       >
         <span className="text-sm">🔑</span>
         <span>Valider la Livraison (Code OTP)</span>
       </button>
 
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm animate-fade-in">
-          <div className="bg-white dark:bg-slate-900 border border-amber-400/40 dark:border-amber-500/30 rounded-3xl p-6 sm:p-8 max-w-md w-full shadow-2xl shadow-amber-500/10 space-y-6 relative overflow-hidden">
+        /* `overflow-y-auto` + `items-start` : sans cela, l'ouverture du pave
+           numerique du telephone poussait le champ de saisie et le bouton de
+           validation sous le clavier, sans aucun moyen de faire defiler. */
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="titre-modale-otp"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") handleClose();
+          }}
+          className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 overflow-y-auto bg-slate-950/70 animate-fade-in"
+        >
+          <div className="bg-white dark:bg-slate-900 border border-amber-400/40 dark:border-amber-500/30 rounded-3xl p-6 sm:p-8 max-w-md w-full my-auto shadow-2xl shadow-amber-500/10 space-y-6 relative overflow-hidden">
             {/* Top Golden Sheen Header */}
             <div className="absolute top-0 left-0 right-0 h-2 bg-gradient-to-r from-amber-400 via-yellow-400 to-amber-600" />
 
@@ -95,25 +112,33 @@ export function ValidateOtpModal({
                 <span className="text-[11px] font-extrabold text-amber-600 dark:text-amber-400 uppercase tracking-widest block">
                   Confirmation de Livraison
                 </span>
-                <h3 className="text-xl font-black text-slate-900 dark:text-white mt-0.5">
-                  Code OTP du Client
+                <h3
+                  id="titre-modale-otp"
+                  className="text-xl font-black text-slate-900 dark:text-white mt-0.5"
+                >
+                  Code de réception
                 </h3>
               </div>
               <button
+                type="button"
                 onClick={handleClose}
-                className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-lg p-1 rounded-lg transition-colors"
+                aria-label="Fermer"
+                className="shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white text-lg rounded-lg transition-colors"
               >
                 ✕
               </button>
             </div>
 
             <p className="text-xs text-slate-600 dark:text-slate-300">
-              Demandez au client <strong className="text-slate-900 dark:text-white">{buyerName}</strong> le code OTP reçu lors de sa commande (<strong className="font-mono text-amber-600 dark:text-amber-400">{orderReference}</strong>).
+              Demandez au client <strong className="text-slate-900 dark:text-white">{buyerName}</strong> le code reçu lors de sa commande (<strong className="font-mono text-amber-700 dark:text-amber-400 break-all">{orderReference}</strong>).
             </p>
 
             {error && (
-              <div className="p-3.5 rounded-xl bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-xs font-medium flex items-center gap-2">
-                <span>⚠️</span>
+              <div
+                role="alert"
+                className="p-3.5 rounded-xl bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-xs font-medium flex items-center gap-2"
+              >
+                <span aria-hidden="true">⚠️</span>
                 <span>{error}</span>
               </div>
             )}
@@ -127,16 +152,25 @@ export function ValidateOtpModal({
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">
-                  Saisir le Code à 4 chiffres
+                <label
+                  htmlFor="champ-otp"
+                  className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2"
+                >
+                  Saisir le code à 4 chiffres
                 </label>
                 <input
+                  id="champ-otp"
                   type="text"
                   inputMode="numeric"
-                  maxLength={6}
+                  pattern="[0-9]*"
+                  autoComplete="one-time-code"
+                  autoFocus
+                  maxLength={4}
                   required
                   value={otpInput}
-                  onChange={(e) => setOtpInput(e.target.value)}
+                  onChange={(e) =>
+                    setOtpInput(e.target.value.replace(/\D/g, "").slice(0, 4))
+                  }
                   placeholder="••••"
                   className="w-full px-4 py-3.5 rounded-2xl border-2 border-amber-300 dark:border-amber-500/50 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-center text-2xl font-black tracking-[0.3em] focus:outline-none focus:ring-4 focus:ring-amber-500/30 focus:border-amber-500 transition-all placeholder:text-slate-400 placeholder:tracking-normal placeholder:text-sm"
                 />
@@ -146,14 +180,14 @@ export function ValidateOtpModal({
                 <button
                   type="button"
                   onClick={handleClose}
-                  className="w-1/3 py-3 px-4 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
+                  className="flex-1 min-h-[48px] px-4 rounded-xl border border-slate-300 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold text-xs hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
                   disabled={loading || !!successMsg}
-                  className="w-2/3 py-3 px-4 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 font-extrabold text-xs uppercase tracking-wider shadow-lg shadow-amber-500/25 transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
+                  className="flex-[2] min-h-[48px] px-4 rounded-xl bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-500 hover:from-amber-600 hover:to-yellow-600 text-slate-950 font-extrabold text-xs uppercase tracking-wider shadow-lg shadow-amber-500/25 transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {loading ? (
                     <>

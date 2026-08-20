@@ -6,9 +6,16 @@ import { UserRole } from "@prisma/client";
 
 describe("Formatting Utils", () => {
   it("formats amounts in FCFA with thousands separator", () => {
-    expect(formatCFA(18500)).toBe("18 500 FCFA");
-    expect(formatCFA(1000000)).toBe("1 000 000 FCFA");
-    expect(formatCFA(500)).toBe("500 FCFA");
+    // Espace fine insecable (U+202F) entre les milliers, espace insecable
+    // (U+00A0) avant l'unite : un montant ne doit jamais se couper en fin de
+    // ligne sur un ecran etroit.
+    expect(formatCFA(18500)).toBe("18 500 FCFA");
+    expect(formatCFA(1000000)).toBe("1 000 000 FCFA");
+    expect(formatCFA(500)).toBe("500 FCFA");
+  });
+
+  it("n'utilise aucune espace secable dans un montant", () => {
+    expect(formatCFA(1250000)).not.toMatch(/ /);
   });
 
   it("validates local phone numbers", () => {

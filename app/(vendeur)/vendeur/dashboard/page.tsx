@@ -3,6 +3,7 @@ import { getCurrentUser } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/prisma";
 import { DashboardNav } from "@/components/ui/DashboardNav";
 import { formatCFA } from "@/lib/format";
+import { libelleStatut, classesBadgeStatut } from "@/lib/orders/statusLabels";
 import Link from "next/link";
 
 export default async function SellerDashboardPage() {
@@ -51,7 +52,13 @@ export default async function SellerDashboardPage() {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white">
       <DashboardNav
         userName={user.sellerProfile.businessName || user.name}
-        roleName="Espace Vendeur"
+        roleName="Vendeur"
+        homeHref="/vendeur/dashboard"
+        navItems={[
+          { label: "Tableau de bord", href: "/vendeur/dashboard" },
+          { label: "Commandes", href: "/vendeur/commandes" },
+          { label: "Nouvelle commande", href: "/vendeur/commandes/nouvelle" },
+        ]}
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-fade-in">
@@ -73,7 +80,7 @@ export default async function SellerDashboardPage() {
           <div className="flex gap-3 relative z-10">
             <Link
               href="/vendeur/commandes/nouvelle"
-              className="px-5 py-3 rounded-2xl bg-slate-950 text-amber-400 hover:text-amber-300 font-extrabold text-xs uppercase tracking-wider shadow-xl shadow-slate-950/30 hover:scale-[1.03] active:scale-[0.98] transition-all border border-amber-400/40 flex items-center gap-2"
+              className="w-full sm:w-auto min-h-[48px] px-5 rounded-2xl bg-slate-950 text-amber-400 hover:text-amber-300 font-extrabold text-xs uppercase tracking-wider shadow-xl shadow-slate-950/30 active:scale-[0.98] transition-all border border-amber-400/40 flex items-center justify-center gap-2 text-center"
             >
               <span>+ Créer une commande</span>
             </Link>
@@ -133,18 +140,18 @@ export default async function SellerDashboardPage() {
 
         {/* Recent Orders Section */}
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm p-6">
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex flex-wrap justify-between items-center gap-x-4 gap-y-2 mb-6">
             <div>
               <h2 className="text-lg font-bold text-slate-900 dark:text-white">
                 Commandes récentes
               </h2>
-              <p className="text-xs text-slate-500">
-                Suivi en temps réel des transactions KOLI
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Suivi des transactions KOLI (mode test)
               </p>
             </div>
             <Link
               href="/vendeur/commandes"
-              className="text-xs font-semibold text-emerald-600 hover:text-emerald-500"
+              className="inline-flex items-center min-h-[44px] text-xs font-semibold text-emerald-600 hover:text-emerald-500"
             >
               Voir toutes les commandes →
             </Link>
@@ -161,56 +168,83 @@ export default async function SellerDashboardPage() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-sm">
-                <thead>
-                  <tr className="border-b border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-400 uppercase tracking-wider">
-                    <th className="pb-3">Référence</th>
-                    <th className="pb-3">Client</th>
-                    <th className="pb-3">Statut</th>
-                    <th className="pb-3">Montant Total</th>
-                    <th className="pb-3 text-right">Lien de paiement</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                  {orders.map((order) => {
-                    const totalAmount = order.items.reduce(
-                      (acc, item) => acc + item.unitPrice * item.quantity,
-                      order.deliveryFee
-                    );
-                    return (
-                      <tr key={order.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                        <td className="py-4 font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                          {order.reference}
-                        </td>
-                        <td className="py-4 font-medium">
-                          {order.buyerName}
-                          <span className="block text-xs text-slate-400 font-normal">
-                            {order.buyerPhone}
-                          </span>
-                        </td>
-                        <td className="py-4">
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300">
-                            {order.status}
-                          </span>
-                        </td>
-                        <td className="py-4 font-bold">
-                          {formatCFA(totalAmount)}
-                        </td>
-                        <td className="py-4 text-right">
-                          <Link
-                            href={`/pay/${order.reference}`}
-                            className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-300 text-xs font-bold transition-all"
-                          >
-                            Partager le lien 🔗
-                          </Link>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+            /* §8 et §68 : sur mobile, les tableaux deviennent des cartes.
+               Le tableau a 5 colonnes demandait ~500px pour une carte de 240px :
+               plus de la moitie de chaque ligne sortait de l'ecran. */
+            <ul className="space-y-3 md:space-y-0 md:divide-y md:divide-slate-100 md:dark:divide-slate-800/60">
+              {/* En-tetes, uniquement a partir de la tablette. */}
+              <li className="hidden md:grid md:grid-cols-[1.2fr_1.4fr_1fr_1fr_auto] md:gap-4 md:pb-3 border-b border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                <span>Référence</span>
+                <span>Client</span>
+                <span>Statut</span>
+                <span>Montant</span>
+                <span className="text-right">Lien</span>
+              </li>
+
+              {orders.map((order) => {
+                const totalAmount = order.items.reduce(
+                  (acc, item) => acc + item.unitPrice * item.quantity,
+                  order.deliveryFee
+                );
+
+                return (
+                  <li
+                    key={order.id}
+                    className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 md:border-0 md:rounded-none md:p-0 md:py-4 md:grid md:grid-cols-[1.2fr_1.4fr_1fr_1fr_auto] md:gap-4 md:items-center"
+                  >
+                    <div className="flex flex-wrap items-center gap-2 md:block">
+                      <span className="font-mono font-bold text-emerald-700 dark:text-emerald-400 break-all">
+                        {order.reference}
+                      </span>
+                      <span
+                        className={`md:hidden inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold ${classesBadgeStatut(order.status)}`}
+                      >
+                        {libelleStatut(order.status)}
+                      </span>
+                    </div>
+
+                    <div className="mt-2 md:mt-0 min-w-0">
+                      <span className="block font-medium text-slate-900 dark:text-white break-words">
+                        {order.buyerName}
+                      </span>
+                      <a
+                        href={`tel:${order.buyerPhone.replace(/\s/g, "")}`}
+                        className="inline-flex items-center min-h-[44px] md:min-h-0 text-xs text-slate-600 dark:text-slate-400 whitespace-nowrap hover:text-emerald-700"
+                      >
+                        {order.buyerPhone}
+                      </a>
+                    </div>
+
+                    <div className="hidden md:block">
+                      <span
+                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${classesBadgeStatut(order.status)}`}
+                      >
+                        {libelleStatut(order.status)}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-2 md:block">
+                      <span className="text-xs text-slate-600 dark:text-slate-400 md:hidden">
+                        Montant
+                      </span>
+                      <span className="font-bold whitespace-nowrap">
+                        {formatCFA(totalAmount)}
+                      </span>
+                    </div>
+
+                    <div className="mt-3 md:mt-0 md:text-right">
+                      <Link
+                        href={`/pay/${order.reference}`}
+                        aria-label={`Ouvrir le lien de paiement de la commande ${order.reference}`}
+                        className="inline-flex items-center justify-center w-full md:w-auto min-h-[44px] px-3 rounded-lg bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-300 text-xs font-bold transition-all"
+                      >
+                        Partager le lien 🔗
+                      </Link>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </div>
       </main>

@@ -26,7 +26,13 @@ export default async function SellerOrdersPage() {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white">
       <DashboardNav
         userName={user.sellerProfile.businessName || user.name}
-        roleName="Espace Vendeur"
+        roleName="Vendeur"
+        homeHref="/vendeur/dashboard"
+        navItems={[
+          { label: "Tableau de bord", href: "/vendeur/dashboard" },
+          { label: "Commandes", href: "/vendeur/commandes" },
+          { label: "Nouvelle commande", href: "/vendeur/commandes/nouvelle" },
+        ]}
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -42,7 +48,7 @@ export default async function SellerOrdersPage() {
 
           <Link
             href="/vendeur/commandes/nouvelle"
-            className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all flex items-center gap-2"
+            className="min-h-[48px] px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2"
           >
             <span>+ Créer une commande</span>
           </Link>
@@ -89,7 +95,8 @@ export default async function SellerOrdersPage() {
 
                       <Link
                         href={`/pay/${order.reference}`}
-                        className="px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-xs font-bold transition-all"
+                        aria-label={`Ouvrir le lien de paiement de la commande ${order.reference}`}
+                        className="inline-flex items-center justify-center min-h-[44px] px-3 rounded-lg bg-emerald-50 text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/60 dark:text-emerald-300 text-xs font-bold transition-all"
                       >
                         Lien 🔗
                       </Link>

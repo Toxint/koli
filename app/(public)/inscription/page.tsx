@@ -257,7 +257,7 @@ export default function RegisterPage() {
               Vous avez déjà un compte ?{" "}
               <Link
                 href="/connexion"
-                className="font-semibold text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 underline underline-offset-4"
+                className="inline-flex items-center min-h-[44px] font-semibold text-emerald-600 hover:text-emerald-500 dark:text-emerald-400 underline underline-offset-4"
               >
                 Se connecter
               </Link>

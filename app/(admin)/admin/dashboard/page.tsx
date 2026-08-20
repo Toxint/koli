@@ -16,15 +16,24 @@ export default async function AdminDashboardPage() {
   const customersCount = await prisma.customerProfile.count();
 
   const totalOrdersCount = await prisma.order.count();
-  const funds = await prisma.fund.findMany();
 
-  const totalSecuredAmount = funds
-    .filter((f) => f.secured)
-    .reduce((acc, f) => acc + f.amount, 0);
+  // Agrege en base plutot que de charger toutes les lignes en memoire (§46, §70).
+  // `released` ne remet pas `secured` a false : sans le filtre `released: false`,
+  // les fonds deja verses restaient comptes comme sequestres et l'engagement
+  // de la plateforme etait surevalue de tout le volume libere.
+  const [sequestre, libere] = await Promise.all([
+    prisma.fund.aggregate({
+      where: { secured: true, released: false },
+      _sum: { amount: true },
+    }),
+    prisma.fund.aggregate({
+      where: { released: true },
+      _sum: { amount: true },
+    }),
+  ]);
 
-  const totalReleasedAmount = funds
-    .filter((f) => f.released)
-    .reduce((acc, f) => acc + f.amount, 0);
+  const totalSecuredAmount = sequestre._sum.amount ?? 0;
+  const totalReleasedAmount = libere._sum.amount ?? 0;
 
   const users = await prisma.user.findMany({
     include: { sellerProfile: true, driverProfile: true, customerProfile: true },
@@ -36,8 +45,10 @@ export default async function AdminDashboardPage() {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white">
       <DashboardNav
         userName={user.name}
-        roleName="Administration KOLI"
+        roleName="Admin"
         roleBadgeColor="bg-red-100 text-red-800 dark:bg-red-950/80 dark:text-red-300"
+        homeHref="/admin/dashboard"
+        navItems={[{ label: "Vue d'ensemble", href: "/admin/dashboard" }]}
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -117,53 +128,93 @@ export default async function AdminDashboardPage() {
             </p>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-400 uppercase tracking-wider">
-                  <th className="pb-3">Nom</th>
-                  <th className="pb-3">Téléphone / Email</th>
-                  <th className="pb-3">Rôle</th>
-                  <th className="pb-3">Statut Compte</th>
-                  <th className="pb-3">Statut Vérification Vendeur</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
-                {users.map((u) => (
-                  <tr key={u.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
-                    <td className="py-4 font-bold">{u.name}</td>
-                    <td className="py-4 text-xs font-mono text-slate-500">
+          {/* §8 et §68 : cartes sur mobile, grille a partir de la tablette.
+              Le tableau a 5 colonnes demandait ~509px pour une carte de 240px. */}
+          {users.length === 0 ? (
+            <div className="text-center py-12 border-2 border-dashed border-slate-200 dark:border-slate-800 rounded-xl">
+              <span className="text-4xl block mb-2">👥</span>
+              <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                Aucun utilisateur inscrit pour l&apos;instant
+              </p>
+            </div>
+          ) : (
+            <ul className="space-y-3 md:space-y-0 md:divide-y md:divide-slate-100 md:dark:divide-slate-800/60">
+              <li className="hidden md:grid md:grid-cols-[1.2fr_1.6fr_.8fr_.9fr_1fr] md:gap-4 md:pb-3 border-b border-slate-200 dark:border-slate-800 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                <span>Nom</span>
+                <span>Contact</span>
+                <span>Rôle</span>
+                <span>Compte</span>
+                <span>Vérification</span>
+              </li>
+
+              {users.map((u) => (
+                <li
+                  key={u.id}
+                  className="rounded-2xl border border-slate-200 dark:border-slate-800 p-4 md:border-0 md:rounded-none md:p-0 md:py-4 md:grid md:grid-cols-[1.2fr_1.6fr_.8fr_.9fr_1fr] md:gap-4 md:items-center"
+                >
+                  <span className="block font-bold break-words">{u.name}</span>
+
+                  <div className="mt-1 md:mt-0 min-w-0">
+                    <a
+                      href={`tel:${u.phone.replace(/\s/g, "")}`}
+                      className="inline-flex items-center min-h-[44px] md:min-h-0 text-xs font-mono text-slate-600 dark:text-slate-400 whitespace-nowrap hover:text-emerald-700"
+                    >
                       {u.phone}
-                      {u.email && <span className="block text-slate-400 font-sans">{u.email}</span>}
-                    </td>
-                    <td className="py-4">
-                      <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 dark:bg-slate-800">
-                        {u.role}
+                    </a>
+                    {u.email && (
+                      <span className="block text-xs text-slate-600 dark:text-slate-400 break-all">
+                        {u.email}
                       </span>
-                    </td>
-                    <td className="py-4">
-                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                    )}
+                  </div>
+
+                  <div className="mt-2 md:mt-0 flex flex-wrap gap-2">
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                      {u.role}
+                    </span>
+                    <span
+                      className={`md:hidden px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                         u.status === "ACTIVE"
                           ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
                           : "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300"
-                      }`}>
-                        {u.status}
+                      }`}
+                    >
+                      {u.status}
+                    </span>
+                    {u.sellerProfile && (
+                      <span className="md:hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+                        {u.sellerProfile.verificationStatus}
                       </span>
-                    </td>
-                    <td className="py-4">
-                      {u.sellerProfile ? (
-                        <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
-                          {u.sellerProfile.verificationStatus}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-slate-400">—</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    )}
+                  </div>
+
+                  <div className="hidden md:block">
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                        u.status === "ACTIVE"
+                          ? "bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300"
+                          : "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300"
+                      }`}
+                    >
+                      {u.status}
+                    </span>
+                  </div>
+
+                  <div className="hidden md:block">
+                    {u.sellerProfile ? (
+                      <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
+                        {u.sellerProfile.verificationStatus}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-slate-500 dark:text-slate-400">
+                        Non applicable
+                      </span>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </main>
     </div>

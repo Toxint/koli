@@ -30,6 +30,55 @@
   --color-success: #16a34a;
 }
 
+/**
+ * Regles NON layerees, volontairement.
+ *
+ * Tailwind v4 declare `@layer theme, base, components, utilities`. Les couches
+ * sont resolues AVANT la specificite : une regle dans `@layer base` est donc
+ * systematiquement ecrasee par un utilitaire comme `text-sm`. Placees hors de
+ * toute couche, ces regles l'emportent sur l'ensemble — c'est exactement ce
+ * qu'on veut pour des invariants non negociables.
+ */
+
+/**
+ * Sous 16px, Safari iOS zoome automatiquement a la mise au point d'un champ :
+ * la page se decale et l'utilisateur perd le fil. La quasi-totalite des
+ * utilisateurs de KOLI etant sur mobile, on impose le seuil a tous les champs
+ * plutot que de dependre de la vigilance de chaque page. Sans borne de largeur :
+ * iPadOS zoome aussi.
+ */
+input,
+select,
+textarea {
+  font-size: 16px;
+}
+
+/* Aucun contenu ne doit provoquer de defilement horizontal (§8).
+   Uniquement sur `html` : porter `overflow-x` sur `body` en ferait un
+   conteneur de defilement a part entiere, ce qui neutraliserait les en-tetes
+   `position: sticky`. */
+html {
+  overflow-x: hidden;
+}
+
+/* §69 : navigation clavier. Aucun element focalisable n'avait d'indicateur. */
+:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+}
+
+/* §70 : les animations infinies coutent cher sur les terminaux d'entree de
+   gamme, et WCAG 2.2.2 impose de les respecter comme preference. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 @layer utilities {
   @keyframes shimmer {
     0% {
