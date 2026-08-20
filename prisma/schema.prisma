@@ -77,6 +77,10 @@ enum TransactionType {
 }
 
 enum DeliveryStatus {
+  // Commande creee, aucun livreur encore designe. L'enum n'avait pas cet etat :
+  // une livraison sans livreur etait marquee ASSIGNED, ce qui est faux (§26 —
+  // l'assignation est un acte explicite du vendeur).
+  UNASSIGNED
   ASSIGNED
   TO_PICK_UP
   PICKED_UP

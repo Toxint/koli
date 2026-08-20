@@ -15,6 +15,7 @@
 const prismaMock = {
   order: { findUnique: vi.fn(), update: vi.fn() },
   delivery: { findUnique: vi.fn(), update: vi.fn() },
+  driverProfile: { findUnique: vi.fn(), findMany: vi.fn() },
   otpCode: { update: vi.fn(), updateMany: vi.fn() },
   fund: { update: vi.fn(), updateMany: vi.fn() },
   payment: { updateMany: vi.fn() },
@@ -33,6 +34,7 @@ vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 const { simulatePaymentAction } = await import("@/lib/payments/actions");
 const { validateDeliveryOtpAction } = await import("@/lib/deliveries/actions");
 const { confirmReceptionAction } = await import("@/lib/orders/actions");
+const { assignDriverAction } = await import("@/lib/deliveries/assign");
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -261,6 +263,107 @@ describe("validateDeliveryOtpAction", () => {
     // Sans ce garde-fou, l'historique enregistrait des etapes de paiement
     // qui n'ont jamais eu lieu.
     expect(prismaMock.$transaction).not.toHaveBeenCalled();
+  });
+});
+
+describe("assignDriverAction", () => {
+  const vendeur = {
+    id: "u-vendeur",
+    role: "SELLER",
+    sellerProfile: { id: "s1" },
+  };
+
+  const commandePayee = {
+    id: "o1",
+    reference: "KOLI-ABCDEFGH",
+    sellerId: "s1",
+    status: "FUNDS_SECURED",
+    fund: { secured: true },
+    delivery: { status: "UNASSIGNED" },
+  };
+
+  it("refuse un utilisateur qui n'est pas vendeur", async () => {
+    getCurrentUserMock.mockResolvedValue({ id: "u1", role: "CLIENT" });
+
+    const res = await assignDriverAction("KOLI-ABCDEFGH", "d1");
+
+    expect(res.success).toBe(false);
+    expect(prismaMock.order.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("refuse d'assigner sur la commande d'un autre vendeur", async () => {
+    getCurrentUserMock.mockResolvedValue(vendeur);
+    prismaMock.order.findUnique.mockResolvedValue({
+      ...commandePayee,
+      sellerId: "un-autre-vendeur",
+    });
+
+    const res = await assignDriverAction("KOLI-ABCDEFGH", "d1");
+
+    expect(res.success).toBe(false);
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("refuse tant que les fonds ne sont pas sequestres", async () => {
+    getCurrentUserMock.mockResolvedValue(vendeur);
+    prismaMock.order.findUnique.mockResolvedValue({
+      ...commandePayee,
+      status: "PAYMENT_PENDING",
+      fund: { secured: false },
+    });
+
+    const res = await assignDriverAction("KOLI-ABCDEFGH", "d1");
+
+    expect(res.success).toBe(false);
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("refuse un livreur suspendu", async () => {
+    getCurrentUserMock.mockResolvedValue(vendeur);
+    prismaMock.order.findUnique.mockResolvedValue(commandePayee);
+    prismaMock.driverProfile.findUnique.mockResolvedValue({
+      id: "d1",
+      user: { name: "Kouassi", status: "SUSPENDED" },
+    });
+
+    const res = await assignDriverAction("KOLI-ABCDEFGH", "d1");
+
+    expect(res.success).toBe(false);
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("assigne le livreur et fait avancer la commande", async () => {
+    getCurrentUserMock.mockResolvedValue(vendeur);
+    prismaMock.order.findUnique.mockResolvedValue(commandePayee);
+    prismaMock.driverProfile.findUnique.mockResolvedValue({
+      id: "d1",
+      user: { name: "Kouassi Express", status: "ACTIVE" },
+    });
+
+    const tx = {
+      delivery: { update: vi.fn() },
+      order: { update: vi.fn() },
+      orderStatusHistory: { create: vi.fn() },
+    };
+    prismaMock.$transaction.mockImplementation(
+      async (cb: (t: typeof tx) => unknown) => cb(tx)
+    );
+
+    const res = await assignDriverAction("KOLI-ABCDEFGH", "d1");
+
+    expect(res).toEqual({ success: true, driverName: "Kouassi Express" });
+    expect(tx.delivery.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ driverId: "d1", status: "ASSIGNED" }),
+      })
+    );
+    // La commande doit passer a SELLER_ACCEPTED : transition legale depuis
+    // FUNDS_SECURED, et c'est bien ce que signifie assigner un livreur.
+    expect(tx.order.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: { status: "SELLER_ACCEPTED" },
+      })
+    );
   });
 });
 

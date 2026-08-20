@@ -143,16 +143,12 @@ export async function createOrderAction(formData: FormData) {
       },
       delivery: {
         create: {
-          // Aucun livreur assigne a la creation. Le code precedent prenait le
-          // premier livreur venu (`driverProfile.findFirst()` sans filtre) et
-          // l'assignait a toutes les commandes de la plateforme. L'assignation
-          // est un acte explicite du vendeur (§26) — interface a construire en
-          // phase 15. Tant qu'elle est nulle, la livraison n'apparait dans le
-          // tableau de bord d'aucun livreur.
-          // NOTE schema : l'enum DeliveryStatus n'a pas d'etat « non assignee » ;
-          // a ajouter en phase 15.
+          // Aucun livreur a la creation : l'assignation est un acte explicite
+          // du vendeur (§26), via `assignDriverAction`. Le code precedent
+          // prenait le premier livreur venu et l'assignait a toutes les
+          // commandes de la plateforme.
           driverId: null,
-          status: DeliveryStatus.ASSIGNED,
+          status: DeliveryStatus.UNASSIGNED,
           otpCodes: {
             create: [
               {

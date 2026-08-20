@@ -1,4 +1,4 @@
-# KOLI — Document technique (Phase 0)
+﻿# KOLI — Document technique (Phase 0)
 
 Produit conformément à `docs/koli-plan.md` §79 et §87 : architecture, arborescence, schéma de base de données, rôles/permissions, workflows, routes, composants principaux.
 
@@ -629,6 +629,30 @@ Un harnais de vérification automatisé (`scripts/check-responsive.mjs`, Playwri
 
 ---
 
+## 8 ter. Identité visuelle (20/08/2026)
+
+Fond blanc, **vert KOLI** (`#047857`) sur les titres, les textes importants et les appels à l'action ; encre neutre profonde pour le texte courant. Un vert appliqué partout ne signalerait plus rien : il ne ressort que parce que le reste ne l'est pas.
+
+Une version entièrement dorée a été essayée puis écartée : l'or pur (`#FFD700`) sur blanc ne donne que **1,4:1** de contraste contre 4,5:1 exigés — illisible sur un téléphone en plein soleil, situation quotidienne du public visé. L'or est conservé, cantonné à son rôle d'alerte : l'indicateur de mode test.
+
+**Typographie** — aucune police n'était définie (pile système par défaut, d'où un rendu générique). **Plus Jakarta Sans**, dessinée pour les interfaces, limitée à 4 graisses avec `display: swap` pour ne pas pénaliser les réseaux mobiles lents (§70). Les graisses extrêmes (`font-black` 900, `font-extrabold` 800) sont plafonnées à 700 : à l'écran, une graisse extrême écrase la hiérarchie au lieu de la créer. C'est la couleur qui porte l'importance.
+
+**Piège Tailwind v4 rencontré deux fois, noté dans `globals.css`** : les couches sont résolues *avant* la spécificité. Une règle hors couche l'emporte sur tout — voulu pour la taille des champs (invariant), néfaste pour la couleur des titres (valeur par défaut qu'un `text-white` doit pouvoir surcharger). Les invariants vont hors couche, les défauts dans `@layer base`.
+
+---
+
+## 8 quater. Phase 15 — assignation du livreur (20/08/2026)
+
+`lib/deliveries/assign.ts` : le vendeur choisit un livreur pour une commande payée (§26, §57). Sans cette étape, **aucune commande créée par l'interface n'atteignait un livreur** — le parcours s'arrêtait au paiement.
+
+Garde-fous : rôle vendeur, propriété de la commande, fonds effectivement séquestrés, livraison non déjà confirmée, livreur actif. L'assignation fait passer la commande de `FUNDS_SECURED` à `SELLER_ACCEPTED`.
+
+L'enum `DeliveryStatus` gagne l'état **`UNASSIGNED`** qui lui manquait : une livraison sans livreur était marquée `ASSIGNED`, ce qui était faux.
+
+**Vérification de bout en bout** — `scripts/test-parcours-complet.mjs` pilote un vrai navigateur à travers les quatre rôles et rejoue le scénario du §72 : création → paiement → assignation → OTP → confirmation → libération. Il contrôle aussi les garanties de sécurité (le vendeur ne voit pas le code et ne peut pas confirmer à la place du client ; la backdoor « 1234 » reste fermée). **17/17.**
+
+---
+
 ## 9. État réel au 20/08/2026
 
 ### Implémenté et sécurisé
@@ -668,7 +692,7 @@ Ces points sont réels et documentés ; ils relèvent de phases ultérieures ou 
 
 - **Navigation (§10)** — il n'existe aucune sidebar ni menu mobile. La navigation se réduit à un en-tête avec logo, badge de rôle et déconnexion. À construire quand il y aura des pages à desservir (Phase 5 revisitée).
 - **Jalons du livreur (§26)** — les étapes intermédiaires (colis récupéré, en transit, arrivé) n'ont pas d'interface. La validation OTP franchit le chemin d'un bloc, chaque saut restant une transition légale et journalisée. À remplacer par de vraies actions en Phase 15, avec un état « non assignée » à ajouter à l'enum `DeliveryStatus`.
-- **Assignation du livreur (§26)** — action explicite du vendeur, à construire (Phase 15). D'ici là, les livraisons n'apparaissent chez aucun livreur.
+- ~~Assignation du livreur (§26)~~ — **fait** le 20/08/2026, voir §8 quater.
 - **Tableaux sur mobile (§8)** — défilement horizontal au lieu d'une conversion en cartes (Phase 28).
 - **Breakpoint tablette** — seuls `sm:` et `lg:` sont utilisés ; `md:` (768px, §7) est inexploité (Phase 28).
 - **`/pay/<référence>` inexistante** renvoie une page « Commande introuvable » avec un statut HTTP 200 plutôt qu'un 404.

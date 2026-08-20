@@ -201,10 +201,11 @@ export default function NewOrderPage() {
                 </h2>
 
                 <div>
-                  <label className="block text-xs font-semibold text-brand dark:text-slate-300 mb-1">
+                  <label htmlFor="productName" className="block text-xs font-semibold text-brand dark:text-slate-300 mb-1">
                     Nom de l&apos;article / Produit
                   </label>
                   <input
+                    id="productName"
                     type="text"
                     required
                     value={productName}
@@ -216,10 +217,11 @@ export default function NewOrderPage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
-                    <label className="block text-xs font-semibold text-brand dark:text-slate-300 mb-1">
+                    <label htmlFor="unitPrice" className="block text-xs font-semibold text-brand dark:text-slate-300 mb-1">
                       Prix Unitaire (FCFA)
                     </label>
                     <input
+                    id="unitPrice"
                       type="number"
                       required
                       min={100}
@@ -230,10 +232,11 @@ export default function NewOrderPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-brand dark:text-slate-300 mb-1">
+                    <label htmlFor="quantity" className="block text-xs font-semibold text-brand dark:text-slate-300 mb-1">
                       Quantité
                     </label>
                     <input
+                    id="quantity"
                       type="number"
                       required
                       min={1}
@@ -244,10 +247,11 @@ export default function NewOrderPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-brand dark:text-slate-300 mb-1">
+                    <label htmlFor="deliveryFee" className="block text-xs font-semibold text-brand dark:text-slate-300 mb-1">
                       Frais de Livraison (FCFA)
                     </label>
                     <input
+                    id="deliveryFee"
                       type="number"
                       required
                       min={0}
@@ -267,10 +271,11 @@ export default function NewOrderPage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-semibold text-brand dark:text-slate-300 mb-1">
+                    <label htmlFor="buyerName" className="block text-xs font-semibold text-brand dark:text-slate-300 mb-1">
                       Nom complet du Client
                     </label>
                     <input
+                    id="buyerName"
                       type="text"
                       required
                       value={buyerName}
@@ -281,10 +286,11 @@ export default function NewOrderPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-brand dark:text-slate-300 mb-1">
+                    <label htmlFor="buyerPhone" className="block text-xs font-semibold text-brand dark:text-slate-300 mb-1">
                       Numéro de Téléphone Client
                     </label>
                     <input
+                    id="buyerPhone"
                       type="tel"
                       required
                       value={buyerPhone}
@@ -321,10 +327,11 @@ export default function NewOrderPage() {
                   </div>
 
                   <div>
-                    <label className="block text-xs font-semibold text-brand dark:text-slate-300 mb-1">
+                    <label htmlFor="buyerCity" className="block text-xs font-semibold text-brand dark:text-slate-300 mb-1">
                       Ville
                     </label>
                     <input
+                    id="buyerCity"
                       type="text"
                       required
                       value={buyerCity}
@@ -336,10 +343,11 @@ export default function NewOrderPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-brand dark:text-slate-300 mb-1">
+                  <label htmlFor="buyerAddress" className="block text-xs font-semibold text-brand dark:text-slate-300 mb-1">
                     Adresse / Quartier de livraison
                   </label>
                   <input
+                    id="buyerAddress"
                     type="text"
                     required
                     value={buyerAddress}
@@ -350,10 +358,11 @@ export default function NewOrderPage() {
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-brand dark:text-slate-300 mb-1">
+                  <label htmlFor="buyerLandmark" className="block text-xs font-semibold text-brand dark:text-slate-300 mb-1">
                     Repère de livraison <span className="text-ink-muted font-normal">(optionnel)</span>
                   </label>
                   <input
+                    id="buyerLandmark"
                     type="text"
                     value={buyerLandmark}
                     onChange={(e) => setBuyerLandmark(e.target.value)}
