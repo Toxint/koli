@@ -223,6 +223,10 @@ model Order {
   buyerLandmark String?
 
   deliveryFee Int         @default(0)
+  // Zone monetaire de la commande : "XOF" (UEMOA) ou "XAF" (CEMAC, dont le
+  // Cameroun). Les deux s'affichent « FCFA » mais ne sont pas interchangeables ;
+  // sans ce champ, toute commande camerounaise etait traitee comme XOF.
+  currency    String      @default("XOF")
   status      OrderStatus @default(DRAFT)
 
   createdAt DateTime @default(now())

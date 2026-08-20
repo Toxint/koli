@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+﻿import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/prisma";
 import { DashboardNav } from "@/components/ui/DashboardNav";
@@ -96,7 +96,7 @@ export default async function SellerDashboardPage() {
             <div className="text-2xl font-black text-amber-600 dark:text-amber-400">
               {formatCFA(securedAmount)}
             </div>
-            <p className="text-[11px] text-slate-400 mt-1">
+            <p className="text-[11px] text-slate-500 mt-1">
               En attente de confirmation de réception par le client
             </p>
           </div>
@@ -108,31 +108,31 @@ export default async function SellerDashboardPage() {
             <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
               {formatCFA(releasedAmount)}
             </div>
-            <p className="text-[11px] text-slate-400 mt-1">
+            <p className="text-[11px] text-slate-500 mt-1">
               Libéré après confirmation de réception par le client
             </p>
           </div>
 
           <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
               Total Commandes
             </span>
             <div className="text-2xl font-black text-slate-900 dark:text-white">
               {totalOrdersCount}
             </div>
-            <p className="text-[11px] text-slate-400 mt-1">
+            <p className="text-[11px] text-slate-500 mt-1">
               Commandes enregistrées
             </p>
           </div>
 
           <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
               Produits en Catalogue
             </span>
             <div className="text-2xl font-black text-slate-900 dark:text-white">
               {productsCount}
             </div>
-            <p className="text-[11px] text-slate-400 mt-1">
+            <p className="text-[11px] text-slate-500 mt-1">
               Articles actifs dans votre stock
             </p>
           </div>
@@ -163,7 +163,7 @@ export default async function SellerDashboardPage() {
               <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                 Aucune commande enregistrée pour l&apos;instant
               </p>
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="text-xs text-slate-500 mt-1">
                 Créez votre première commande pour générer un lien de paiement KOLI.
               </p>
             </div>

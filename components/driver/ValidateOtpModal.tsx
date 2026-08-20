@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import { validateDeliveryOtpAction } from "@/lib/deliveries/actions";
@@ -172,7 +172,7 @@ export function ValidateOtpModal({
                     setOtpInput(e.target.value.replace(/\D/g, "").slice(0, 4))
                   }
                   placeholder="••••"
-                  className="w-full px-4 py-3.5 rounded-2xl border-2 border-amber-300 dark:border-amber-500/50 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-center text-2xl font-black tracking-[0.3em] focus:outline-none focus:ring-4 focus:ring-amber-500/30 focus:border-amber-500 transition-all placeholder:text-slate-400 placeholder:tracking-normal placeholder:text-sm"
+                  className="w-full px-4 py-3.5 rounded-2xl border-2 border-amber-300 dark:border-amber-500/50 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white font-mono text-center text-2xl font-black tracking-[0.3em] focus:outline-none focus:ring-4 focus:ring-amber-500/30 focus:border-amber-500 transition-all placeholder:text-slate-500 placeholder:tracking-normal placeholder:text-sm"
                 />
               </div>
 

@@ -93,7 +93,9 @@ export async function simulatePaymentAction(
   const intent = await provider.initiate({
     orderReference: order.reference,
     amount: order.payment.amount,
-    currency: "XOF",
+    // Devise reelle de la commande, et non "XOF" en dur : le Cameroun est en
+    // zone XAF (voir data/markets.ts).
+    currency: order.currency,
   });
   const verdict = await provider.confirm(intent.providerRef, {
     simulateOutcome: parsedOutcome.data,
@@ -105,6 +107,9 @@ export async function simulatePaymentAction(
   // Capture avant la transaction : TypeScript ne conserve pas le narrowing de
   // `order.fund` a l'interieur de la closure.
   const securedAmount = order.fund.amount;
+  // Total regle par le client (articles + livraison), a distinguer de la part
+  // sequestree qui revient au vendeur (hors livraison).
+  const paidAmount = order.payment.amount;
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -141,12 +146,24 @@ export async function simulatePaymentAction(
           data: { secured: true, securedAt: now },
         });
 
-        await tx.transaction.create({
-          data: {
-            orderId: order.id,
-            type: "FUNDS_SECURED",
-            amount: securedAmount,
-          },
+        // §40 : le journal doit refleter tous les mouvements.
+        // L'ecriture PAYMENT (ce que le client a effectivement regle) manquait :
+        // seul FUNDS_SECURED etait inscrit, si bien que les frais de livraison
+        // — la difference entre les deux — n'apparaissaient nulle part et
+        // n'etaient imputes a personne.
+        await tx.transaction.createMany({
+          data: [
+            {
+              orderId: order.id,
+              type: "PAYMENT",
+              amount: paidAmount,
+            },
+            {
+              orderId: order.id,
+              type: "FUNDS_SECURED",
+              amount: securedAmount,
+            },
+          ],
         });
       }
 

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -54,7 +54,7 @@ export default function LoginPage() {
 
         <div className="bg-white dark:bg-slate-900 shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-200/80 dark:border-slate-800 rounded-2xl p-6 sm:p-8">
           {error && (
-            <div className="mb-6 p-4 rounded-xl bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-sm flex items-start gap-3">
+            <div role="alert" className="mb-6 p-4 rounded-xl bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-sm flex items-start gap-3">
               <svg className="w-5 h-5 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
@@ -71,12 +71,23 @@ export default function LoginPage() {
                 id="identifier"
                 name="identifier"
                 type="text"
+                autoComplete="username"
                 required
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
-                placeholder="+225 07 01 02 03 04 ou vendeur@koli.ci"
-                className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-sm"
+                // Placeholder court : l'ancien (38 caracteres) etait tronque
+                // dans le champ sur un ecran de 320px, et un placeholder ne
+                // passe pas a la ligne.
+                placeholder="Téléphone ou email"
+                aria-describedby="aide-identifiant"
+                className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-sm"
               />
+              <p
+                id="aide-identifiant"
+                className="mt-1 text-xs text-slate-600 dark:text-slate-400"
+              >
+                Ex. : +225 07 01 02 03 04 ou vendeur@koli.ci
+              </p>
             </div>
 
             <div>
@@ -90,16 +101,24 @@ export default function LoginPage() {
                   id="password"
                   name="password"
                   type={showPassword ? "text" : "password"}
+                  autoComplete="current-password"
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-sm pr-12"
+                  // `pr-24` : le bouton « Afficher » recouvrait le texte saisi,
+                  // l'ancien `pr-12` ne reservait que 48px pour un bouton de 68px.
+                  className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-all text-sm pr-24"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-1 top-1/2 -translate-y-1/2 min-h-[44px] px-3 flex items-center text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 text-xs font-medium"
+                  aria-label={
+                    showPassword
+                      ? "Masquer le mot de passe"
+                      : "Afficher le mot de passe"
+                  }
+                  className="absolute right-1 top-1/2 -translate-y-1/2 min-h-[44px] px-3 flex items-center text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 text-xs font-medium"
                 >
                   {showPassword ? "Masquer" : "Afficher"}
                 </button>
@@ -137,7 +156,7 @@ export default function LoginPage() {
                 className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 bg-slate-50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300 font-medium text-left transition-colors"
               >
                 🛍️ <span className="font-semibold text-slate-900 dark:text-white">Vendeur</span>
-                <span className="block text-[10px] text-slate-400">vendeur@koli.ci</span>
+                <span className="block text-[10px] text-slate-500">vendeur@koli.ci</span>
               </button>
               <button
                 type="button"
@@ -145,7 +164,7 @@ export default function LoginPage() {
                 className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 bg-slate-50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300 font-medium text-left transition-colors"
               >
                 👤 <span className="font-semibold text-slate-900 dark:text-white">Client</span>
-                <span className="block text-[10px] text-slate-400">client@koli.ci</span>
+                <span className="block text-[10px] text-slate-500">client@koli.ci</span>
               </button>
               <button
                 type="button"
@@ -153,7 +172,7 @@ export default function LoginPage() {
                 className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 bg-slate-50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300 font-medium text-left transition-colors"
               >
                 🛵 <span className="font-semibold text-slate-900 dark:text-white">Livreur</span>
-                <span className="block text-[10px] text-slate-400">livreur@koli.ci</span>
+                <span className="block text-[10px] text-slate-500">livreur@koli.ci</span>
               </button>
               <button
                 type="button"
@@ -161,10 +180,10 @@ export default function LoginPage() {
                 className="p-2.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:border-emerald-500 dark:hover:border-emerald-500 bg-slate-50 dark:bg-slate-800/50 text-slate-700 dark:text-slate-300 font-medium text-left transition-colors"
               >
                 🛡️ <span className="font-semibold text-slate-900 dark:text-white">Admin</span>
-                <span className="block text-[10px] text-slate-400">admin@koli.ci</span>
+                <span className="block text-[10px] text-slate-500">admin@koli.ci</span>
               </button>
             </div>
-            <p className="text-[11px] text-center text-slate-400 mt-2">
+            <p className="text-[11px] text-center text-slate-500 mt-2">
               Mot de passe universel : <code className="bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded text-emerald-600 font-mono">Password123!</code>
             </p>
           </div>

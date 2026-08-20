@@ -328,7 +328,7 @@ describe("confirmReceptionAction — autorisation", () => {
 
     const tx = {
       fund: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
-      transaction: { create: vi.fn() },
+      transaction: { create: vi.fn(), createMany: vi.fn() },
       order: { update: vi.fn() },
       orderStatusHistory: { create: vi.fn() },
     };
@@ -416,7 +416,7 @@ describe("confirmReceptionAction", () => {
 
     const tx = {
       fund: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
-      transaction: { create: vi.fn() },
+      transaction: { create: vi.fn(), createMany: vi.fn() },
       order: { update: vi.fn() },
       orderStatusHistory: { create: vi.fn() },
     };

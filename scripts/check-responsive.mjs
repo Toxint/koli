@@ -42,6 +42,12 @@ const PAGES_PUBLIQUES = [
   { chemin: "/", nom: "accueil" },
   { chemin: "/connexion", nom: "connexion" },
   { chemin: "/inscription", nom: "inscription" },
+  { chemin: "/comment-ca-marche", nom: "comment-ca-marche" },
+  { chemin: "/pour-les-vendeurs", nom: "pour-les-vendeurs" },
+  { chemin: "/aide", nom: "aide" },
+  { chemin: "/conditions", nom: "conditions" },
+  { chemin: "/confidentialite", nom: "confidentialite" },
+  { chemin: "/page-qui-nexiste-pas", nom: "404" },
 ];
 
 const PAGES_PRIVEES = [

@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+﻿import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/prisma";
 import { DashboardNav } from "@/components/ui/DashboardNav";
@@ -63,7 +63,7 @@ export default async function ClientDashboardPage() {
               <p className="text-sm font-semibold">
                 Vous n&apos;avez effectué aucune commande pour le moment.
               </p>
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="text-xs text-slate-500 mt-1">
                 Lorsque vous effectuez un achat via un lien de paiement KOLI, il apparaît ici.
               </p>
             </div>
@@ -99,7 +99,7 @@ export default async function ClientDashboardPage() {
 
                     <div className="flex items-center gap-4 self-end sm:self-auto">
                       <div className="text-right">
-                        <span className="text-xs text-slate-400 block">Total payé (test)</span>
+                        <span className="text-xs text-slate-500 block">Total payé (test)</span>
                         <span className="text-lg font-bold text-slate-900 dark:text-white">
                           {formatCFA(totalAmount)}
                         </span>

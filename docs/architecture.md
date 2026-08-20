@@ -609,7 +609,27 @@ Aucun de ces points ne bloque le démarrage — ce sont des interprétations rai
 
 ---
 
-## 9. État réel au 19/08/2026
+## 8 bis. Audit du 20/08/2026 — failles corrigées
+
+Un audit de sécurité et un audit mobile ont été menés sur le code livré. Trois défauts majeurs, non détectés lors des passes précédentes :
+
+**1. Le vendeur pouvait libérer ses propres fonds.** `confirmReceptionAction` se contentait de la possession de la référence comme autorisation. Or la référence est exactement ce que le vendeur partage (bouton « Partager le lien ») et ce que le livreur lit sur sa fiche. Le vendeur pouvait donc ouvrir son propre lien de paiement, cliquer « Oui, j'ai reçu ma commande », et déclencher son propre versement. Le livreur pouvait même fabriquer la condition : valider l'OTP, puis s'auto-confirmer. **La garantie centrale de KOLI ne reposait sur rien.** Corrigé : session client obligatoire et rattachée à la commande, vendeur explicitement refusé.
+
+> Leçon retenue : le modèle « la possession du lien fait capacité » est valable pour *payer* (seul le payeur y a intérêt), jamais pour *libérer* (deux des trois détenteurs du lien sont les bénéficiaires).
+
+**2. Le code de réception n'était affiché à personne.** Généré, stocké, correctement masqué au livreur — mais jamais montré au client. Le scénario complet du §72 était donc infaisable. Affiché désormais sur `/pay/<référence>`, au seul client authentifié.
+
+**3. Le livreur pouvait « livrer » une commande impayée.** Aucune vérification que les fonds étaient séquestrés ; l'historique enregistrait alors des étapes de paiement jamais survenues (§48).
+
+Également corrigé : le tableau de bord admin comptait les fonds déjà versés comme encore séquestrés ; le montant de la commande était exposé au livreur (contraire au §25) ; la devise était figée à `XOF` alors que le Cameroun est en zone `XAF` (champ `Order.currency` ajouté) ; le paiement du client n'était inscrit à aucune écriture comptable (§40) ; la commande n'atteignait jamais `COMPLETED` (§29).
+
+**Conformité mobile.** 90 % des utilisateurs visés sont sur téléphone. L'audit a relevé 20 défauts, dont : aucune navigation dans les espaces connectés (§10), deux tableaux à 5 colonnes débordant de plus du double de la largeur d'écran (§8), une modale OTP que le clavier du téléphone rendait inutilisable, un correctif iOS placé dans `@layer base` donc **inopérant** (les couches priment sur la spécificité), et le mode sombre rendant l'adresse de livraison invisible.
+
+Un harnais de vérification automatisé (`scripts/check-responsive.mjs`, Playwright) parcourt désormais chaque écran en 320/375/414/768/1024/1440 px et contrôle débordement horizontal, cibles tactiles et taille des champs — exigence §74. Il fait autorité sur ce point : **aucun problème détecté**.
+
+---
+
+## 9. État réel au 20/08/2026
 
 ### Implémenté et sécurisé
 
@@ -627,6 +647,22 @@ Aucun de ces points ne bloque le démarrage — ce sont des interprétations rai
 ### Tables existantes mais encore vides (par choix, phases à venir)
 
 `Dispute`, `DisputeMessage` (Phase 21) · `Refund` (Phase 22) · `Invoice` (Phase 20) · `Notification` (Phase 25) · `AuditLog` (Phase 26) · `KycDocument` (Phase 24) · `Commission` — la table est alimentée, mais aucun prélèvement n'est calculé (Phase 19).
+
+### Écarts au cahier des charges relevés par l'audit, non encore traités
+
+Ces points sont réels et documentés ; ils relèvent de phases ultérieures ou d'arbitrages à faire.
+
+- **§46 — ni recherche, ni filtre, ni tri, ni pagination** nulle part. Toutes les listes sont des `findMany` non bornés. Acceptable au volume actuel, à traiter avant toute mise en service.
+- **§42-43 — pas de page « Solde vendeur »** : « Total gagné », l'historique et l'interface « Retirer mes fonds » manquent.
+- **§64 — aucune page de profil** pour les quatre rôles.
+- **§62 — pas de lien « Mot de passe oublié ? »**.
+- **§58 — aucune confirmation avant action destructrice** (aucune action destructrice n'existe encore).
+- **§18 — le formulaire de commande est d'un seul tenant** au lieu des 5 étapes prévues.
+- **§34-36 — le tableau de bord admin est partiel** : paiements, litiges, remboursements, commissions et activités récentes manquent ; suspendre/réactiver un compte n'est pas implémenté.
+- **§28 — les preuves de livraison sont écrites mais jamais affichées.**
+- **§47 — pas de limitation des tentatives de connexion** (elle existe pour l'OTP).
+- **Intégrité** : `Fund.sellerId` est une chaîne sans clé étrangère ; aucun index sur les colonnes de jointure ; le total de commande est recalculé en six endroits au lieu d'être lu depuis `Payment.amount` ; aucune politique d'arrondi n'est définie pour la future commission (§41).
+- **`prisma/seed.ts`** produit une référence `KOLI-000124` au format devenu invalide (devinable).
 
 ### Manques connus, à traiter dans leur phase
 

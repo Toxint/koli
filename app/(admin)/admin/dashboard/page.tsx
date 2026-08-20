@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+﻿import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/prisma";
 import { DashboardNav } from "@/components/ui/DashboardNav";
@@ -60,7 +60,7 @@ export default async function AdminDashboardPage() {
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
               Console Administrateur KOLI 🛡️
             </h1>
-            <p className="text-slate-400 text-sm mt-1">
+            <p className="text-slate-500 text-sm mt-1">
               Supervision globale des utilisateurs, fonds sécurisés, livraisons et litiges (Mode Test MVP).
             </p>
           </div>
@@ -69,49 +69,49 @@ export default async function AdminDashboardPage() {
         {/* Global KPIs */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
               Total Utilisateurs
             </span>
             <div className="text-2xl font-black text-slate-900 dark:text-white">
               {usersCount}
             </div>
-            <p className="text-[11px] text-slate-400 mt-1">
+            <p className="text-[11px] text-slate-500 mt-1">
               {sellersCount} Vendeurs • {driversCount} Livreurs • {customersCount} Clients
             </p>
           </div>
 
           <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
               Commandes Total
             </span>
             <div className="text-2xl font-black text-slate-900 dark:text-white">
               {totalOrdersCount}
             </div>
-            <p className="text-[11px] text-slate-400 mt-1">
+            <p className="text-[11px] text-slate-500 mt-1">
               Sur toute la plateforme
             </p>
           </div>
 
           <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
               Volume Séquestré (Test)
             </span>
             <div className="text-2xl font-black text-amber-600 dark:text-amber-400">
               {formatCFA(totalSecuredAmount)}
             </div>
-            <p className="text-[11px] text-slate-400 mt-1">
+            <p className="text-[11px] text-slate-500 mt-1">
               Fonds actuellement bloqués
             </p>
           </div>
 
           <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
-            <span className="text-xs font-bold text-slate-400 uppercase tracking-wider block mb-1">
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider block mb-1">
               Volume Libéré (Test)
             </span>
             <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400">
               {formatCFA(totalReleasedAmount)}
             </div>
-            <p className="text-[11px] text-slate-400 mt-1">
+            <p className="text-[11px] text-slate-500 mt-1">
               Fonds transférés aux vendeurs
             </p>
           </div>

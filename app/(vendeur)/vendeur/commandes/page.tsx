@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+﻿import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/prisma";
 import { DashboardNav } from "@/components/ui/DashboardNav";
@@ -89,7 +89,7 @@ export default async function SellerOrdersPage() {
 
                     <div className="flex items-center gap-4">
                       <div className="text-right">
-                        <span className="text-xs text-slate-400 block">Total</span>
+                        <span className="text-xs text-slate-500 block">Total</span>
                         <span className="text-base font-extrabold">{formatCFA(totalAmount)}</span>
                       </div>
 

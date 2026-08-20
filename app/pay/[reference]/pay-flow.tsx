@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -119,7 +119,7 @@ export function PayFlow({
             ? "Le livreur a marqué votre colis comme remis. Confirmez la réception pour que le vendeur soit payé (simulation)."
             : estTermine
               ? "Vous avez confirmé la réception. Les fonds seraient versés au vendeur — aucun mouvement réel n'a lieu en mode test."
-              : "Votre paiement simulé est enregistré. Aucun argent réel n'a été prélevé. Le vendeur a été notifié et prépare l'expédition de votre colis."}
+              : "Votre paiement simulé est enregistré. Aucun argent réel n'a été prélevé ni détenu. Le vendeur voit la commande comme payée et prépare l'expédition."}
         </p>
 
         <span className="inline-block px-3 py-1 rounded-full bg-test-mode-surface dark:bg-amber-950/80 text-test-mode dark:text-amber-300 text-[11px] font-black uppercase tracking-wider border border-amber-300/60">
@@ -145,25 +145,25 @@ export function PayFlow({
 
         <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-xl text-left text-xs space-y-2">
           <div className="flex justify-between font-medium">
-            <span className="text-slate-400">Référence :</span>
+            <span className="text-slate-500">Référence :</span>
             <span className="font-mono font-bold text-emerald-600">{order.reference}</span>
           </div>
           <div className="flex justify-between font-medium">
-            <span className="text-slate-400">Montant total :</span>
+            <span className="text-slate-500">Montant total :</span>
             <span className="font-bold text-slate-900 dark:text-white">{formatCFA(grandTotal)}</span>
           </div>
           <div className="flex justify-between font-medium">
-            <span className="text-slate-400">Destinataire :</span>
+            <span className="text-slate-500">Destinataire :</span>
             <span>{order.buyerName} ({order.buyerPhone})</span>
           </div>
           <div className="flex justify-between font-medium">
-            <span className="text-slate-400">Adresse :</span>
+            <span className="text-slate-500">Adresse :</span>
             <span>{order.buyerAddress}, {order.buyerCity}</span>
           </div>
         </div>
 
         {error && (
-          <div className="p-4 rounded-2xl bg-red-50 text-red-700 text-sm font-medium">
+          <div role="alert" className="p-4 rounded-2xl bg-red-50 text-red-700 text-sm font-medium">
             {error}
           </div>
         )}
@@ -231,7 +231,7 @@ export function PayFlow({
       </div>
 
       {error && (
-        <div className="p-4 rounded-2xl bg-red-50 text-red-700 text-sm text-center font-medium">
+        <div role="alert" className="p-4 rounded-2xl bg-red-50 text-red-700 text-sm text-center font-medium">
           {error}
         </div>
       )}
@@ -250,7 +250,7 @@ export function PayFlow({
                   <span className="font-bold text-slate-900 dark:text-white block">
                     {item.name}
                   </span>
-                  <span className="text-xs text-slate-400">
+                  <span className="text-xs text-slate-500">
                     Quantité : {item.quantity} × {formatCFA(item.unitPrice)}
                   </span>
                 </div>
@@ -301,7 +301,7 @@ export function PayFlow({
               {loading ? (
                 <span>Traitement en cours...</span>
               ) : (
-                "💳 Simuler un Paiement Réussi (Orange/Wave/MTN)"
+                "💳 Simuler un paiement réussi"
               )}
             </button>
 
@@ -311,12 +311,12 @@ export function PayFlow({
               onClick={() => handleSimulatePayment("FAILURE")}
               className="w-full py-3 px-4 rounded-xl border border-slate-300 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 font-semibold text-xs transition-colors"
             >
-              ❌ Simuler un Échec de Paiement (Solde insuffisant)
+              ❌ Simuler un paiement échoué
             </button>
           </div>
 
           <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 text-xs">
-            🛡️ <strong>Garantie KOLI Protect :</strong> Les fonds restent sous séquestre jusqu&apos;à ce que vous confirmiez avoir reçu votre commande. Le vendeur n&apos;est payé qu&apos;après votre validation.
+            🛡️ <strong>Garantie KOLI :</strong> le vendeur n&apos;est payé qu&apos;après que vous ayez confirmé avoir reçu votre commande. En mode test, aucun montant réel n&apos;est prélevé ni détenu.
           </div>
         </div>
       </div>

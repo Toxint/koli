@@ -1,14 +1,17 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import Link from "next/link";
 import { createOrderAction } from "@/lib/orders/actions";
 import { formatCFA } from "@/lib/format";
+import { markets } from "@/data/markets";
 
 export default function NewOrderPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createdReference, setCreatedReference] = useState<string | null>(null);
+  const [copie, setCopie] = useState(false);
+  const [erreurCopie, setErreurCopie] = useState(false);
 
   // Form states
   const [productName, setProductName] = useState("Robe Wax Traditionnelle");
@@ -67,19 +70,39 @@ export default function NewOrderPage() {
     ? `${origin || "http://localhost:3000"}/pay/${createdReference}`
     : "";
 
+  /**
+   * `navigator.clipboard` est indisponible hors contexte securise — typiquement
+   * en http://192.168.x.x, c'est-a-dire exactement la facon dont on teste
+   * l'application depuis un telephone sur le reseau local. L'ancien code
+   * appelait l'API sans verification et affichait un `alert()` de succes qui
+   * mentait : rien n'avait ete copie.
+   */
+  const handleCopierLien = async () => {
+    setErreurCopie(false);
+    try {
+      if (!navigator.clipboard) throw new Error("presse-papiers indisponible");
+      await navigator.clipboard.writeText(shareUrl);
+      setCopie(true);
+      setTimeout(() => setCopie(false), 2500);
+    } catch {
+      setErreurCopie(true);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-white py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
+        {/* §75 : cette page affiche des montants et n'avait aucun indicateur de
+            mode test — elle est la seule page connectée sans en-tête KOLI. */}
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
           <Link
             href="/vendeur/dashboard"
             className="inline-flex items-center min-h-[44px] gap-1.5 text-xs font-bold text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-slate-200 transition-colors"
           >
-            ← Retour au Tableau de bord
+            ← Retour au tableau de bord
           </Link>
-          <span className="px-3 py-1 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 text-xs font-semibold">
-            Génération de Lien KOLI
+          <span className="px-3 py-1 rounded-full bg-test-mode-surface dark:bg-amber-950/80 text-test-mode dark:text-amber-300 text-[11px] font-extrabold border border-amber-300/60 dark:border-amber-700 whitespace-nowrap">
+            ⚡ Mode test — aucun paiement réel
           </span>
         </div>
 
@@ -94,7 +117,7 @@ export default function NewOrderPage() {
           </div>
 
           {error && (
-            <div className="p-4 rounded-xl bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-sm">
+            <div role="alert" className="p-4 rounded-xl bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-sm">
               {error}
             </div>
           )}
@@ -112,20 +135,38 @@ export default function NewOrderPage() {
                 Partagez ce lien à votre client sur WhatsApp, TikTok ou Facebook pour recevoir le paiement sécurisé.
               </p>
 
-              <div className="bg-white dark:bg-slate-900 border border-emerald-300 dark:border-emerald-700 p-3 rounded-xl flex items-center justify-between gap-2 max-w-lg mx-auto">
-                <span className="text-xs font-mono text-slate-800 dark:text-slate-200 truncate select-all">
+              <div className="bg-white dark:bg-slate-900 border border-emerald-300 dark:border-emerald-700 p-3 rounded-xl space-y-2 max-w-lg mx-auto">
+                {/* `break-all` plutot que `truncate` : le vendeur doit pouvoir
+                    LIRE le lien, notamment si la copie echoue. */}
+                <span className="block text-xs font-mono text-slate-800 dark:text-slate-200 break-all select-all text-left">
                   {shareUrl}
                 </span>
                 <button
                   type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText(shareUrl);
-                    alert("Lien copié dans le presse-papier !");
-                  }}
-                  className="px-3 py-1.5 rounded-lg bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-700 transition-colors shrink-0"
+                  onClick={handleCopierLien}
+                  className="w-full min-h-[44px] px-3 rounded-lg bg-emerald-600 text-white font-bold text-xs hover:bg-emerald-700 transition-colors"
                 >
-                  Copier 📋
+                  {copie ? "✓ Lien copié" : "Copier le lien 📋"}
                 </button>
+                {erreurCopie && (
+                  <p role="alert" className="text-xs text-amber-700 dark:text-amber-400">
+                    La copie automatique n&apos;est pas disponible ici.
+                    Sélectionnez le lien ci-dessus pour le copier manuellement.
+                  </p>
+                )}
+              </div>
+
+              <div className="max-w-lg mx-auto">
+                <a
+                  href={`https://wa.me/?text=${encodeURIComponent(
+                    `Voici le lien de paiement sécurisé KOLI pour votre commande : ${shareUrl}`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center justify-center w-full min-h-[48px] px-4 rounded-xl bg-[#25D366] text-white font-bold text-xs transition-opacity hover:opacity-90"
+                >
+                  Partager sur WhatsApp
+                </a>
               </div>
 
               <div className="pt-4 flex flex-wrap justify-center gap-3">
@@ -169,7 +210,7 @@ export default function NewOrderPage() {
                     value={productName}
                     onChange={(e) => setProductName(e.target.value)}
                     placeholder="Ex: Robe Wax Traditionnelle"
-                    className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
+                    className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-sm"
                   />
                 </div>
 
@@ -256,21 +297,26 @@ export default function NewOrderPage() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    <label
+                      htmlFor="buyerCountry"
+                      className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1"
+                    >
                       Pays
                     </label>
+                    {/* Liste tiree de data/markets.ts : elle etait dupliquee en
+                        dur ici, au risque de diverger de la source qui porte
+                        aussi la zone monetaire. */}
                     <select
+                      id="buyerCountry"
                       value={buyerCountry}
                       onChange={(e) => setBuyerCountry(e.target.value)}
                       className="w-full px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white text-sm"
                     >
-                      <option value="Côte d'Ivoire">Côte d&apos;Ivoire</option>
-                      <option value="Sénégal">Sénégal</option>
-                      <option value="Cameroun">Cameroun</option>
-                      <option value="Bénin">Bénin</option>
-                      <option value="Togo">Togo</option>
-                      <option value="Mali">Mali</option>
-                      <option value="Burkina Faso">Burkina Faso</option>
+                      {markets.map((marche) => (
+                        <option key={marche.code} value={marche.name}>
+                          {marche.name}
+                        </option>
+                      ))}
                     </select>
                   </div>
 
@@ -305,7 +351,7 @@ export default function NewOrderPage() {
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Repère de livraison <span className="text-slate-400 font-normal">(optionnel)</span>
+                    Repère de livraison <span className="text-slate-500 font-normal">(optionnel)</span>
                   </label>
                   <input
                     type="text"
@@ -320,7 +366,7 @@ export default function NewOrderPage() {
               {/* Total Calculation Card */}
               <div className="bg-slate-50 dark:bg-slate-800/60 rounded-xl p-4 flex justify-between items-center">
                 <div>
-                  <span className="text-xs text-slate-400 block">Total estimé de la commande</span>
+                  <span className="text-xs text-slate-500 block">Total estimé de la commande</span>
                   <span className="text-xs text-slate-500">
                     {formatCFA(subtotal)} + {formatCFA(deliveryFee)} (livraison)
                   </span>

@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+﻿import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/prisma";
 import { DashboardNav } from "@/components/ui/DashboardNav";
@@ -159,7 +159,7 @@ export default async function DriverDashboardPage() {
                             {order.seller.user.phone}
                           </strong>
                         </a>
-                        <p className="text-xs text-slate-400 mt-1">
+                        <p className="text-xs text-slate-500 mt-1">
                           Article : {order.items[0]?.product.name || "Colis KOLI"} (x{order.items[0]?.quantity || 1})
                         </p>
                       </div>
@@ -172,7 +172,7 @@ export default async function DriverDashboardPage() {
                           sequestree — le livreur n'encaisse rien, le montant
                           n'a donc aucune utilite operationnelle pour lui. */}
                       <div>
-                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                        <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
                           Paiement
                         </span>
                         <span className="text-sm font-black text-emerald-600 dark:text-emerald-400">

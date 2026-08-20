@@ -8,6 +8,7 @@ import { OrderStatus, PaymentStatus, PaymentProviderType, DeliveryStatus } from 
 import { z } from "zod";
 import { findTransitionPath } from "@/lib/orders/statusMachine";
 import { generateOrderReference } from "@/lib/orders/reference";
+import { deviseDuPays } from "@/data/markets";
 
 const orderSchema = z.object({
   buyerName: z.string().min(2, "Le nom du client est requis"),
@@ -114,6 +115,7 @@ export async function createOrderAction(formData: FormData) {
       buyerAddress: data.buyerAddress,
       buyerLandmark: data.buyerLandmark,
       deliveryFee: data.deliveryFee,
+      currency: deviseDuPays(data.buyerCountry),
       status: OrderStatus.PAYMENT_PENDING,
       items: {
         create: [
@@ -299,7 +301,9 @@ export async function confirmReceptionAction(
     };
   }
 
-  const path = findTransitionPath(order.status, OrderStatus.FUNDS_RELEASED);
+  // §29 : « CUSTOMER_CONFIRMED puis FUNDS_RELEASED puis COMPLETED ».
+  // La chaine s'arretait a FUNDS_RELEASED : COMPLETED n'etait jamais atteint.
+  const path = findTransitionPath(order.status, OrderStatus.COMPLETED);
 
   if (path === null) {
     return {
@@ -335,7 +339,7 @@ export async function confirmReceptionAction(
       await tx.order.update({
         where: { id: order.id },
         data: {
-          status: OrderStatus.FUNDS_RELEASED,
+          status: OrderStatus.COMPLETED,
           // Rattachement d'une commande passee en mode invite au compte qui
           // vient de la revendiquer : elle apparaitra desormais dans son espace.
           ...(order.customerId === null && user.customerProfile
@@ -366,7 +370,7 @@ export async function confirmReceptionAction(
   revalidatePath("/client/dashboard");
   revalidatePath("/vendeur/dashboard");
 
-  return { success: true, status: OrderStatus.FUNDS_RELEASED };
+  return { success: true, status: OrderStatus.COMPLETED };
 }
 
 class FundsAlreadyReleasedError extends Error {
