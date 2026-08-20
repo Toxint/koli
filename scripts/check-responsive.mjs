@@ -54,6 +54,8 @@ const PAGES_PRIVEES = [
   { chemin: "/vendeur/dashboard", nom: "vendeur-dashboard", compte: "vendeur" },
   { chemin: "/vendeur/commandes", nom: "vendeur-commandes", compte: "vendeur" },
   { chemin: "/vendeur/commandes/nouvelle", nom: "vendeur-nouvelle", compte: "vendeur" },
+  { chemin: "/vendeur/produits", nom: "vendeur-catalogue", compte: "vendeur" },
+  { chemin: "/vendeur/produits/nouveau", nom: "vendeur-produit-nouveau", compte: "vendeur" },
   { chemin: "/vendeur/solde", nom: "vendeur-solde", compte: "vendeur" },
   { chemin: "/vendeur/profil", nom: "vendeur-profil", compte: "vendeur" },
   { chemin: "/livreur/dashboard", nom: "livreur-dashboard", compte: "livreur" },

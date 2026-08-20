@@ -1,6 +1,7 @@
 import { PrismaClient, UserRole, UserStatus, SellerVerificationStatus, OrderStatus, PaymentStatus, PaymentProviderType, DeliveryStatus } from "@prisma/client";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import bcrypt from "bcryptjs";
+import { generateOrderReference } from "../lib/orders/reference";
 
 const url = process.env.DATABASE_URL || "file:./prisma/dev.db";
 const adapter = new PrismaBetterSqlite3({ url });
@@ -138,11 +139,8 @@ async function main() {
       price: 18500,
       quantity: 15,
       weightKg: 0.5,
-      images: {
-        create: [
-          { url: "/images/products/robe-wax.jpg", position: 0 },
-        ],
-      },
+      // Pas d'images : les chemins /images/products/*.jpg n'existent pas dans
+      // public/, et le catalogue affichait donc des vignettes cassees.
     },
   });
 
@@ -155,19 +153,30 @@ async function main() {
       price: 25000,
       quantity: 8,
       weightKg: 0.8,
-      images: {
-        create: [
-          { url: "/images/products/sac-cuir.jpg", position: 0 },
-        ],
-      },
     },
   });
 
-  // 6. Demo Orders
-  // Order 1: Initial test order matching KOLI-000124
+  // Un produit en rupture, pour que le comportement « stock epuise » soit
+  // visible sans manipulation prealable.
+  await prisma.product.create({
+    data: {
+      sellerId: sellerProfileId,
+      name: "Sandales cuir tressé",
+      description: "Sandales artisanales, pointures 38 à 42.",
+      category: "Chaussures",
+      price: 12000,
+      quantity: 0,
+      weightKg: 0.4,
+    },
+  });
+
+  // 6. Commande de demonstration
+  // La reference est generee comme en production : le format sequentiel
+  // "KOLI-000124" ne passe plus la validation, la reference faisant desormais
+  // office de capacite d'acces au lien de paiement (lib/orders/reference.ts).
   const order1 = await prisma.order.create({
     data: {
-      reference: "KOLI-000124",
+      reference: generateOrderReference(),
       sellerId: sellerProfileId,
       customerId: customerProfileId,
       buyerName: "Awa Koné",

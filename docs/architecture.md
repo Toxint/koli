@@ -691,7 +691,9 @@ L'enum `DeliveryStatus` gagne l'état **`UNASSIGNED`** qui lui manquait : une li
 - **§28 — les preuves de livraison sont écrites mais jamais affichées.**
 - **§62 — pas de lien « Mot de passe oublié ? »** : la réinitialisation exige un canal de contact vérifié (SMS ou e-mail), donc les phases 25 et 31.
 - **Intégrité** : `Fund.sellerId` est une chaîne sans clé étrangère ; aucun index sur les colonnes de jointure ; le total de commande est recalculé en six endroits au lieu d'être lu depuis `Payment.amount` ; aucune politique d'arrondi n'est définie pour la future commission (§41).
-- **`prisma/seed.ts`** produit une référence `KOLI-000124` au format devenu invalide (devinable).
+- ~~`prisma/seed.ts` produit une référence `KOLI-000124`~~ — **corrigé** le 20/08/2026, voir §8 sexies.
+- **§17 — pas de restitution de stock.** Le décompte a lieu au paiement ; une commande annulée ou remboursée ne remet rien en rayon, faute de parcours d'annulation (phases 21-22).
+- **§16 — l'envoi de photos depuis le téléphone n'existe pas.** Le catalogue accepte l'adresse d'une image déjà en ligne ; le téléversement attend la configuration d'un espace de stockage.
 
 ### Manques connus, à traiter dans leur phase
 
@@ -706,8 +708,29 @@ L'enum `DeliveryStatus` gagne l'état **`UNASSIGNED`** qui lui manquait : une li
 
 ### Vérifications en place
 
-`npm run typecheck` · `npm run lint` · `npm test` (41 tests) · `npm run build` — tous propres. Les tests couvrent la machine à états, la génération des références, et les garde-fous de sécurité des actions serveur (autorisation, propriété, idempotence, plafond de tentatives OTP, portée de la libération d'escrow).
+`npm run typecheck` · `npm run lint` · `npm test` (64 tests) · `npm run build` — tous propres. Les tests couvrent la machine à états, la génération des références, le catalogue produits, et les garde-fous de sécurité des actions serveur (autorisation, propriété, idempotence, plafond de tentatives OTP, portée de la libération d'escrow).
+
+`npm run verif:tout` enchaîne en plus les vérifications en navigateur réel : responsive (§74), liens cliquables, connexion, inscription, catalogue et parcours complet à quatre rôles.
+
+**Règle d'exécution** : ces vérifications se lancent depuis l'**adresse réseau** (`BASE_URL=http://<ip>:3000`), jamais depuis `localhost` seul. Les navigateurs traitent `localhost` comme une origine de confiance, ce qui masque toute une classe de défauts — c'est ainsi que le cookie `secure` avait rendu la connexion impossible depuis un téléphone sans qu'aucun test ne le voie.
+
+## 8 sexies. Phase 6 — Catalogue produits (20/08/2026)
+
+Le vendeur retapait le nom de son article à chaque commande. `createOrderAction` cherchait alors un produit par **égalité de nom** et en créait un à la volée sinon : deux orthographes donnaient deux fiches, le prix du catalogue n'était jamais consulté, et le stock était inventé à 100 unités.
+
+**Ce qui a été construit** — `lib/products/actions.ts`, `/vendeur/produits` (liste, recherche, pagination), `/vendeur/produits/nouveau`, `/vendeur/produits/[id]`.
+
+**Décisions qui méritent d'être justifiées :**
+
+- **Le prix du catalogue fait foi.** Quand le vendeur choisit un produit du catalogue, `unitPrice` envoyé par le formulaire est ignoré au profit de `product.price`, et le champ passe en lecture seule. Sans cela, un lien de paiement pouvait partir sur un montant fabriqué côté client.
+- **Le prix est figé à la commande.** `OrderItem.unitPrice` conserve le prix appliqué : modifier le catalogue plus tard ne réécrit pas le montant d'une vente déjà conclue.
+- **On archive, on ne supprime pas.** Un produit est référencé par des commandes passées ; l'effacer réécrirait l'historique. `status` bascule `ACTIVE` / `ARCHIVED`, avec confirmation (§58).
+- **Le stock est décompté au paiement, pas à la création.** En mode test, la plupart des liens ne sont jamais réglés ; décompter à la création aurait fait fondre l'inventaire à chaque abandon. Le décompte utilise un `updateMany` conditionné par `quantity >= n`, de sorte que deux paiements simultanés sur le dernier article ne peuvent pas passer le stock sous zéro.
+- **La saisie libre reste possible** pour l'article ponctuel, mais crée désormais une vraie fiche à stock **nul** — rien ne justifiait d'inventer un inventaire.
+- **`prisma/seed.ts`** génère sa référence avec `generateOrderReference()`, comme en production. Les images de démonstration ont été retirées : elles pointaient vers des fichiers absents de `public/` et s'affichaient cassées dans le catalogue.
+
+**Défaut de responsive découvert à cette occasion** — un `<select>` réclame la largeur de sa plus longue option. Celle du sélecteur de livreur (« Kouassi Express — Moto YBR 125 - Immatriculation AB-123-CI ») imposait 448px et poussait toute la page des commandes en débordement horizontal sur un écran de 320px. Le défaut était **latent** : la commande du seed avait déjà un livreur assigné, si bien que le sélecteur ne s'affichait jamais. Corrigé par `min-w-0` sur le `<select>` et `items-stretch` sous `sm:` sur les lignes de liste — `items-start` dimensionne chaque colonne sur son contenu maximal.
 
 ### Point de reprise
 
-Consolidation terminée. La suite reprend la discipline phase par phase de `koli-plan.md` §78 — vraisemblablement **Phase 5 revisitée** (navigation vendeur) puis **Phase 6 (Produits)**. Aucune phase ne démarre sans validation explicite.
+Phase 6 terminée. La suite reprend la discipline phase par phase de `koli-plan.md` §78. Prochaine cible recommandée : **§34/§36 — complétion du tableau de bord admin** (paiements, litiges, remboursements, commissions, activités récentes, vérification des vendeurs), puis **§18 — assistant de commande en 5 étapes**. Aucune phase ne démarre sans validation explicite.

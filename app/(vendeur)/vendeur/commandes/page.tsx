@@ -131,7 +131,10 @@ export default async function SellerOrdersPage({
                 );
 
                 return (
-                  <div key={order.id} className="pt-4 first:pt-0 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  /* `items-stretch` sous sm : avec `items-start`, chaque
+                     colonne se dimensionnait sur son contenu maximal et
+                     pouvait depasser la largeur de l'ecran. */
+                  <div key={order.id} className="pt-4 first:pt-0 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
                         <span className="font-mono font-bold text-brand text-sm break-all">
@@ -172,7 +175,7 @@ export default async function SellerOrdersPage({
                       )}
                     </div>
 
-                    <div className="flex items-center gap-4 shrink-0">
+                    <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0">
                       <div className="text-right">
                         <span className="text-xs text-ink-muted block">Total</span>
                         <span className="text-base font-semibold">{formatCFA(totalAmount)}</span>

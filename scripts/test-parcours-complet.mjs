@@ -58,13 +58,32 @@ async function main() {
   await vendeur.goto(`${BASE}/vendeur/commandes/nouvelle`, {
     waitUntil: "networkidle",
   });
+  // Produit choisi dans le catalogue (§16) : le formulaire ne comporte plus de
+  // valeurs de demonstration pre-remplies, qui faisaient partir de vraies
+  // commandes sous un nom d'article fictif.
+  const selecteurProduit = vendeur.locator("#productId");
+  const optionProduit = await selecteurProduit.evaluate(
+    (select) =>
+      Array.from(select.options).find((o) =>
+        /Robe Wax/i.test(o.textContent)
+      )?.value
+  );
+  await selecteurProduit.selectOption(optionProduit);
+  await vendeur.locator("#quantity").fill("1");
+  await vendeur.locator("#deliveryFee").fill("2000");
+
   await vendeur.locator("#buyerName").fill("Awa Koné");
   // Le telephone du compte client de demonstration : la commande doit se
   // rattacher automatiquement a son espace.
   await vendeur.locator("#buyerPhone").fill("+2250505050505");
+  await vendeur.locator("#buyerCity").fill("Abidjan");
   await vendeur.locator("#buyerAddress").fill("Cocody Angré 8e Tranche");
   await vendeur.locator("#buyerLandmark").fill("En face de la pharmacie");
-  await vendeur.locator('button[type="submit"]').first().click();
+  await vendeur
+    .getByRole("button", { name: /Générer le lien de paiement/i })
+    .filter({ visible: true })
+    .first()
+    .click();
 
   await vendeur.waitForSelector("text=/KOLI-/", { timeout: 20000 });
   const texteSucces = await vendeur

@@ -12,6 +12,7 @@ export const NAV_VENDEUR: NavItem[] = [
   { label: "Tableau de bord", href: "/vendeur/dashboard" },
   { label: "Commandes", href: "/vendeur/commandes" },
   { label: "Nouvelle commande", href: "/vendeur/commandes/nouvelle" },
+  { label: "Catalogue", href: "/vendeur/produits" },
   { label: "Solde", href: "/vendeur/solde" },
   { label: "Profil", href: "/vendeur/profil" },
 ];

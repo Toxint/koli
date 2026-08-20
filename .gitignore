@@ -13,6 +13,10 @@
 # testing
 /coverage
 
+# captures produites par les scripts de verification
+/.captures
+/.responsive-shots
+
 # next.js
 /.next/
 /out/

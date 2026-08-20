@@ -80,7 +80,11 @@ export function AssignerLivreur({
           id={idSelect}
           value={choix}
           onChange={(e) => setChoix(e.target.value)}
-          className="flex-1 min-h-[44px] px-3 rounded-xl border border-hairline bg-white text-sm"
+          /* `min-w-0` : sans lui, un <select> reclame la largeur de sa plus
+             longue option (ici « Kouassi Express — Moto YBR 125 -
+             Immatriculation AB-123-CI », soit 448px) et pousse toute la page
+             en debordement horizontal sur un ecran de 320px. */
+          className="flex-1 w-full min-w-0 min-h-[44px] px-3 rounded-xl border border-hairline bg-white text-sm"
         >
           <option value="">Choisir…</option>
           {drivers.map((d) => (

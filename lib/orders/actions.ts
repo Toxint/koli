@@ -21,6 +21,9 @@ const orderSchema = z.object({
   // Sans `.int()`, une saisie comme 1500.7 passait la validation et faisait
   // echouer Prisma a l'ecriture.
   deliveryFee: z.coerce.number().int("Frais de livraison invalides").min(0, "Frais de livraison invalides"),
+  // Produit issu du catalogue (§16). Vide = saisie libre, conservee pour la
+  // vente ponctuelle d'un article non catalogue.
+  productId: z.string().optional(),
   productName: z.string().min(2, "Le nom du produit est requis"),
   unitPrice: z.coerce.number().int("Le prix unitaire doit être un nombre entier").min(100, "Le prix unitaire doit être d'au moins 100 FCFA"),
   quantity: z.coerce.number().int("La quantité doit être un nombre entier").min(1, "La quantité doit être d'au moins 1"),
@@ -40,6 +43,7 @@ export async function createOrderAction(formData: FormData) {
     buyerAddress: formData.get("buyerAddress") as string,
     buyerLandmark: formData.get("buyerLandmark") as string || undefined,
     deliveryFee: formData.get("deliveryFee") as string,
+    productId: (formData.get("productId") as string) || undefined,
     productName: formData.get("productName") as string,
     unitPrice: formData.get("unitPrice") as string,
     quantity: formData.get("quantity") as string,
@@ -71,24 +75,71 @@ export async function createOrderAction(formData: FormData) {
     select: { id: true },
   });
 
-  // Find or create product
-  let product = await prisma.product.findFirst({
-    where: {
-      sellerId: sellerProfileId,
-      name: { equals: data.productName },
-    },
-  });
+  // Resolution du produit (§16-17).
+  //
+  // Avant le catalogue, cette action cherchait un produit par egalite de nom et
+  // en creait un au vol sinon : deux orthographes donnaient deux fiches, le
+  // stock etait invente a 100, et le prix du catalogue n'etait jamais consulte.
+  // Desormais le vendeur choisit dans son catalogue ; la saisie libre reste
+  // possible pour l'article ponctuel, mais cree une vraie fiche a stock nul.
+  let product;
+  let prixUnitaire = data.unitPrice;
 
-  if (!product) {
-    product = await prisma.product.create({
-      data: {
-        sellerId: sellerProfileId,
-        name: data.productName,
-        price: data.unitPrice,
-        quantity: 100,
-        status: "ACTIVE",
-      },
+  if (data.productId) {
+    // Filtrer sur `sellerId` fait office de controle de propriete : un
+    // identifiant d'un autre vendeur est simplement introuvable.
+    product = await prisma.product.findFirst({
+      where: { id: data.productId, sellerId: sellerProfileId },
     });
+
+    if (!product) {
+      return {
+        success: false,
+        error: "Ce produit n'existe pas dans votre catalogue.",
+        fieldErrors: { productId: "Produit introuvable." },
+      };
+    }
+
+    if (product.status !== "ACTIVE") {
+      return {
+        success: false,
+        error: "Ce produit a été retiré de votre catalogue.",
+        fieldErrors: { productId: "Produit retiré du catalogue." },
+      };
+    }
+
+    if (product.quantity < data.quantity) {
+      return {
+        success: false,
+        error:
+          product.quantity === 0
+            ? `${product.name} est en rupture de stock.`
+            : `Stock insuffisant : il reste ${product.quantity} unité(s) de ${product.name}.`,
+        fieldErrors: { quantity: `Stock disponible : ${product.quantity}.` },
+      };
+    }
+
+    // Le prix fait foi cote catalogue : c'est ce qui garantit qu'un lien de
+    // paiement ne peut pas etre genere a un montant fabrique cote client.
+    prixUnitaire = product.price;
+  } else {
+    const existant = await prisma.product.findFirst({
+      where: { sellerId: sellerProfileId, name: data.productName },
+    });
+
+    product =
+      existant ??
+      (await prisma.product.create({
+        data: {
+          sellerId: sellerProfileId,
+          name: data.productName,
+          price: data.unitPrice,
+          // Stock a 0 et non 100 : rien ne justifie d'inventer un inventaire.
+          // Le vendeur le renseignera depuis son catalogue.
+          quantity: 0,
+          status: "ACTIVE",
+        },
+      }));
   }
 
   // Montants.
@@ -96,7 +147,7 @@ export async function createOrderAction(formData: FormData) {
   // livraison), tandis que `Fund.amount` est ce qui revient au vendeur, donc
   // hors frais de livraison. Les deux ne sont volontairement pas egaux.
   // La commission KOLI (§41) sera prelevee sur Fund.amount en phase 19.
-  const totalItemAmount = data.unitPrice * data.quantity;
+  const totalItemAmount = prixUnitaire * data.quantity;
   const grandTotal = totalItemAmount + data.deliveryFee;
 
   // Code de reception remis au client (§27). randomInt (crypto) et non
@@ -122,7 +173,9 @@ export async function createOrderAction(formData: FormData) {
           {
             productId: product.id,
             quantity: data.quantity,
-            unitPrice: data.unitPrice,
+            // Prix fige a la commande : modifier le catalogue plus tard ne doit
+            // pas reecrire le montant d'une vente deja conclue.
+            unitPrice: prixUnitaire,
           },
         ],
       },

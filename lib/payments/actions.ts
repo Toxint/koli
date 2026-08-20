@@ -46,7 +46,7 @@ export async function simulatePaymentAction(
 
   const order = await prisma.order.findUnique({
     where: { reference: reference.trim() },
-    include: { payment: true, fund: true },
+    include: { payment: true, fund: true, items: true },
   });
 
   if (!order || !order.payment || !order.fund) {
@@ -165,6 +165,18 @@ export async function simulatePaymentAction(
             },
           ],
         });
+
+        // Decompte du stock (§17), au paiement et non a la creation : un lien
+        // de paiement jamais regle ne doit pas immobiliser l'inventaire. Le
+        // `gte` empeche de passer sous zero si deux paiements aboutissent en
+        // meme temps sur le dernier article ; `count` a 0 est alors accepte,
+        // la vente ayant deja ete encaissee.
+        for (const item of order.items) {
+          await tx.product.updateMany({
+            where: { id: item.productId, quantity: { gte: item.quantity } },
+            data: { quantity: { decrement: item.quantity } },
+          });
+        }
       }
 
       await tx.order.update({
