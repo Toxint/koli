@@ -239,7 +239,7 @@ export function PayFlow({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-start">
         {/* Order Summary Card */}
         <div className="bg-white dark:bg-slate-900 rounded-3xl border border-hairline/80 dark:border-slate-800 p-6 shadow-sm space-y-4">
-          <h2 className="text-xs font-bold uppercase tracking-wider text-brand dark:text-amber-400">
+          <h2 className="text-xs font-bold uppercase tracking-wider dark:text-amber-400">
             Récapitulatif de la commande
           </h2>
 
@@ -283,7 +283,7 @@ export function PayFlow({
             <div className="inline-block px-3 py-1 rounded-full bg-brand-soft dark:bg-amber-950 text-brand dark:text-amber-300 text-[10px] font-bold uppercase tracking-wider mb-2 border border-brand-border/50">
               ⚡ Mode Test MVP
             </div>
-            <h2 className="text-lg font-bold text-brand dark:text-white">
+            <h2 className="text-lg font-bold dark:text-white">
               Simulation de Paiement Sécurisé
             </h2>
             <p className="text-xs text-ink-muted mt-1">

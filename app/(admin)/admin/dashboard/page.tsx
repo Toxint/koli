@@ -120,7 +120,7 @@ export default async function AdminDashboardPage() {
         {/* Users Table */}
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-hairline dark:border-slate-800 shadow-sm p-6">
           <div className="mb-6">
-            <h2 className="text-lg font-bold text-brand dark:text-white">
+            <h2 className="text-lg font-bold dark:text-white">
               Derniers utilisateurs inscrits
             </h2>
             <p className="text-xs text-ink-muted">

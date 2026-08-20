@@ -62,7 +62,7 @@ export default async function DriverDashboardPage() {
         {/* Deliveries list */}
         <div className="space-y-4">
           <div className="flex justify-between items-center">
-            <h2 className="text-xl font-bold text-brand dark:text-white flex items-center gap-2">
+            <h2 className="text-xl font-bold dark:text-white flex items-center gap-2">
               <span>📋</span> Vos courses & livraisons en cours
             </h2>
           </div>
@@ -70,7 +70,7 @@ export default async function DriverDashboardPage() {
           {deliveries.length === 0 ? (
             <div className="text-center py-12 bg-white dark:bg-slate-900 border border-hairline dark:border-slate-800 rounded-3xl p-8 shadow-sm">
               <span className="text-5xl block mb-3 animate-float">🛵</span>
-              <h3 className="text-base font-bold text-brand dark:text-white">
+              <h3 className="text-base font-bold dark:text-white">
                 Aucune livraison en attente
               </h3>
               <p className="text-xs text-ink-muted max-w-md mx-auto mt-1">
@@ -97,7 +97,7 @@ export default async function DriverDashboardPage() {
                           {order.reference}
                         </span>
                         <div className="min-w-0">
-                          <h3 className="font-semibold text-base text-brand dark:text-white break-words">
+                          <h3 className="font-semibold text-base dark:text-white break-words">
                             Client : {order.buyerName}
                           </h3>
                           {/* Lien telephonique : le livreur appelle d'un tap

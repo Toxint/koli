@@ -55,7 +55,7 @@ export default async function ClientDashboardPage() {
         </div>
 
         <div className="space-y-4">
-          <h2 className="text-lg font-bold text-brand dark:text-white">
+          <h2 className="text-lg font-bold dark:text-white">
             Vos commandes et achats sécurisés
           </h2>
 
@@ -86,7 +86,7 @@ export default async function ClientDashboardPage() {
                       <span className="text-xs font-mono font-bold text-brand dark:text-emerald-400">
                         {order.reference}
                       </span>
-                      <h3 className="font-bold text-base text-brand dark:text-white mt-0.5">
+                      <h3 className="font-bold text-base dark:text-white mt-0.5">
                         {order.items.map((i) => i.product.name).join(", ")}
                       </h3>
                       <p className="text-xs text-ink-muted dark:text-slate-400 mt-1">

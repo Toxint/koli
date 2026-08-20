@@ -142,7 +142,7 @@ export default async function SellerDashboardPage() {
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-hairline dark:border-slate-800 shadow-sm p-6">
           <div className="flex flex-wrap justify-between items-center gap-x-4 gap-y-2 mb-6">
             <div>
-              <h2 className="text-lg font-bold text-brand dark:text-white">
+              <h2 className="text-lg font-bold dark:text-white">
                 Commandes récentes
               </h2>
               <p className="text-xs text-ink-muted dark:text-slate-400">

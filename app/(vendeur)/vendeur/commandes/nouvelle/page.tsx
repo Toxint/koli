@@ -128,7 +128,7 @@ export default function NewOrderPage() {
               <div className="w-14 h-14 rounded-2xl bg-emerald-500 text-white flex items-center justify-center mx-auto text-2xl shadow-lg shadow-emerald-500/30">
                 ✅
               </div>
-              <h2 className="text-xl font-semibold text-brand dark:text-emerald-200">
+              <h2 className="text-xl font-semibold dark:text-emerald-200">
                 Commande {createdReference} créée avec succès !
               </h2>
               <p className="text-xs text-ink-muted dark:text-slate-300 max-w-md mx-auto">
@@ -196,7 +196,7 @@ export default function NewOrderPage() {
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Product Info Section */}
               <div className="space-y-4 border-b border-slate-100 dark:border-slate-800 pb-6">
-                <h2 className="text-xs font-bold uppercase tracking-wider text-brand dark:text-emerald-400">
+                <h2 className="text-xs font-bold uppercase tracking-wider dark:text-emerald-400">
                   1. Informations du Produit / Service
                 </h2>
 
@@ -265,7 +265,7 @@ export default function NewOrderPage() {
 
               {/* Customer Info Section */}
               <div className="space-y-4 border-b border-slate-100 dark:border-slate-800 pb-6">
-                <h2 className="text-xs font-bold uppercase tracking-wider text-brand dark:text-emerald-400">
+                <h2 className="text-xs font-bold uppercase tracking-wider dark:text-emerald-400">
                   2. Informations du Client Destinataire
                 </h2>
 

@@ -114,7 +114,7 @@ export function ValidateOtpModal({
                 </span>
                 <h3
                   id="titre-modale-otp"
-                  className="text-xl font-bold text-brand dark:text-white mt-0.5"
+                  className="text-xl font-bold dark:text-white mt-0.5"
                 >
                   Code de réception
                 </h3>

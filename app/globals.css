@@ -32,6 +32,10 @@
   --color-ink: #18202c;
   --color-ink-muted: #5b6472;
   --color-hairline: #e5e7eb;
+  /* Noir des sous-titres. #111 plutot que #000 : a l'ecran, le noir pur sur
+     blanc provoque un leger halo qui fatigue la lecture — la difference est
+     invisible a l'oeil, le confort ne l'est pas. */
+  --color-heading: #111111;
 
   /* L'or reste, mais cantonne a son role d'alerte : le mode test. */
   --color-test-mode: #92660a;
@@ -104,18 +108,22 @@ body {
   h2,
   h3,
   h4 {
-    color: var(--color-brand-strong);
     letter-spacing: -0.021em;
     text-wrap: balance;
   }
 
+  /* Le titre principal reste vert : un seul point d'ancrage par page. */
   h1 {
+    color: var(--color-brand-strong);
     font-weight: 700;
   }
 
+  /* Sous-titres en noir sur toute l'application : le vert perdait de sa force
+     a se repeter a chaque section. */
   h2,
   h3,
   h4 {
+    color: var(--color-heading);
     font-weight: 600;
   }
 
