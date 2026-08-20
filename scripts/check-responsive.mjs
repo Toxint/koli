@@ -70,6 +70,37 @@ async function auditerPage(page, largeur) {
   return page.evaluate((largeurVue) => {
     const problemes = [];
 
+    // 0. La page affiche-t-elle seulement quelque chose ?
+    //
+    // Angle mort corrige : ce script ne signalait que des DEFAUTS (debordement,
+    // cible trop petite, contraste). Une page blanche n'en a aucun — elle etait
+    // donc declaree conforme. Un ecran vide est pourtant la panne la plus grave
+    // qui soit pour l'utilisateur.
+    {
+      const texte = (document.body?.innerText ?? "").trim();
+      const interactifs = document.querySelectorAll(
+        "button, a[href], input, select"
+      ).length;
+
+      if (texte.length < 40) {
+        problemes.push({
+          gravite: "CRITIQUE",
+          type: "page-vide",
+          detail: `seulement ${texte.length} caracteres rendus`,
+        });
+        // Inutile de poursuivre : les autres controles n'ont plus de sens.
+        return problemes;
+      }
+
+      if (interactifs === 0) {
+        problemes.push({
+          gravite: "CRITIQUE",
+          type: "page-sans-interaction",
+          detail: "aucun lien, bouton ni champ",
+        });
+      }
+    }
+
     // 1. Debordement horizontal du document.
     const largeurDoc = document.documentElement.scrollWidth;
     if (largeurDoc > largeurVue + 1) {
@@ -253,6 +284,9 @@ async function main() {
   const navigateur = await chromium.launch();
   let total = 0;
   const rapport = [];
+  // Erreurs JavaScript : une exception d'hydratation vide la page sans
+  // qu'aucune mesure de mise en page ne le revele.
+  const erreursJs = [];
 
   for (const taille of TAILLES) {
     const contexte = await navigateur.newContext({
@@ -262,6 +296,9 @@ async function main() {
       deviceScaleFactor: 2,
     });
     const page = await contexte.newPage();
+    page.on("pageerror", (e) =>
+      erreursJs.push(`${page.url()} :: ${e.message.slice(0, 120)}`)
+    );
 
     for (const p of PAGES_PUBLIQUES) {
       await page.goto(`${BASE}${p.chemin}`, { waitUntil: "networkidle" });
@@ -286,6 +323,9 @@ async function main() {
         deviceScaleFactor: 2,
       });
       const page = await contexte.newPage();
+      page.on("pageerror", (e) =>
+        erreursJs.push(`${page.url()} :: ${e.message.slice(0, 120)}`)
+      );
       await seConnecter(page, compte);
 
       for (const p of PAGES_PRIVEES.filter((x) => x.compte === compte)) {
@@ -317,6 +357,15 @@ async function main() {
   }
 
   console.log("\n=== VERIFICATION RESPONSIVE (§74) ===\n");
+
+  const jsUniques = [...new Set(erreursJs)];
+  if (jsUniques.length) {
+    console.log("[CRITIQUE] erreurs JavaScript detectees");
+    for (const e of jsUniques.slice(0, 8)) console.log(`   ${e}`);
+    console.log("");
+    total += jsUniques.length;
+  }
+
   if (total === 0) {
     console.log("Aucun probleme detecte sur toutes les tailles.\n");
   } else {

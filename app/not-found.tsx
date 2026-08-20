@@ -1,4 +1,4 @@
-﻿import Link from "next/link";
+import Link from "next/link";
 
 /**
  * §65 : « Toutes les erreurs doivent être compréhensibles. »

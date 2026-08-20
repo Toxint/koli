@@ -1,4 +1,4 @@
-﻿# KOLI — Document technique (Phase 0)
+# KOLI — Document technique (Phase 0)
 
 Produit conformément à `docs/koli-plan.md` §79 et §87 : architecture, arborescence, schéma de base de données, rôles/permissions, workflows, routes, composants principaux.
 

@@ -9,7 +9,11 @@
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "verif:responsive": "node scripts/check-responsive.mjs",
+    "verif:parcours": "node scripts/test-parcours-complet.mjs",
+    "verif:liens": "node scripts/diagnostic-clics.mjs",
+    "verif:tout": "npm run typecheck && npm run lint && npm test && npm run verif:responsive && npm run verif:liens && npm run verif:parcours"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^7.9.1",
