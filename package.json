@@ -14,12 +14,13 @@
     "verif:parcours": "node scripts/test-parcours-complet.mjs",
     "verif:liens": "node scripts/diagnostic-clics.mjs",
     "verif:connexion": "node scripts/test-connexion.mjs",
+    "verif:session": "node scripts/test-session-orpheline.mjs",
     "verif:inscription": "node scripts/test-inscription.mjs",
     "verif:catalogue": "node scripts/test-catalogue.mjs",
     "verif:etapes": "node scripts/test-commande-etapes.mjs",
     "verif:admin": "node scripts/test-admin.mjs",
     "verif:google": "node scripts/test-google.mjs",
-    "verif:tout": "npm run typecheck && npm run lint && npm test && npm run verif:responsive && npm run verif:liens && npm run verif:connexion && npm run verif:inscription && npm run verif:catalogue && npm run verif:etapes && npm run verif:admin && npm run verif:google && npm run verif:parcours"
+    "verif:tout": "npm run typecheck && npm run lint && npm test && npm run verif:responsive && npm run verif:liens && npm run verif:connexion && npm run verif:session && npm run verif:inscription && npm run verif:catalogue && npm run verif:etapes && npm run verif:admin && npm run verif:google && npm run verif:parcours"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^7.9.1",

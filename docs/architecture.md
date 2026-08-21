@@ -876,3 +876,38 @@ Le CTA ne se soulevait que d'**un** pixel au lieu de deux, deux fois de suite :
 C'est le troisième piège de cascade de ce projet, après les deux de `@layer` notés au §8 ter. La règle qui s'en dégage : **quand deux règles se disputent la même propriété sur le même élément, on en supprime une, on n'ajoute pas de poids à l'autre.**
 
 Vérifié en mesurant les styles calculés : ombre présente au repos et accentuée au survol, `translateY(-2px)`, reflet passant de −120 % à +120 %, et 23 petits boutons contournés sur trois pages.
+
+---
+
+## 8 undecies. Page blanche sur session orpheline (21/08/2026)
+
+Signalé par capture d'écran : une page entièrement blanche sur `/vendeur/dashboard`, sans message ni moyen d'en sortir.
+
+### Ce que c'était
+
+Le cookie de session est **signé, pas vérifié en base**. Le middleware s'en contente ; la page, elle, exige le compte réel. Tant que les deux sont d'accord, tout va bien. Dès que le compte disparaît — suppression par l'administration, ou simple réinitialisation de la base de démonstration, qui fait `user.deleteMany()` — ils cessent de l'être et se renvoient la balle :
+
+```
+/vendeur/dashboard  →  la page ne trouve pas le compte     →  /connexion
+/connexion          →  le middleware voit un jeton valide  →  /vendeur/dashboard
+```
+
+`ERR_TOO_MANY_REDIRECTS`, page blanche, et **aucune issue** pour l'utilisateur sans effacer ses cookies à la main.
+
+Ce n'est pas un accident de la base de démonstration : le même enchaînement se produit en production dès qu'un compte est supprimé pendant qu'une session est ouverte.
+
+### Pourquoi les tests ne l'avaient pas vu
+
+Chaque test partait d'une base cohérente avec le navigateur. Le défaut n'apparaît que dans l'**intervalle** entre les deux — un état que rien ne produisait. `scripts/test-session-orpheline.mjs` le fabrique désormais explicitement : il s'inscrit, rejoue le seed pour effacer le compte, puis revient sur l'espace.
+
+### La correction
+
+Décider « vous êtes déjà connecté » suppose de savoir que le compte **existe**, ce que seul un accès à la base permet — donc pas le middleware. La redirection quitte `middleware.ts` et rejoint les pages `/connexion` et `/inscription`, où `getCurrentUser()` lit la base : compte disparu → `null` → le formulaire s'affiche, et la boucle est structurellement impossible.
+
+Le middleware garde son seul rôle légitime : **protéger les routes privées**. Il ne décide plus rien qui dépende de l'existence d'un compte.
+
+C'est la même leçon qu'au §8 decies, transposée : quand deux couches se prononcent sur la même question avec des informations différentes, on n'arbitre pas — **on retire la question à celle qui ne peut pas y répondre.**
+
+### Diagnostic — ce qui a fait perdre du temps
+
+Trois hypothèses ont été formulées et **écartées par la mesure** avant la bonne : rendu serveur en échec (la page répondait 200 avec 804 caractères), fichiers JavaScript périmés après reconstruction (simulé en renvoyant 404 sur `/_next/**` : Next se rattrape), et redirection cassée au préchargement RSC (les requêtes `?_rsc=` abandonnées étaient une conséquence, pas la cause). La piste utile est venue du contexte : le compte de l'utilisateur avait été créé **avant** un rejeu du seed.

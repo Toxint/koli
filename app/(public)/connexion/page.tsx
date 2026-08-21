@@ -1,4 +1,7 @@
 import { Suspense } from "react";
+import { redirect } from "next/navigation";
+import { getCurrentUser } from "@/lib/auth/actions";
+import { espaceParDefaut } from "@/lib/auth/dashboards";
 import { googleEstConfigure } from "@/lib/auth/google";
 import { FormulaireConnexion } from "@/components/domain/FormulaireConnexion";
 
@@ -13,16 +16,22 @@ import { FormulaireConnexion } from "@/components/domain/FormulaireConnexion";
  */
 export const dynamic = "force-dynamic";
 
-/**
- * Page serveur : elle seule peut lire la configuration Google, qui vit dans
- * des variables d'environnement serveur. Le formulaire reste un composant
- * client pour la saisie et l'affichage des erreurs.
- *
- * `Suspense` est requis : `useSearchParams` suspend le rendu, et Next refuse
- * de prerendre une page qui l'utilise sans limite de suspension.
- */
-export default function PageConnexion() {
+export default async function PageConnexion() {
+  // « Vous etes deja connecte » se decide ICI et non dans le middleware.
+  //
+  // `getCurrentUser()` lit la base : si le compte a disparu, il renvoie null et
+  // le formulaire s'affiche normalement. Le middleware, lui, ne verifiait que
+  // la signature du cookie et renvoyait vers le tableau de bord, qui renvoyait
+  // vers la connexion, qui renvoyait vers le tableau de bord — boucle infinie
+  // et page blanche pour tout utilisateur dont le compte n'existe plus.
+  const utilisateur = await getCurrentUser();
+  if (utilisateur) {
+    redirect(espaceParDefaut(utilisateur.role));
+  }
+
   return (
+    // `Suspense` est requis : `useSearchParams` suspend le rendu, et Next
+    // refuse de prerendre une page qui l'utilise sans limite de suspension.
     <Suspense fallback={null}>
       <FormulaireConnexion googleConfigure={googleEstConfigure()} />
     </Suspense>
