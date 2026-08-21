@@ -36,17 +36,19 @@ function Tuile({
     </>
   );
 
-  const classes =
-    "block bg-white dark:bg-slate-900 p-5 rounded-2xl border border-hairline dark:border-slate-800 shadow-sm";
+  const classes = "block bg-white p-5 rounded-2xl";
 
   // Les tuiles cliquables mènent à la page qui détaille le chiffre : sans cela,
   // l'administrateur lit un nombre sans pouvoir remonter à ce qu'il recouvre.
+  // Seules celles-ci reçoivent `carte-koli` et sa réponse au survol : animer
+  // une tuile sur laquelle on ne peut pas cliquer promettrait une action qui
+  // n'existe pas.
   return href ? (
-    <Link href={href} className={`${classes} hover:border-brand transition-colors`}>
+    <Link href={href} className={`${classes} carte-koli`}>
       {contenu}
     </Link>
   ) : (
-    <div className={classes}>{contenu}</div>
+    <div className={`${classes} border border-hairline`}>{contenu}</div>
   );
 }
 

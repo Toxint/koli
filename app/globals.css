@@ -51,7 +51,11 @@
      un fond chaud donne un rendu terne. */
   --color-ink: #241c22;
   --color-ink-muted: #6a6055;
-  --color-hairline: #e9e1ce;
+  /* Filet teinte de la marque, tres dilue. Le gris neutre precedent
+     disparaissait sur la creme : les blocs flottaient sans limite lisible.
+     Teinter le JETON plutot que chaque carte donne un contour coherent dans
+     toute l'application sans toucher au balisage. */
+  --color-hairline: #ebe1db;
   /* Noir des sous-titres. #1A1016 plutot que #000 : a l'ecran, le noir pur
      provoque un leger halo qui fatigue la lecture. */
   --color-heading: #1a1016;
@@ -203,6 +207,37 @@ a[class*="rounded"][class*="bg-"]:active,
 a[class*="rounded"][class*="border"]:active,
 label[class*="rounded"][class*="border"]:active {
   transform: translateY(0) scale(0.97);
+}
+
+/**
+ * Carte KOLI — contour fin dans la couleur de marque, et reponse au survol.
+ *
+ * Les cartes portaient un filet gris neutre (`--color-hairline`) qui, sur la
+ * creme, ne se voyait presque plus : les blocs flottaient sans limite lisible.
+ * Le contour reprend donc le bordeaux de la marque, mais tres dilue (12 %) —
+ * assez pour dessiner la carte, pas assez pour crier. Au survol il se densifie
+ * et une ombre teintee de la meme couleur apparait : l'animation dit « ceci est
+ * un bloc a part » sans deplacer la mise en page.
+ *
+ * `color-mix` plutot qu'une couleur figee : le contour suit automatiquement
+ * --color-brand si la marque evolue.
+ *
+ * Hors couche : doit l'emporter sur les utilitaires `border-*` deja poses.
+ */
+.carte-koli {
+  border: 1px solid color-mix(in srgb, var(--color-brand) 12%, transparent);
+  transition:
+    border-color 220ms ease,
+    box-shadow 220ms ease,
+    transform 220ms cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+@media (hover: hover) {
+  .carte-koli:hover {
+    border-color: color-mix(in srgb, var(--color-brand) 38%, transparent);
+    box-shadow: 0 8px 24px -12px color-mix(in srgb, var(--color-brand) 45%, transparent);
+    transform: translateY(-3px);
+  }
 }
 
 /* §69 : navigation clavier. Aucun element focalisable n'avait d'indicateur. */

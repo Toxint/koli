@@ -6,24 +6,31 @@ const etapes = [
     titre: "Commandez",
     texte: "Le vendeur vous envoie un lien de paiement KOLI sur WhatsApp, Instagram ou ailleurs.",
     emoji: "🛍️",
+    // Progression de teintes qui suit le trajet de l'argent : du bordeaux
+    // profond de la commande a l'or du versement final. La couleur porte
+    // l'etape, elle ne decore pas.
+    pastille: "bg-brand-strong",
   },
   {
     numero: "2",
     titre: "Payez",
     texte: "Vous réglez via le lien. KOLI conserve le montant : le vendeur n'est pas encore payé.",
     emoji: "🔒",
+    pastille: "bg-brand",
   },
   {
     numero: "3",
     titre: "Recevez",
     texte: "Le livreur vous remet le colis et vous demande votre code de réception.",
     emoji: "📦",
+    pastille: "bg-brand-accent",
   },
   {
     numero: "4",
     titre: "Validez",
     texte: "Vous confirmez avoir bien reçu votre commande. C'est seulement là que le vendeur est payé.",
     emoji: "✅",
+    pastille: "bg-gold-deep",
   },
 ];
 
@@ -113,7 +120,7 @@ export default function AccueilPage() {
         </section>
 
         {/* Comment ca marche (§60) */}
-        <section className="bg-white/60 dark:bg-slate-900/50 border-y border-hairline dark:border-slate-800">
+        <section className="bg-white/50 border-y" style={{ borderColor: "color-mix(in srgb, var(--color-brand) 12%, transparent)" }}>
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-20">
             <h2 className="text-2xl sm:text-3xl font-bold text-center">
               Comment ça marche
@@ -123,10 +130,12 @@ export default function AccueilPage() {
               {etapes.map((etape) => (
                 <li
                   key={etape.numero}
-                  className="bg-white dark:bg-slate-900 rounded-2xl border border-hairline dark:border-slate-800 p-6"
+                  className="carte-koli bg-white rounded-2xl p-6"
                 >
                   <div className="flex items-center gap-3 mb-3">
-                    <span className="w-8 h-8 rounded-full bg-brand text-white font-bold text-sm flex items-center justify-center shrink-0">
+                    <span
+                      className={`w-8 h-8 rounded-full ${etape.pastille} text-white font-bold text-sm flex items-center justify-center shrink-0`}
+                    >
                       {etape.numero}
                     </span>
                     <span className="text-2xl" aria-hidden="true">
