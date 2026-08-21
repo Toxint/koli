@@ -17,6 +17,29 @@ export function formatCFA(amount: number): string {
   return `${withSpaces}${ESPACE_INSECABLE}FCFA`;
 }
 
+/**
+ * Accord en nombre.
+ *
+ * L'application affichait partout « 1 vendeur(s) », « 1 commande(s) ». La
+ * parenthèse est une facilité de développeur qui se lit mal dans un produit
+ * destiné à des commerçants : on écrit le mot au bon nombre.
+ *
+ * Le français ne met la marque du pluriel qu'à partir de 2 — « 0 commande »
+ * s'écrit au singulier, contrairement à l'anglais.
+ *
+ * ex. : pluriel(1, "vendeur") → "1 vendeur"
+ *       pluriel(3, "commande", "commandes") → "3 commandes"
+ */
+export function pluriel(
+  nombre: number,
+  singulier: string,
+  plurielForme?: string
+): string {
+  const mot =
+    nombre >= 2 ? (plurielForme ?? `${singulier}s`) : singulier;
+  return `${nombre} ${mot}`;
+}
+
 // Validation simple : un numéro local contient entre 8 et 10 chiffres,
 // avec ou sans espaces.
 export function isValidLocalPhone(phone: string): boolean {

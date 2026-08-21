@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { DashboardNav } from "@/components/ui/DashboardNav";
 import { NAV_LIVREUR } from "@/lib/navigation";
 import { ValidateOtpModal } from "@/components/driver/ValidateOtpModal";
+import { pluriel } from "@/lib/format";
 
 export default async function DriverDashboardPage() {
   const user = await getCurrentUser();
@@ -30,7 +31,7 @@ export default async function DriverDashboardPage() {
   });
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950 text-brand dark:text-white">
+    <div className="min-h-screen bg-cream text-ink lg:pl-[15.5rem]">
       <DashboardNav
         userName={user.name}
         roleName="Livreur"
@@ -56,7 +57,11 @@ export default async function DriverDashboardPage() {
             </p>
           </div>
           <div className="bg-white text-brand backdrop-blur-md px-4 py-2.5 rounded-2xl text-xs font-semibold border border-white/30 shadow-lg shrink-0 relative z-10">
-            {deliveries.length} livraison(s) enregistrée(s)
+            {pluriel(
+              deliveries.length,
+              "livraison enregistrée",
+              "livraisons enregistrées"
+            )}
           </div>
         </div>
 

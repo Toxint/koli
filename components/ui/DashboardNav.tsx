@@ -1,13 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { logoutAction } from "@/lib/auth/actions";
+import { IconeNav } from "@/components/ui/IconesNav";
+import type { NavItem } from "@/lib/navigation";
 
-export interface NavItem {
-  label: string;
-  href: string;
-}
+export type { NavItem };
 
 interface DashboardNavProps {
   userName: string;
@@ -19,88 +19,183 @@ interface DashboardNavProps {
   navItems?: NavItem[];
 }
 
+/**
+ * Menu latéral des espaces connectés (§10).
+ *
+ * Fixe à gauche à partir de 1024px, tiroir glissant en dessous. Les pages
+ * réservent la place avec `lg:pl-[15.5rem]` : la barre étant `fixed`, elle
+ * sort du flux et recouvrirait sinon le contenu.
+ *
+ * Le composant conserve son nom et ses props d'origine bien qu'il ne soit plus
+ * un en-tête horizontal : les quinze pages qui l'utilisent n'ont ainsi rien à
+ * changer d'autre que la classe de leur conteneur.
+ */
 export function DashboardNav({
   userName,
   roleName,
-  roleBadgeColor = "bg-brand-soft text-brand dark:bg-amber-950/80 dark:text-amber-300 border border-brand-border dark:border-amber-700",
   homeHref,
   navItems = [],
 }: DashboardNavProps) {
-  const [menuOuvert, setMenuOuvert] = useState(false);
+  const [tiroirOuvert, setTiroirOuvert] = useState(false);
+  const chemin = usePathname();
 
-  return (
-    <header className="bg-white dark:bg-slate-900 border-b border-hairline dark:border-slate-800 sticky top-0 z-30 shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-3">
-        <Link
-          href={homeHref}
-          aria-label="Accueil de mon espace KOLI"
-          className="flex items-center gap-2 group min-h-[44px] shrink-0"
+  /**
+   * Entrée active = le plus long préfixe correspondant.
+   *
+   * Une simple comparaison `startsWith` allumerait « Commandes » ET
+   * « Nouvelle commande » sur /vendeur/commandes/nouvelle ; l'égalité stricte,
+   * elle, n'allumerait rien sur /vendeur/produits/<id>.
+   */
+  const hrefActif = navItems
+    .filter((i) => chemin === i.href || chemin.startsWith(`${i.href}/`))
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
+
+  // Fermeture au clavier (§69) : un tiroir qui ne se ferme qu'à la souris
+  // piège l'utilisateur au clavier.
+  useEffect(() => {
+    if (!tiroirOuvert) return;
+    const surTouche = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setTiroirOuvert(false);
+    };
+    document.addEventListener("keydown", surTouche);
+    // Le fond ne doit pas défiler sous le tiroir.
+    const avant = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", surTouche);
+      document.body.style.overflow = avant;
+    };
+  }, [tiroirOuvert]);
+
+  const initiales = userName
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((m) => m[0]?.toUpperCase() ?? "")
+    .join("");
+
+  const hrefProfil =
+    navItems.find((i) => i.icone === "profil")?.href ?? homeHref;
+
+  const contenu = (
+    <div
+      data-menu-koli=""
+      className="flex h-full flex-col gap-5 bg-menu bg-gradient-to-b from-menu to-menu-deep px-3.5 py-5 lg:rounded-3xl"
+    >
+      <Link
+        href={homeHref}
+        aria-label="Accueil de mon espace KOLI"
+        onClick={() => setTiroirOuvert(false)}
+        className="flex items-center gap-2.5 px-1.5 min-h-[44px] shrink-0 group"
+      >
+        <span className="w-9 h-9 rounded-xl bg-gold flex items-center justify-center text-menu-deep font-bold text-lg group-hover:scale-105 transition-transform">
+          K
+        </span>
+        <span className="font-bold text-xl tracking-tight text-white">
+          KOLI
+        </span>
+      </Link>
+
+      {/* Carte d'identité : rappelle en permanence sous quel compte on agit —
+          un vendeur et un administrateur ne voient pas les mêmes montants. */}
+      <Link
+        href={hrefProfil}
+        onClick={() => setTiroirOuvert(false)}
+        className="flex items-center gap-3 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/10 px-3 py-2.5 min-h-[44px] transition-colors"
+      >
+        <span
+          aria-hidden="true"
+          className="w-10 h-10 shrink-0 rounded-full bg-gold text-menu-deep flex items-center justify-center font-bold text-sm"
         >
-          <span className="w-9 h-9 rounded-xl bg-brand flex items-center justify-center text-white font-bold text-lg shadow-md shadow-brand/25 group-hover:scale-105 transition-transform border border-brand-border/40">
-            K
-          </span>
-          <span className="font-bold text-lg sm:text-xl tracking-tight text-brand dark:text-white">
-            KOLI
-          </span>
-        </Link>
-
-        {/* Navigation horizontale a partir de la tablette (§8 : « navigation
-            complete » sur grand ecran). */}
-        {navItems.length > 0 && (
-          <nav className="hidden lg:flex items-center gap-1 min-w-0">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className="inline-flex items-center min-h-[44px] px-3 rounded-lg text-sm font-semibold text-ink-muted dark:text-slate-300 hover:text-brand hover:bg-brand-soft dark:hover:text-emerald-400 dark:hover:bg-slate-800 transition-colors whitespace-nowrap"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-        )}
-
-        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-          <span className="hidden xl:block text-sm font-semibold text-brand dark:text-white truncate max-w-[14rem]">
+          {initiales || "K"}
+        </span>
+        <span className="min-w-0">
+          <span className="block text-sm font-semibold text-white truncate">
             {userName}
           </span>
-
-          {/* §75 : l'indicateur de mode test reste visible a toutes les tailles. */}
-          <span className="shrink-0 px-2.5 py-1 rounded-full bg-test-mode-surface dark:bg-amber-950/80 text-test-mode dark:text-amber-300 text-[11px] font-semibold border border-brand-border/60 dark:border-amber-700 whitespace-nowrap">
-            ⚡ Test
+          <span className="block text-[11px] text-white/70 truncate">
+            {roleName} · Voir mon profil
           </span>
+        </span>
+      </Link>
 
-          <form action={logoutAction} className="hidden lg:block shrink-0">
-            <button
-              type="submit"
-              className="min-h-[44px] px-3 rounded-lg border border-hairline dark:border-slate-800 text-ink-muted dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:border-red-200 dark:hover:border-red-900 text-xs font-medium transition-all flex items-center gap-1.5"
+      <nav aria-label="Navigation de l'espace" className="min-w-0 flex-1">
+        <ul className="space-y-1">
+          {navItems.map((item) => {
+            const actif = item.href === hrefActif;
+            return (
+              <li key={item.href}>
+                <Link
+                  href={item.href}
+                  onClick={() => setTiroirOuvert(false)}
+                  aria-current={actif ? "page" : undefined}
+                  className={`flex items-center gap-3 rounded-2xl px-3 min-h-[46px] text-sm font-semibold transition-colors ${
+                    actif
+                      ? "bg-white text-brand-strong shadow-sm"
+                      : "text-white/75 hover:bg-white/10 hover:text-white"
+                  }`}
+                >
+                  <IconeNav nom={item.icone} className="w-5 h-5 shrink-0" />
+                  <span className="truncate">{item.label}</span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
+
+      <div className="space-y-2 shrink-0">
+        {/* §75 : l'indicateur de mode test reste visible à toutes les tailles. */}
+        <div className="rounded-2xl bg-white/10 border border-gold/30 px-3 py-2.5">
+          <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-gold">
+            <span aria-hidden="true">⚡</span> Mode test
+          </span>
+          <span className="block text-[11px] text-white/70 mt-0.5">
+            Aucun paiement réel
+          </span>
+        </div>
+
+        <form action={logoutAction}>
+          <button
+            type="submit"
+            className="w-full flex items-center gap-3 rounded-2xl px-3 min-h-[46px] text-sm font-semibold text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+          >
+            <svg
+              className="w-5 h-5 shrink-0"
+              aria-hidden="true"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={1.7}
+              strokeLinecap="round"
+              strokeLinejoin="round"
             >
-              <svg
-                className="w-4 h-4 shrink-0"
-                aria-hidden="true"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                />
-              </svg>
-              <span>Déconnexion</span>
-            </button>
-          </form>
+              <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+            <span>Déconnexion</span>
+          </button>
+        </form>
+      </div>
+    </div>
+  );
 
-          {/* Menu mobile (§8, §10, §68). */}
+  return (
+    <>
+      {/* Barre latérale permanente à partir du laptop. */}
+      <aside className="hidden lg:block fixed inset-y-0 left-0 w-[15.5rem] z-40 p-3">
+        {contenu}
+      </aside>
+
+      {/* En-tête compact sur mobile et tablette. */}
+      <header className="lg:hidden sticky top-0 z-30 bg-menu bg-gradient-to-r from-menu to-menu-deep">
+        <div className="px-4 h-16 flex items-center justify-between gap-3">
           <button
             type="button"
-            onClick={() => setMenuOuvert((v) => !v)}
-            aria-expanded={menuOuvert}
-            aria-controls="menu-espace"
-            aria-label={menuOuvert ? "Fermer le menu" : "Ouvrir le menu"}
-            className="lg:hidden min-h-[44px] min-w-[44px] flex items-center justify-center rounded-lg border border-hairline dark:border-slate-800 text-brand dark:text-slate-200"
+            onClick={() => setTiroirOuvert(true)}
+            aria-expanded={tiroirOuvert}
+            aria-controls="tiroir-menu"
+            aria-label="Ouvrir le menu"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-white/10 text-white"
           >
             <svg
               className="w-5 h-5"
@@ -108,64 +203,52 @@ export function DashboardNav({
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
+              strokeWidth={2}
+              strokeLinecap="round"
             >
-              {menuOuvert ? (
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              ) : (
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 6h16M4 12h16M4 18h16"
-                />
-              )}
+              <path d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
+
+          <Link
+            href={homeHref}
+            aria-label="Accueil de mon espace KOLI"
+            className="flex items-center gap-2 min-h-[44px]"
+          >
+            <span className="w-8 h-8 rounded-lg bg-gold flex items-center justify-center text-menu-deep font-bold">
+              K
+            </span>
+            <span className="font-bold text-lg tracking-tight text-white">
+              KOLI
+            </span>
+          </Link>
+
+          <span className="shrink-0 px-2.5 py-1 rounded-full bg-white/10 text-gold text-[11px] font-semibold border border-gold/30 whitespace-nowrap">
+            ⚡ Test
+          </span>
         </div>
-      </div>
+      </header>
 
-      {menuOuvert && (
-        <div
-          id="menu-espace"
-          className="lg:hidden border-t border-hairline dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-3 space-y-1"
-        >
-          <div className="pb-2 mb-1 border-b border-slate-100 dark:border-slate-800">
-            <span className="block text-sm font-semibold text-brand dark:text-white truncate">
-              {userName}
-            </span>
-            <span
-              className={`inline-block mt-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider ${roleBadgeColor}`}
-            >
-              {roleName}
-            </span>
+      {tiroirOuvert && (
+        <div className="lg:hidden fixed inset-0 z-50 flex">
+          {/* Voile cliquable : fermer en touchant à côté est le geste attendu. */}
+          <button
+            type="button"
+            aria-label="Fermer le menu"
+            onClick={() => setTiroirOuvert(false)}
+            className="absolute inset-0 bg-menu-deep/60"
+          />
+          <div
+            id="tiroir-menu"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Menu de l'espace"
+            className="relative w-[15.5rem] max-w-[85vw] h-full animate-tiroir overflow-y-auto"
+          >
+            {contenu}
           </div>
-
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={() => setMenuOuvert(false)}
-              className="flex items-center min-h-[48px] px-3 rounded-lg text-sm font-semibold text-brand dark:text-slate-200 hover:bg-brand-soft dark:hover:bg-slate-800"
-            >
-              {item.label}
-            </Link>
-          ))}
-
-          <form action={logoutAction}>
-            <button
-              type="submit"
-              className="w-full flex items-center min-h-[48px] px-3 rounded-lg text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40"
-            >
-              Déconnexion
-            </button>
-          </form>
         </div>
       )}
-    </header>
+    </>
   );
 }

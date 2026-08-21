@@ -64,6 +64,7 @@ const PAGES_PRIVEES = [
   { chemin: "/client/profil", nom: "client-profil", compte: "client" },
   { chemin: "/admin/dashboard", nom: "admin-dashboard", compte: "admin" },
   { chemin: "/admin/utilisateurs", nom: "admin-utilisateurs", compte: "admin" },
+  { chemin: "/admin/vendeurs", nom: "admin-vendeurs", compte: "admin" },
   { chemin: "/admin/profil", nom: "admin-profil", compte: "admin" },
 ];
 
@@ -186,13 +187,35 @@ async function auditerPage(page, largeur) {
         if (p.length > 3 && p[3] === 0) return null; // transparent
         return p;
       };
-      // Remonte jusqu'au premier ancetre ayant un fond opaque.
-      const fondEffectif = (el) => {
+      /**
+       * Remonte jusqu'au premier ancetre ayant un fond opaque, et renvoie
+       * TOUS les fonds possibles a cet endroit.
+       *
+       * Un degrade est peint via `background-image`, pas `background-color` :
+       * ne lire que la seconde faisait retomber le controle sur le blanc par
+       * defaut et declarait illisible un texte blanc pose sur un aplat
+       * bordeaux. On extrait donc aussi les etapes du degrade, et le texte
+       * n'est declare conforme que s'il l'est sur CHACUNE d'elles.
+       */
+      const fondsEffectifs = (el) => {
         for (let n = el; n; n = n.parentElement) {
-          const p = lire(getComputedStyle(n).backgroundColor);
-          if (p && (p.length < 4 || p[3] > 0.5)) return p;
+          const st = getComputedStyle(n);
+          const candidats = [];
+
+          const image = st.backgroundImage || "";
+          if (image.includes("gradient")) {
+            for (const brut of image.match(/rgba?\([^)]+\)/g) ?? []) {
+              const p = lire(brut);
+              if (p && (p.length < 4 || p[3] > 0.5)) candidats.push(p);
+            }
+          }
+
+          const fond = lire(st.backgroundColor);
+          if (fond && (fond.length < 4 || fond[3] > 0.5)) candidats.push(fond);
+
+          if (candidats.length) return candidats;
         }
-        return [255, 255, 255];
+        return [[255, 255, 255]];
       };
 
       const fautes = [];
@@ -213,12 +236,16 @@ async function auditerPage(page, largeur) {
 
         const avant = lire(st.color);
         if (!avant) continue;
-        const arriere = fondEffectif(el);
 
         const l1 = luminance(avant[0], avant[1], avant[2]);
-        const l2 = luminance(arriere[0], arriere[1], arriere[2]);
-        const ratio =
-          (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+        // Cas le plus defavorable du degrade : le texte doit rester lisible
+        // sur toute la surface, pas seulement a l'une de ses extremites.
+        const ratio = Math.min(
+          ...fondsEffectifs(el).map((arriere) => {
+            const l2 = luminance(arriere[0], arriere[1], arriere[2]);
+            return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05);
+          })
+        );
 
         const taille = parseFloat(st.fontSize);
         const gras = parseInt(st.fontWeight, 10) >= 700;

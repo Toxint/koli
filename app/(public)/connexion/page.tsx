@@ -45,7 +45,7 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950 flex flex-col justify-center px-4 py-8 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-cream flex flex-col justify-center px-4 py-8 sm:px-6 lg:px-8">
       <div className="sm:mx-auto sm:w-full sm:max-w-md">
         <AuthHeader
           title="Connexion à votre espace KOLI"

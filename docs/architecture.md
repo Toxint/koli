@@ -629,7 +629,9 @@ Un harnais de vérification automatisé (`scripts/check-responsive.mjs`, Playwri
 
 ---
 
-## 8 ter. Identité visuelle (20/08/2026)
+## 8 ter. Identité visuelle
+
+> **Révisée le 21/08/2026** — voir §8 septies. Le vert et le fond blanc décrits ci-dessous ont été remplacés par la crème, le bordeaux et l'or. Les enseignements sur le contraste et la typographie restent valables et ont été reportés.
 
 Fond blanc, **vert KOLI** (`#047857`) sur les titres, les textes importants et les appels à l'action ; encre neutre profonde pour le texte courant. Un vert appliqué partout ne signalerait plus rien : il ne ressort que parce que le reste ne l'est pas.
 
@@ -733,4 +735,57 @@ Le vendeur retapait le nom de son article à chaque commande. `createOrderAction
 
 ### Point de reprise
 
-Phase 6 terminée. La suite reprend la discipline phase par phase de `koli-plan.md` §78. Prochaine cible recommandée : **§34/§36 — complétion du tableau de bord admin** (paiements, litiges, remboursements, commissions, activités récentes, vérification des vendeurs), puis **§18 — assistant de commande en 5 étapes**. Aucune phase ne démarre sans validation explicite.
+Phase 6 (catalogue), §34-36 (console d'administration) et la refonte visuelle (§8 septies) sont terminées. La suite reprend la discipline phase par phase de `koli-plan.md` §78. Prochaine cible recommandée : **§18 — assistant de commande en 5 étapes**, puis **§28 — affichage des preuves de livraison**. Aucune phase ne démarre sans validation explicite.
+
+---
+
+## 8 septies. Refonte visuelle — crème, bordeaux, or (21/08/2026)
+
+Sur la base d'un tableau de bord fourni en référence par le porteur du projet, l'identité passe du vert sur blanc à un **fond crème, un menu latéral bordeaux profond et des accents or**.
+
+### La crème est une couleur, pas un blanc sali
+
+`--color-cream: #FBF7E9`. C'est le point le plus facile à perdre lors d'une reprise : le fond **n'est pas blanc**. Deux raisons, dans cet ordre :
+
+1. **Le relief de l'interface en dépend.** Les cartes sont blanches ; elles ne se détachent que parce que le fond ne l'est pas. Remettre `#FFFFFF` en fond fait disparaître toute la structure visuelle d'un coup — les cartes deviennent invisibles et il ne reste que des filets.
+2. **Le confort de lecture.** Le blanc pur éblouit sur un écran de téléphone en plein soleil ; la crème garde la clarté sans la brûlure.
+
+Le fond est posé à trois endroits pour qu'aucun ne puisse le contredire seul : `html`, `body` (règle non layerée dans `globals.css`) et la classe `bg-cream` du `<body>` dans `app/layout.tsx`.
+
+### Palette
+
+| Jeton | Valeur | Rôle | Contraste sur crème |
+|---|---|---|---|
+| `--color-brand` | `#4A0F30` | titres, texte important, CTA | 12,9:1 ✓ |
+| `--color-brand-strong` | `#300A20` | survol, emphase, `h1` | 15,7:1 ✓ |
+| `--color-brand-accent` | `#7B2350` | boutons secondaires, focus | 9,0:1 ✓ |
+| `--color-menu` / `--color-menu-deep` | `#3E0C28` / `#2B0619` | dégradé du menu latéral | — |
+| `--color-gold` | `#E0A82E` | aplats, pastilles, accents **du menu** | 2,0:1 ✗ |
+| `--color-gold-deep` | `#8A6110` | seul or lisible en texte sur clair | 5,0:1 ✓ |
+| `--color-ink` / `--color-ink-muted` | `#241C22` / `#6A6055` | texte courant / secondaire | 15,8:1 / 5,7:1 ✓ |
+
+**L'or ne se lit pas sur clair.** `#E0A82E` sur crème donne 2,0:1, très loin des 4,5:1 exigés. Il est donc réservé aux **aplats** et au texte posé **sur le bordeaux**, où il atteint 7,0:1 — c'est ce qui en fait l'accent naturel du menu latéral. Pour un or lisible sur fond clair, `--color-gold-deep`.
+
+**Les couleurs de statut restent sémantiques** (`lib/orders/statusLabels.ts`) : vert pour ce qui est acquis, ambre pour ce qui est en cours, rouge pour ce qui alerte. Les aligner sur le bordeaux de la marque supprimerait l'information que porte la couleur. Seul le ton neutre a été réchauffé, un gris bleuté jurant sur la crème.
+
+### Menu latéral (§10)
+
+`components/ui/DashboardNav.tsx` — le composant garde son nom et ses props bien qu'il ne soit plus un en-tête horizontal : les quinze pages qui l'utilisent n'ont eu à changer que la classe de leur conteneur.
+
+- **≥ 1024px** : panneau flottant fixe à gauche, `15.5rem`, coins arrondis, crème visible autour. Les pages réservent la place avec `lg:pl-[15.5rem]` — la barre étant `fixed`, elle sort du flux et recouvrirait sinon le contenu.
+- **< 1024px** : en-tête bordeaux compact et tiroir glissant depuis la gauche, fermable par le voile, par le bouton, par la touche Échap, et refermé automatiquement à chaque navigation. Le défilement du fond est bloqué tant qu'il est ouvert.
+
+**Entrée active = le plus long préfixe correspondant.** Un simple `startsWith` allumerait « Commandes » *et* « Nouvelle commande » sur `/vendeur/commandes/nouvelle` ; une égalité stricte n'allumerait rien sur `/vendeur/produits/<id>`.
+
+Les icônes sont dessinées en SVG inline (`components/ui/IconesNav.tsx`) : quatre traits suffisent, et une bibliothèque d'icônes représente plusieurs centaines de kilo-octets pour un public souvent en 3G.
+
+### Défaut corrigé dans l'outil de vérification lui-même
+
+Le contrôleur de contraste ne lisait que `background-color`. Un dégradé étant peint via `background-image`, il retombait sur le blanc par défaut et déclarait **illisible un texte blanc posé sur le bordeaux** — 84 fausses alertes. Deux corrections :
+
+1. **Dans l'application** : les surfaces en dégradé portent aussi une couleur de fond solide (`bg-menu bg-gradient-to-b …`). Si le dégradé ne peint pas, le texte blanc reste sur du bordeaux et non sur rien.
+2. **Dans `scripts/check-responsive.mjs`** : les étapes du dégradé sont extraites et le texte n'est déclaré conforme que s'il l'est sur **chacune** d'elles — le cas le plus défavorable fait foi. La règle est donc plus stricte qu'avant, jamais plus laxiste ; vérifié en réinjectant des fautes connues (or sur crème, blanc sur dégradé clair).
+
+### Accord en nombre
+
+`pluriel()` dans `lib/format.ts` remplace les « 1 vendeur(s) » disséminés dans l'interface. Le français ne met la marque du pluriel qu'à partir de 2 : « 0 commande » s'écrit au singulier, contrairement à l'anglais.

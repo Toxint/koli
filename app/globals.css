@@ -1,53 +1,75 @@
 @import "tailwindcss";
 
 /**
- * Identite KOLI : fond blanc, or.
+ * Identite KOLI — creme, bordeaux profond, or.
  *
- * L'or pur (#FFD700) sur blanc ne donne que 1,4:1 de contraste, tres loin du
- * minimum lisible de 4,5:1 (§69) — un texte dans cette teinte disparait sur un
- * telephone en plein soleil, situation quotidienne du public vise. L'identite
- * doree est donc portee par un OR PROFOND pour tout ce qui se lit, et l'or vif
- * est reserve aux aplats : fonds de boutons, badges, degrades, ou il n'a pas a
- * etre lu mais a etre vu.
+ * Le fond n'est PAS blanc : c'est une creme chaude (#FBF7E9). Sur un ecran de
+ * telephone en plein soleil, le blanc pur eblouit et fatigue ; la creme garde
+ * la clarte sans la brulure, et fait ressortir les cartes blanches posees
+ * dessus. C'est ce contraste creme/blanc qui donne le relief de l'interface —
+ * il disparait entierement si le fond redevient blanc.
  *
- * Contrastes mesures sur fond blanc :
- *   --color-brand        5,9:1  ✓  titres et texte courant
- *   --color-brand-strong 8,6:1  ✓  survol, emphase
- *   --color-ink-muted    5,3:1  ✓  texte secondaire
- *   --color-brand-accent 1,4:1  ✗  JAMAIS en couleur de texte sur blanc
+ * L'or est somptueux mais illisible en texte sur clair (#E0A82E ne donne que
+ * 2,0:1 sur creme). Il est donc reserve aux APLATS et au texte pose SUR le
+ * bordeaux, ou il atteint 7,0:1. Pour un or lisible sur creme, --color-gold-deep.
+ *
+ * Contrastes mesures sur la creme #FBF7E9 :
+ *   --color-brand         12,9:1  ✓  titres, texte important, CTA
+ *   --color-brand-strong  15,7:1  ✓  survol, emphase
+ *   --color-brand-accent   9,0:1  ✓  boutons secondaires, liens
+ *   --color-ink-muted      5,7:1  ✓  texte secondaire
+ *   --color-gold           2,0:1  ✗  JAMAIS en couleur de texte sur creme
+ *   --color-gold  sur --color-menu  7,0:1  ✓  accent du menu lateral
  */
 @theme {
   /* Police d'interface. */
   --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
 
-  /* Vert KOLI — titres, textes importants, appels a l'action. */
-  --color-brand: #047857;
-  --color-brand-strong: #065f46;
-  --color-brand-accent: #059669;
-  --color-brand-soft: #ecfdf5;
-  --color-brand-border: #a7f3d0;
+  /* Bordeaux KOLI — titres, textes importants, appels a l'action. */
+  --color-brand: #4a0f30;
+  --color-brand-strong: #300a20;
+  --color-brand-accent: #7b2350;
+  --color-brand-soft: #f7eaf1;
+  --color-brand-border: #e6cedc;
 
-  /* Texte courant : encre neutre et profonde. Le vert signale ce qui compte ;
-     s'il servait aussi au texte courant, il ne signalerait plus rien. */
-  --color-ink: #18202c;
-  --color-ink-muted: #5b6472;
-  --color-hairline: #e5e7eb;
-  /* Noir des sous-titres. #111 plutot que #000 : a l'ecran, le noir pur sur
-     blanc provoque un leger halo qui fatigue la lecture — la difference est
-     invisible a l'oeil, le confort ne l'est pas. */
-  --color-heading: #111111;
+  /* Menu lateral : bordeaux plus sombre encore, pour que la zone de
+     navigation se distingue nettement de la zone de travail. */
+  --color-menu: #3e0c28;
+  --color-menu-deep: #2b0619;
 
-  /* L'or reste, mais cantonne a son role d'alerte : le mode test. */
-  --color-test-mode: #92660a;
-  --color-test-mode-surface: #fff8e6;
+  /* Fond de page. La creme est une couleur a part entiere, pas un blanc
+     sali : les cartes blanches ne se detachent que grace a elle. */
+  --color-cream: #fbf7e9;
+
+  /* Or : aplats, pastilles, accents du menu. */
+  --color-gold: #e0a82e;
+  --color-gold-soft: #fdf3dc;
+  /* Seule teinte doree lisible en texte sur fond clair. */
+  --color-gold-deep: #8a6110;
+
+  /* Texte courant : encre chaude, accordee a la creme. Une encre bleutee sur
+     un fond chaud donne un rendu terne. */
+  --color-ink: #241c22;
+  --color-ink-muted: #6a6055;
+  --color-hairline: #e9e1ce;
+  /* Noir des sous-titres. #1A1016 plutot que #000 : a l'ecran, le noir pur
+     provoque un leger halo qui fatigue la lecture. */
+  --color-heading: #1a1016;
+
+  /* Mode test. */
+  --color-test-mode: #8a6110;
+  --color-test-mode-surface: #fdf3dc;
 
   --color-danger: #b91c1c;
-  --color-warning: #a16207;
+  --color-warning: #8a6110;
   --color-success: #15803d;
+
+  /* Largeur du menu lateral : reprise par les pages via lg:pl-[15.5rem]. */
+  --largeur-menu: 15.5rem;
 }
 
 /**
- * Mode sombre desactive : le cahier des charges demande un fond blanc.
+ * Mode sombre desactive : le cahier des charges demande un fond clair.
  * En redefinissant la variante `dark` sur une classe qui n'est jamais posee,
  * les centaines de `dark:` presentes dans le code deviennent inertes sans
  * qu'il faille les retirer un par un — et restent disponibles si un theme
@@ -86,11 +108,12 @@ html {
   overflow-x: hidden;
   /* Empeche le navigateur d'appliquer sa propre inversion en mode sombre. */
   color-scheme: light;
+  background-color: var(--color-cream);
 }
 
-/* Fond blanc, encre neutre : le vert est reserve a ce qui doit ressortir. */
+/* Fond creme, encre chaude. */
 body {
-  background-color: #ffffff;
+  background-color: var(--color-cream);
   color: var(--color-ink);
   /* Interlettrage legerement resserre : Plus Jakarta Sans respire beaucoup
      par defaut, ce qui donne un rendu mou aux grandes tailles. */
@@ -99,7 +122,7 @@ body {
 
 /* Hierarchie typographique — dans `@layer base`, contrairement aux regles
    ci-dessus : ce sont des valeurs par DEFAUT, qu'un `text-white` doit pouvoir
-   surcharger (un titre pose sur un aplat vert doit rester blanc).
+   surcharger (un titre pose sur un aplat bordeaux doit rester blanc).
    Le code abusait de `font-black` (900) : a l'ecran, une graisse extreme
    ecrase la hierarchie au lieu de la creer. On plafonne a 700 et c'est la
    couleur, non la graisse, qui porte l'importance. */
@@ -112,14 +135,14 @@ body {
     text-wrap: balance;
   }
 
-  /* Le titre principal reste vert : un seul point d'ancrage par page. */
+  /* Le titre principal en bordeaux : un seul point d'ancrage par page. */
   h1 {
     color: var(--color-brand-strong);
     font-weight: 700;
   }
 
-  /* Sous-titres en noir sur toute l'application : le vert perdait de sa force
-     a se repeter a chaque section. */
+  /* Sous-titres en noir sur toute l'application : le bordeaux perdrait de sa
+     force a se repeter a chaque section. */
   h2,
   h3,
   h4 {
@@ -134,7 +157,13 @@ body {
 
 /* §69 : navigation clavier. Aucun element focalisable n'avait d'indicateur. */
 :focus-visible {
-  outline: 2px solid var(--color-brand);
+  outline: 2px solid var(--color-brand-accent);
+  outline-offset: 2px;
+}
+
+/* Le menu lateral est sombre : un contour bordeaux y serait invisible. */
+[data-menu-koli] :focus-visible {
+  outline: 2px solid var(--color-gold);
   outline-offset: 2px;
 }
 
@@ -161,16 +190,18 @@ body {
   }
 
   @keyframes goldPulse {
-    0%, 100% {
-      box-shadow: 0 0 15px rgba(234, 179, 8, 0.3);
+    0%,
+    100% {
+      box-shadow: 0 0 15px rgba(224, 168, 46, 0.3);
     }
     50% {
-      box-shadow: 0 0 30px rgba(245, 158, 11, 0.6);
+      box-shadow: 0 0 30px rgba(224, 168, 46, 0.6);
     }
   }
 
   @keyframes float {
-    0%, 100% {
+    0%,
+    100% {
       transform: translateY(0px);
     }
     50% {
@@ -189,12 +220,21 @@ body {
     }
   }
 
+  @keyframes glisserDepuisGauche {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(0);
+    }
+  }
+
   .animate-shimmer {
     background: linear-gradient(
       90deg,
-      rgba(245, 158, 11, 1) 0%,
-      rgba(253, 224, 71, 1) 50%,
-      rgba(217, 119, 6, 1) 100%
+      #e0a82e 0%,
+      #f6d68a 50%,
+      #b5821c 100%
     );
     background-size: 200% 100%;
     animation: shimmer 3s infinite linear;
@@ -210,5 +250,9 @@ body {
 
   .animate-fade-in {
     animation: fadeInScale 0.3s ease-out forwards;
+  }
+
+  .animate-tiroir {
+    animation: glisserDepuisGauche 0.22s ease-out;
   }
 }

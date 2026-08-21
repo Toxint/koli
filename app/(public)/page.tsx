@@ -31,7 +31,7 @@ const canaux = ["WhatsApp", "Facebook", "TikTok", "Instagram", "Votre site"];
 
 export default function AccueilPage() {
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950 text-brand dark:text-white">
+    <div className="min-h-screen bg-cream text-brand dark:text-white">
       {/* Bandeau mode test (§75) — visible a toutes les tailles d'ecran */}
       <div className="bg-brand-soft dark:bg-amber-950/70 text-brand dark:text-amber-200 text-center text-xs font-semibold px-4 py-2 border-b border-brand-border/60 dark:border-amber-800">
         ⚡ KOLI fonctionne actuellement en mode test. Aucun paiement réel n&apos;est effectué.
@@ -113,7 +113,7 @@ export default function AccueilPage() {
         </section>
 
         {/* Comment ca marche (§60) */}
-        <section className="bg-white dark:bg-slate-900/50 border-y border-hairline dark:border-slate-800">
+        <section className="bg-white/60 dark:bg-slate-900/50 border-y border-hairline dark:border-slate-800">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-14 sm:py-20">
             <h2 className="text-2xl sm:text-3xl font-bold text-center">
               Comment ça marche

@@ -3,7 +3,7 @@ import { getCurrentUser } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/prisma";
 import { DashboardNav } from "@/components/ui/DashboardNav";
 import { NAV_CLIENT } from "@/lib/navigation";
-import { formatCFA } from "@/lib/format";
+import { formatCFA, pluriel } from "@/lib/format";
 import { libelleStatut, classesBadgeStatut } from "@/lib/orders/statusLabels";
 import Link from "next/link";
 
@@ -29,7 +29,7 @@ export default async function ClientDashboardPage() {
     : [];
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950 text-brand dark:text-white">
+    <div className="min-h-screen bg-cream text-ink lg:pl-[15.5rem]">
       <DashboardNav
         userName={user.name}
         roleName="Client"
@@ -51,7 +51,7 @@ export default async function ClientDashboardPage() {
             </p>
           </div>
           <div className="bg-white/20 px-4 py-2 rounded-xl text-xs font-semibold text-white">
-            {orders.length} commande(s) effectuée(s)
+            {pluriel(orders.length, "commande effectuée", "commandes effectuées")}
           </div>
         </div>
 

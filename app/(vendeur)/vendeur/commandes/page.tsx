@@ -6,7 +6,7 @@ import { BarreRecherche } from "@/components/ui/BarreRecherche";
 import { Pagination } from "@/components/ui/Pagination";
 import { DashboardNav } from "@/components/ui/DashboardNav";
 import { NAV_VENDEUR } from "@/lib/navigation";
-import { formatCFA } from "@/lib/format";
+import { formatCFA, pluriel } from "@/lib/format";
 import { libelleStatut, classesBadgeStatut } from "@/lib/orders/statusLabels";
 import { listAvailableDriversAction } from "@/lib/deliveries/assign";
 import { AssignerLivreur } from "@/components/domain/AssignerLivreur";
@@ -64,7 +64,7 @@ export default async function SellerOrdersPage({
   ]);
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950 text-brand dark:text-white">
+    <div className="min-h-screen bg-cream text-ink lg:pl-[15.5rem]">
       <DashboardNav
         userName={user.sellerProfile.businessName || user.name}
         roleName="Vendeur"
@@ -79,7 +79,7 @@ export default async function SellerOrdersPage({
               Gestion de vos commandes
             </h1>
             <p className="text-xs text-ink-muted mt-1">
-              {total} commande(s) générée(s)
+              {pluriel(total, "commande générée", "commandes générées")}
             </p>
           </div>
 
@@ -94,11 +94,18 @@ export default async function SellerOrdersPage({
         <BarreRecherche
           placeholder="Référence, nom ou téléphone du client…"
           filtres={[
-            { valeur: "PAYMENT_PENDING", libelle: "En attente de paiement" },
-            { valeur: "FUNDS_SECURED", libelle: "Paiement sécurisé" },
-            { valeur: "SELLER_ACCEPTED", libelle: "Acceptée" },
-            { valeur: "DELIVERED", libelle: "Livrée — à confirmer" },
-            { valeur: "COMPLETED", libelle: "Terminée" },
+            {
+              cle: "statut",
+              libelle: "Filtrer par statut de commande",
+              libelleTous: "Tous les statuts",
+              options: [
+                { valeur: "PAYMENT_PENDING", libelle: "En attente de paiement" },
+                { valeur: "FUNDS_SECURED", libelle: "Paiement sécurisé" },
+                { valeur: "SELLER_ACCEPTED", libelle: "Acceptée" },
+                { valeur: "DELIVERED", libelle: "Livrée — à confirmer" },
+                { valeur: "COMPLETED", libelle: "Terminée" },
+              ],
+            },
           ]}
         />
 

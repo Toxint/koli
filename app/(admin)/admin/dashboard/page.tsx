@@ -1,9 +1,74 @@
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth/actions";
-import { prisma } from "@/lib/db/prisma";
 import { DashboardNav } from "@/components/ui/DashboardNav";
 import { NAV_ADMIN } from "@/lib/navigation";
-import { formatCFA } from "@/lib/format";
+import { formatCFA, pluriel } from "@/lib/format";
+import { libelleStatut, classesBadgeStatut } from "@/lib/orders/statusLabels";
+import {
+  chargerStatistiquesAdmin,
+  chargerActivitesRecentes,
+} from "@/lib/admin/stats";
+
+/** Une tuile de chiffre clé. */
+function Tuile({
+  titre,
+  valeur,
+  detail,
+  href,
+}: {
+  titre: string;
+  valeur: string | number;
+  detail?: string;
+  href?: string;
+}) {
+  const contenu = (
+    <>
+      <span className="text-xs font-bold text-ink-muted uppercase tracking-wider block mb-1">
+        {titre}
+      </span>
+      <div className="text-2xl font-bold text-brand dark:text-white break-words">
+        {valeur}
+      </div>
+      {detail && (
+        <p className="text-[11px] text-ink-muted mt-1 break-words">{detail}</p>
+      )}
+    </>
+  );
+
+  const classes =
+    "block bg-white dark:bg-slate-900 p-5 rounded-2xl border border-hairline dark:border-slate-800 shadow-sm";
+
+  // Les tuiles cliquables mènent à la page qui détaille le chiffre : sans cela,
+  // l'administrateur lit un nombre sans pouvoir remonter à ce qu'il recouvre.
+  return href ? (
+    <Link href={href} className={`${classes} hover:border-brand transition-colors`}>
+      {contenu}
+    </Link>
+  ) : (
+    <div className={classes}>{contenu}</div>
+  );
+}
+
+function Section({
+  titre,
+  sousTitre,
+  children,
+}: {
+  titre: string;
+  sousTitre?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="bg-white dark:bg-slate-900 rounded-2xl border border-hairline dark:border-slate-800 shadow-sm p-6">
+      <div className="mb-5">
+        <h2 className="text-lg font-semibold">{titre}</h2>
+        {sousTitre && <p className="text-xs text-ink-muted mt-0.5">{sousTitre}</p>}
+      </div>
+      {children}
+    </section>
+  );
+}
 
 export default async function AdminDashboardPage() {
   const user = await getCurrentUser();
@@ -11,39 +76,20 @@ export default async function AdminDashboardPage() {
     redirect("/connexion");
   }
 
-  const usersCount = await prisma.user.count();
-  const sellersCount = await prisma.sellerProfile.count();
-  const driversCount = await prisma.driverProfile.count();
-  const customersCount = await prisma.customerProfile.count();
-
-  const totalOrdersCount = await prisma.order.count();
-
-  // Agrege en base plutot que de charger toutes les lignes en memoire (§46, §70).
-  // `released` ne remet pas `secured` a false : sans le filtre `released: false`,
-  // les fonds deja verses restaient comptes comme sequestres et l'engagement
-  // de la plateforme etait surevalue de tout le volume libere.
-  const [sequestre, libere] = await Promise.all([
-    prisma.fund.aggregate({
-      where: { secured: true, released: false },
-      _sum: { amount: true },
-    }),
-    prisma.fund.aggregate({
-      where: { released: true },
-      _sum: { amount: true },
-    }),
+  const [s, activites] = await Promise.all([
+    chargerStatistiquesAdmin(),
+    chargerActivitesRecentes(12),
   ]);
 
-  const totalSecuredAmount = sequestre._sum.amount ?? 0;
-  const totalReleasedAmount = libere._sum.amount ?? 0;
-
-  const users = await prisma.user.findMany({
-    include: { sellerProfile: true, driverProfile: true, customerProfile: true },
-    orderBy: { createdAt: "desc" },
-    take: 10,
+  const dateFr = new Intl.DateTimeFormat("fr-FR", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
   });
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950 text-brand dark:text-white">
+    <div className="min-h-screen bg-cream text-ink lg:pl-[15.5rem]">
       <DashboardNav
         userName={user.name}
         roleName="Admin"
@@ -53,170 +99,238 @@ export default async function AdminDashboardPage() {
       />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        <div className="bg-brand rounded-2xl p-6 sm:p-8 text-white shadow-lg shadow-brand/20 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border border-brand-border">
-          <div>
-            <span className="px-3 py-1 rounded-full bg-white/20 text-white text-xs font-mono font-bold uppercase tracking-wider mb-2 inline-block">
-              Console d&apos;administration
-            </span>
-            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-white">
-              Administration KOLI 🛡️
-            </h1>
-            <p className="text-white/90 text-sm mt-1">
-              Supervision des utilisateurs, des fonds sécurisés, des livraisons et des litiges (mode test).
-            </p>
-          </div>
+        <div className="bg-brand rounded-2xl p-6 sm:p-8 text-white shadow-lg shadow-brand/20 border border-brand-border">
+          <span className="px-3 py-1 rounded-full bg-white/20 text-white text-xs font-mono font-bold uppercase tracking-wider mb-2 inline-block">
+            Console d&apos;administration
+          </span>
+          <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-white">
+            Administration KOLI
+          </h1>
+          <p className="text-white/90 text-sm mt-1">
+            Supervision des utilisateurs, des fonds, des livraisons et des
+            litiges — mode test, aucun mouvement d&apos;argent réel.
+          </p>
         </div>
 
-        {/* Global KPIs */}
+        {/* ── Personnes ─────────────────────────────────────────── */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-hairline dark:border-slate-800 shadow-sm">
-            <span className="text-xs font-bold text-ink-muted uppercase tracking-wider block mb-1">
-              Total Utilisateurs
+          <Tuile
+            titre="Utilisateurs"
+            valeur={s.utilisateurs.total}
+            detail={`${pluriel(s.utilisateurs.vendeurs, "vendeur")} · ${pluriel(s.utilisateurs.livreurs, "livreur")} · ${pluriel(s.utilisateurs.clients, "client")}`}
+            href="/admin/utilisateurs"
+          />
+          <Tuile
+            titre="Comptes suspendus"
+            valeur={s.utilisateurs.suspendus}
+            detail={
+              s.utilisateurs.suspendus === 0
+                ? "Aucun compte bloqué"
+                : "À réexaminer"
+            }
+            href="/admin/utilisateurs?compte=SUSPENDED"
+          />
+          <Tuile
+            titre="Vendeurs vérifiés"
+            valeur={`${s.vendeurs.verifies} / ${s.utilisateurs.vendeurs}`}
+            detail={`${s.vendeurs.enAttente} en attente · ${pluriel(s.vendeurs.rejetes, "rejeté")}`}
+            href="/admin/vendeurs"
+          />
+          <Tuile
+            titre="Commandes"
+            valeur={s.commandes.total}
+            detail={`${pluriel(s.commandes.terminees, "terminée")}`}
+          />
+        </div>
+
+        {/* ── Argent (mode test) ────────────────────────────────── */}
+        <div>
+          <div className="flex flex-wrap items-center gap-3 mb-4">
+            <h2 className="text-lg font-semibold">Flux financiers</h2>
+            <span className="px-3 py-1 rounded-full bg-test-mode-surface text-test-mode text-[11px] font-semibold border border-brand-border/60 whitespace-nowrap">
+              ⚡ Mode test — aucun paiement réel
             </span>
-            <div className="text-2xl font-bold text-brand dark:text-white">
-              {usersCount}
-            </div>
-            <p className="text-[11px] text-ink-muted mt-1">
-              {sellersCount} Vendeurs • {driversCount} Livreurs • {customersCount} Clients
-            </p>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-hairline dark:border-slate-800 shadow-sm">
-            <span className="text-xs font-bold text-ink-muted uppercase tracking-wider block mb-1">
-              Commandes Total
-            </span>
-            <div className="text-2xl font-bold text-brand dark:text-white">
-              {totalOrdersCount}
-            </div>
-            <p className="text-[11px] text-ink-muted mt-1">
-              Sur toute la plateforme
-            </p>
-          </div>
-
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-hairline dark:border-slate-800 shadow-sm">
-            <span className="text-xs font-bold text-ink-muted uppercase tracking-wider block mb-1">
-              Volume Séquestré (Test)
-            </span>
-            <div className="text-2xl font-bold text-brand dark:text-amber-400">
-              {formatCFA(totalSecuredAmount)}
-            </div>
-            <p className="text-[11px] text-ink-muted mt-1">
-              Fonds actuellement bloqués
-            </p>
-          </div>
-
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-hairline dark:border-slate-800 shadow-sm">
-            <span className="text-xs font-bold text-ink-muted uppercase tracking-wider block mb-1">
-              Volume Libéré (Test)
-            </span>
-            <div className="text-2xl font-bold text-brand dark:text-emerald-400">
-              {formatCFA(totalReleasedAmount)}
-            </div>
-            <p className="text-[11px] text-ink-muted mt-1">
-              Fonds transférés aux vendeurs
-            </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <Tuile
+              titre="Paiements réussis"
+              valeur={s.paiements.reussis}
+              detail={`${s.paiements.enAttente} en attente · ${pluriel(s.paiements.echoues, "échoué")}`}
+            />
+            <Tuile
+              titre="Volume encaissé"
+              valeur={formatCFA(s.paiements.volumeEncaisse)}
+              detail="Articles + frais de livraison"
+            />
+            <Tuile
+              titre="Fonds séquestrés"
+              valeur={formatCFA(s.fonds.sequestre)}
+              detail="Engagement actuel de la plateforme"
+            />
+            <Tuile
+              titre="Fonds libérés"
+              valeur={formatCFA(s.fonds.libere)}
+              detail="Versés aux vendeurs après confirmation client"
+            />
           </div>
         </div>
 
-        {/* Users Table */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-hairline dark:border-slate-800 shadow-sm p-6">
-          <div className="mb-6">
-            <h2 className="text-lg font-bold dark:text-white">
-              Derniers utilisateurs inscrits
-            </h2>
-            <p className="text-xs text-ink-muted">
-              Vérification des comptes et statuts
-            </p>
-          </div>
-
-          {/* §8 et §68 : cartes sur mobile, grille a partir de la tablette.
-              Le tableau a 5 colonnes demandait ~509px pour une carte de 240px. */}
-          {users.length === 0 ? (
-            <div className="text-center py-12 border-2 border-dashed border-hairline dark:border-slate-800 rounded-xl">
-              <span className="text-4xl block mb-2">👥</span>
-              <p className="text-sm font-semibold text-brand dark:text-slate-300">
-                Aucun utilisateur inscrit pour l&apos;instant
-              </p>
+        {/* ── Litiges, remboursements, commissions ──────────────── */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <Section
+            titre="Litiges"
+            sousTitre="§29 — signalement d'un problème par le client"
+          >
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-bold">{s.litiges.ouverts}</span>
+              <span className="text-xs text-ink-muted">
+                {s.litiges.ouverts >= 2 ? "ouverts" : "ouvert"} sur{" "}
+                {s.litiges.total}
+              </span>
             </div>
+            {s.litiges.total === 0 && (
+              <p className="text-xs text-ink-muted mt-3">
+                Le module de litiges n&apos;est pas encore ouvert aux
+                utilisateurs : le bouton « Signaler un problème » arrive en
+                phase 21. Le compteur reflète la base réelle.
+              </p>
+            )}
+          </Section>
+
+          <Section titre="Remboursements" sousTitre="§22 — retour de fonds au client">
+            <div className="flex items-baseline gap-2">
+              <span className="text-3xl font-bold">
+                {s.remboursements.enAttente}
+              </span>
+              <span className="text-xs text-ink-muted">
+                en attente sur {s.remboursements.total}
+              </span>
+            </div>
+            <p className="text-sm font-semibold mt-2">
+              {formatCFA(s.remboursements.volume)}
+            </p>
+            {s.remboursements.total === 0 && (
+              <p className="text-xs text-ink-muted mt-3">
+                Aucun remboursement possible tant que les litiges ne sont pas
+                ouverts (phase 22).
+              </p>
+            )}
+          </Section>
+
+          <Section titre="Commission KOLI" sousTitre="§41 — taux configurable">
+            {s.commission.tauxActif === null ? (
+              <p className="text-sm text-danger font-medium">
+                Aucun taux actif configuré.
+              </p>
+            ) : (
+              <>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-bold">
+                    {s.commission.tauxActif} %
+                  </span>
+                  <span className="text-xs text-ink-muted">taux actif</span>
+                </div>
+                <p className="text-sm font-semibold mt-2">
+                  {formatCFA(s.commission.projectionSurFondsLiberes)}
+                </p>
+                {/* Honnêteté du chiffre : aucune commission n'est prélevée
+                    aujourd'hui. Présenter cette projection comme un revenu
+                    acquis fausserait la lecture du tableau de bord. */}
+                <p className="text-xs text-ink-muted mt-3">
+                  Projection sur les fonds déjà libérés.{" "}
+                  <strong>Aucun prélèvement n&apos;est effectué</strong> : le
+                  calcul réel arrive en phase 19.
+                </p>
+              </>
+            )}
+          </Section>
+        </div>
+
+        {/* ── Répartition des commandes ─────────────────────────── */}
+        <Section
+          titre="Répartition des commandes"
+          sousTitre="Où en sont les commandes de la plateforme"
+        >
+          {s.commandes.parStatut.length === 0 ? (
+            <p className="text-sm text-ink-muted">Aucune commande enregistrée.</p>
           ) : (
-            <ul className="space-y-3 md:space-y-0 md:divide-y md:divide-hairline md:dark:divide-slate-800/60">
-              <li className="hidden md:grid md:grid-cols-[1.2fr_1.6fr_.8fr_.9fr_1fr] md:gap-4 md:pb-3 border-b border-hairline dark:border-slate-800 text-xs font-bold text-ink-muted dark:text-slate-400 uppercase tracking-wider">
-                <span>Nom</span>
-                <span>Contact</span>
-                <span>Rôle</span>
-                <span>Compte</span>
-                <span>Vérification</span>
-              </li>
+            <ul className="space-y-2">
+              {s.commandes.parStatut.map((ligne) => {
+                const pourcentage = Math.round(
+                  (ligne.nombre / s.commandes.total) * 100
+                );
+                return (
+                  <li key={ligne.statut} className="flex items-center gap-3">
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold shrink-0 ${classesBadgeStatut(ligne.statut)}`}
+                    >
+                      {libelleStatut(ligne.statut)}
+                    </span>
+                    {/* Barre décorative : la valeur chiffrée reste lisible à
+                        côté, la couleur ne porte donc aucune information seule. */}
+                    <span
+                      aria-hidden="true"
+                      className="flex-1 min-w-0 h-2 rounded-full bg-hairline overflow-hidden"
+                    >
+                      <span
+                        className="block h-full bg-brand"
+                        style={{ width: `${Math.max(pourcentage, 2)}%` }}
+                      />
+                    </span>
+                    <span className="text-xs font-semibold shrink-0 tabular-nums">
+                      {ligne.nombre}
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </Section>
 
-              {users.map((u) => (
+        {/* ── Activités récentes ────────────────────────────────── */}
+        <Section
+          titre="Activités récentes"
+          sousTitre="Derniers changements de statut, toutes commandes confondues"
+        >
+          {activites.length === 0 ? (
+            <p className="text-sm text-ink-muted">
+              Aucune activité pour l&apos;instant.
+            </p>
+          ) : (
+            <ul className="space-y-3 divide-y divide-hairline dark:divide-slate-800">
+              {activites.map((a) => (
                 <li
-                  key={u.id}
-                  className="rounded-2xl border border-hairline dark:border-slate-800 p-4 md:border-0 md:rounded-none md:p-0 md:py-4 md:grid md:grid-cols-[1.2fr_1.6fr_.8fr_.9fr_1fr] md:gap-4 md:items-center"
+                  key={a.id}
+                  className="pt-3 first:pt-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2"
                 >
-                  <span className="block font-bold break-words">{u.name}</span>
-
-                  <div className="mt-1 md:mt-0 min-w-0">
-                    <a
-                      href={`tel:${u.phone.replace(/\s/g, "")}`}
-                      className="inline-flex items-center min-h-[44px] md:min-h-0 text-xs font-mono text-ink-muted dark:text-slate-400 whitespace-nowrap hover:text-brand"
-                    >
-                      {u.phone}
-                    </a>
-                    {u.email && (
-                      <span className="block text-xs text-ink-muted dark:text-slate-400 break-all">
-                        {u.email}
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="font-mono text-xs font-bold break-all">
+                        {a.reference}
                       </span>
-                    )}
-                  </div>
-
-                  <div className="mt-2 md:mt-0 flex flex-wrap gap-2">
-                    <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-brand-soft text-brand dark:bg-slate-800 dark:text-slate-300">
-                      {u.role}
-                    </span>
-                    <span
-                      className={`md:hidden px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                        u.status === "ACTIVE"
-                          ? "bg-brand-soft text-brand dark:bg-emerald-950 dark:text-emerald-300"
-                          : "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300"
-                      }`}
-                    >
-                      {u.status}
-                    </span>
-                    {u.sellerProfile && (
-                      <span className="md:hidden px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
-                        {u.sellerProfile.verificationStatus}
+                      <span
+                        className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${classesBadgeStatut(a.vers)}`}
+                      >
+                        {libelleStatut(a.vers)}
                       </span>
-                    )}
+                    </div>
+                    <p className="text-xs text-ink-muted mt-0.5 break-words">
+                      {a.vendeur}
+                      {a.de ? ` · depuis « ${libelleStatut(a.de)} »` : ""}
+                    </p>
                   </div>
-
-                  <div className="hidden md:block">
-                    <span
-                      className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                        u.status === "ACTIVE"
-                          ? "bg-brand-soft text-brand dark:bg-emerald-950 dark:text-emerald-300"
-                          : "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-300"
-                      }`}
-                    >
-                      {u.status}
-                    </span>
-                  </div>
-
-                  <div className="hidden md:block">
-                    {u.sellerProfile ? (
-                      <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-300">
-                        {u.sellerProfile.verificationStatus}
-                      </span>
-                    ) : (
-                      <span className="text-xs text-ink-muted dark:text-slate-400">
-                        Non applicable
-                      </span>
-                    )}
-                  </div>
+                  <time
+                    dateTime={a.date.toISOString()}
+                    className="text-xs text-ink-muted whitespace-nowrap shrink-0"
+                  >
+                    {dateFr.format(a.date)}
+                  </time>
                 </li>
               ))}
             </ul>
           )}
-        </div>
+        </Section>
       </main>
     </div>
   );

@@ -12,7 +12,7 @@ export default async function NouveauProduitPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950 text-brand dark:text-white">
+    <div className="min-h-screen bg-cream text-ink lg:pl-[15.5rem]">
       <DashboardNav
         userName={user.sellerProfile.businessName || user.name}
         roleName="Vendeur"

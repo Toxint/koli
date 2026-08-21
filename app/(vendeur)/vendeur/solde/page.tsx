@@ -49,7 +49,7 @@ export default async function SoldeVendeurPage() {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-cream text-ink lg:pl-[15.5rem]">
       <DashboardNav
         userName={user.sellerProfile.businessName || user.name}
         roleName="Vendeur"

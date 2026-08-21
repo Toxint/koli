@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import type { Prisma, UserRole } from "@prisma/client";
+import type { Prisma, UserRole, UserStatus } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/prisma";
 import { DashboardNav } from "@/components/ui/DashboardNav";
@@ -8,6 +8,7 @@ import { NAV_ADMIN } from "@/lib/navigation";
 import { BarreRecherche } from "@/components/ui/BarreRecherche";
 import { Pagination } from "@/components/ui/Pagination";
 import { BoutonSuspension } from "@/components/domain/BoutonSuspension";
+import { pluriel } from "@/lib/format";
 
 export const metadata: Metadata = { title: "Utilisateurs" };
 
@@ -23,19 +24,25 @@ const LIBELLE_ROLE: Record<string, string> = {
 export default async function AdminUtilisateursPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; statut?: string; page?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    role?: string;
+    compte?: string;
+    page?: string;
+  }>;
 }) {
   const user = await getCurrentUser();
   if (!user || user.role !== "ADMIN") {
     redirect("/connexion");
   }
 
-  const { q, statut, page: pageBrute } = await searchParams;
+  const { q, role, compte, page: pageBrute } = await searchParams;
   const page = Math.max(1, Number(pageBrute) || 1);
 
   // §46 : recherche, filtre et pagination en base.
   const where: Prisma.UserWhereInput = {
-    ...(statut ? { role: statut as UserRole } : {}),
+    ...(role ? { role: role as UserRole } : {}),
+    ...(compte ? { status: compte as UserStatus } : {}),
     ...(q
       ? {
           OR: [
@@ -59,7 +66,7 @@ export default async function AdminUtilisateursPage({
   ]);
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-cream text-ink lg:pl-[15.5rem]">
       <DashboardNav
         userName={user.name}
         roleName="Admin"
@@ -73,17 +80,37 @@ export default async function AdminUtilisateursPage({
             Utilisateurs
           </h1>
           <p className="mt-1 text-sm text-ink-muted">
-            {total} compte(s) — recherche, filtre et suspension (§35).
+            {pluriel(total, "compte")} — recherche, filtre et suspension (§35).
           </p>
         </div>
 
+        {/* Deux filtres distincts : le role et l'etat du compte. Ils etaient
+            auparavant confondus sous un unique parametre « statut » qui
+            filtrait en realite par role — impossible d'isoler les comptes
+            suspendus, que le §35 demande pourtant de pouvoir reexaminer. */}
         <BarreRecherche
           placeholder="Nom, téléphone ou email…"
           filtres={[
-            { valeur: "SELLER", libelle: "Vendeurs" },
-            { valeur: "CLIENT", libelle: "Clients" },
-            { valeur: "DRIVER", libelle: "Livreurs" },
-            { valeur: "ADMIN", libelle: "Administrateurs" },
+            {
+              cle: "role",
+              libelle: "Filtrer par rôle",
+              libelleTous: "Tous les rôles",
+              options: [
+                { valeur: "SELLER", libelle: "Vendeurs" },
+                { valeur: "CLIENT", libelle: "Clients" },
+                { valeur: "DRIVER", libelle: "Livreurs" },
+                { valeur: "ADMIN", libelle: "Administrateurs" },
+              ],
+            },
+            {
+              cle: "compte",
+              libelle: "Filtrer par état du compte",
+              libelleTous: "Tous les comptes",
+              options: [
+                { valeur: "ACTIVE", libelle: "Actifs" },
+                { valeur: "SUSPENDED", libelle: "Suspendus" },
+              ],
+            },
           ]}
         />
 
@@ -180,7 +207,7 @@ export default async function AdminUtilisateursPage({
             page={page}
             total={total}
             parPage={PAR_PAGE}
-            parametres={{ q, statut }}
+            parametres={{ q, role, compte }}
             chemin="/admin/utilisateurs"
           />
         </div>

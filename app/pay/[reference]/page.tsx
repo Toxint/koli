@@ -63,7 +63,7 @@ export default async function PayReferencePage({
     };
 
     return (
-      <main className="min-h-screen bg-white dark:bg-slate-950">
+      <main className="min-h-screen bg-cream">
         <PayFlow
           order={formattedOrder}
           estLeClient={estLeClient}
@@ -75,7 +75,7 @@ export default async function PayReferencePage({
 
   // Commande introuvable
   return (
-    <main className="min-h-screen bg-white dark:bg-slate-950 flex items-center justify-center p-4">
+    <main className="min-h-screen bg-cream flex items-center justify-center p-4">
       <div className="max-w-md w-full text-center space-y-4">
         <div className="w-16 h-16 rounded-full bg-brand-soft text-brand flex items-center justify-center text-3xl mx-auto">
           ⚠️

@@ -16,7 +16,8 @@
     "verif:connexion": "node scripts/test-connexion.mjs",
     "verif:inscription": "node scripts/test-inscription.mjs",
     "verif:catalogue": "node scripts/test-catalogue.mjs",
-    "verif:tout": "npm run typecheck && npm run lint && npm test && npm run verif:responsive && npm run verif:liens && npm run verif:connexion && npm run verif:inscription && npm run verif:catalogue && npm run verif:parcours"
+    "verif:admin": "node scripts/test-admin.mjs",
+    "verif:tout": "npm run typecheck && npm run lint && npm test && npm run verif:responsive && npm run verif:liens && npm run verif:connexion && npm run verif:inscription && npm run verif:catalogue && npm run verif:admin && npm run verif:parcours"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^7.9.1",

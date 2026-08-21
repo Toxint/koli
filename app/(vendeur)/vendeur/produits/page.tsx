@@ -7,7 +7,7 @@ import { BarreRecherche } from "@/components/ui/BarreRecherche";
 import { Pagination } from "@/components/ui/Pagination";
 import { DashboardNav } from "@/components/ui/DashboardNav";
 import { NAV_VENDEUR } from "@/lib/navigation";
-import { formatCFA } from "@/lib/format";
+import { formatCFA, pluriel } from "@/lib/format";
 import { BoutonStatutProduit } from "@/components/domain/BoutonStatutProduit";
 
 const PAR_PAGE = 20;
@@ -56,7 +56,7 @@ export default async function CataloguePage({
   ]);
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950 text-brand dark:text-white">
+    <div className="min-h-screen bg-cream text-ink lg:pl-[15.5rem]">
       <DashboardNav
         userName={user.sellerProfile.businessName || user.name}
         roleName="Vendeur"
@@ -71,7 +71,7 @@ export default async function CataloguePage({
               Mon catalogue
             </h1>
             <p className="text-xs text-ink-muted mt-1">
-              {actifs} produit(s) au catalogue
+              {pluriel(actifs, "produit")} au catalogue
             </p>
           </div>
 
@@ -86,8 +86,15 @@ export default async function CataloguePage({
         <BarreRecherche
           placeholder="Nom, catégorie ou description…"
           filtres={[
-            { valeur: "ACTIVE", libelle: "Au catalogue" },
-            { valeur: "ARCHIVED", libelle: "Retirés" },
+            {
+              cle: "statut",
+              libelle: "Filtrer par disponibilité",
+              libelleTous: "Tous les produits",
+              options: [
+                { valeur: "ACTIVE", libelle: "Au catalogue" },
+                { valeur: "ARCHIVED", libelle: "Retirés" },
+              ],
+            },
           ]}
         />
 

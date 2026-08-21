@@ -51,7 +51,15 @@ export function tonStatut(statut: OrderStatus | string): TonStatut {
   return LIBELLES[statut as OrderStatus]?.ton ?? "neutre";
 }
 
-/** Classes Tailwind du badge, contrastes conformes (§69). */
+/**
+ * Classes Tailwind du badge, contrastes conformes (§69).
+ *
+ * Les teintes restent SÉMANTIQUES et non décoratives : vert pour ce qui est
+ * acquis, ambre pour ce qui est en cours, rouge pour ce qui alerte. Les
+ * aligner sur le bordeaux de la marque supprimerait l'information que porte
+ * la couleur. Seul le ton neutre est réchauffé, un gris bleuté jurant sur la
+ * crème.
+ */
 export function classesBadgeStatut(statut: OrderStatus | string): string {
   switch (tonStatut(statut)) {
     case "succes":
@@ -61,6 +69,6 @@ export function classesBadgeStatut(statut: OrderStatus | string): string {
     case "encours":
       return "bg-amber-100 text-amber-900 dark:bg-amber-950/80 dark:text-amber-300";
     default:
-      return "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300";
+      return "bg-hairline text-ink-muted dark:bg-slate-800 dark:text-slate-300";
   }
 }
