@@ -106,7 +106,10 @@ export async function updateProfilAction(
 }
 
 const motDePasseSchema = z.object({
-  actuel: z.string().min(1, "Saisissez votre mot de passe actuel."),
+  // Facultatif : un compte créé via Google n'a pas encore de mot de passe. Il
+  // n'y a alors rien à confirmer, et l'exiger interdirait purement et
+  // simplement d'en définir un.
+  actuel: z.string().optional(),
   nouveau: z
     .string()
     .min(8, "Le nouveau mot de passe doit contenir au moins 8 caractères."),
@@ -142,11 +145,23 @@ export async function changerMotDePasseAction(
     return { success: false, error: "Compte introuvable." };
   }
 
-  // Le mot de passe actuel est exige : sans lui, quiconque accede a une session
-  // ouverte pourrait verrouiller le compte de son proprietaire.
-  const valide = await verifyPassword(validation.data.actuel, compte.passwordHash);
-  if (!valide) {
-    return { success: false, error: "Mot de passe actuel incorrect." };
+  // Le mot de passe actuel est exigé : sans lui, quiconque accède à une session
+  // ouverte pourrait verrouiller le compte de son propriétaire.
+  //
+  // Un compte Google n'en a pas encore. Le cas est différent et non laxiste :
+  // en définir un premier n'enlève rien au propriétaire, qui continue d'entrer
+  // par Google — il ne peut donc pas être mis dehors de cette façon.
+  if (compte.passwordHash) {
+    if (!validation.data.actuel) {
+      return { success: false, error: "Saisissez votre mot de passe actuel." };
+    }
+    const valide = await verifyPassword(
+      validation.data.actuel,
+      compte.passwordHash
+    );
+    if (!valide) {
+      return { success: false, error: "Mot de passe actuel incorrect." };
+    }
   }
 
   await prisma.user.update({
@@ -158,5 +173,10 @@ export async function changerMotDePasseAction(
     },
   });
 
-  return { success: true, message: "Mot de passe modifié." };
+  return {
+    success: true,
+    message: compte.passwordHash
+      ? "Mot de passe modifié."
+      : "Mot de passe défini. Vous pouvez désormais vous connecter avec votre téléphone ou par Google.",
+  };
 }

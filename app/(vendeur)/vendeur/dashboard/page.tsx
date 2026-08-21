@@ -77,7 +77,7 @@ export default async function SellerDashboardPage() {
           <div className="flex gap-3 relative z-10">
             <Link
               href="/vendeur/commandes/nouvelle"
-              className="w-full sm:w-auto min-h-[48px] px-5 rounded-2xl bg-white text-brand hover:bg-brand-soft font-semibold text-xs uppercase tracking-wider shadow-xl shadow-brand/20 active:scale-[0.98] transition-all border border-white/30 flex items-center justify-center gap-2 text-center"
+              className="w-full sm:w-auto min-h-[48px] px-5 rounded-2xl bg-white text-brand hover:bg-brand-soft font-semibold text-xs uppercase tracking-wider shadow-xl shadow-brand/20 transition-all border border-white/30 flex items-center justify-center gap-2 text-center"
             >
               <span>+ Créer une commande</span>
             </Link>

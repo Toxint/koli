@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { jwtVerify } from "jose";
+import { espaceParDefaut } from "@/lib/auth/dashboards";
 
 const COOKIE_NAME = "koli_session";
 
@@ -54,7 +55,7 @@ export async function middleware(request: NextRequest) {
 
       if (userPayload.role !== route.role && userPayload.role !== "ADMIN") {
         // Redirect to user's dashboard based on their role
-        const defaultDashboard = getDefaultDashboardForRole(userPayload.role);
+        const defaultDashboard = espaceParDefaut(userPayload.role);
         return NextResponse.redirect(new URL(defaultDashboard, request.url));
       }
     }
@@ -62,27 +63,13 @@ export async function middleware(request: NextRequest) {
 
   // Redirect from login/register if already authenticated
   if ((pathname === "/connexion" || pathname === "/inscription") && userPayload) {
-    const defaultDashboard = getDefaultDashboardForRole(userPayload.role);
+    const defaultDashboard = espaceParDefaut(userPayload.role);
     return NextResponse.redirect(new URL(defaultDashboard, request.url));
   }
 
   return NextResponse.next();
 }
 
-function getDefaultDashboardForRole(role: string): string {
-  switch (role) {
-    case "SELLER":
-      return "/vendeur/dashboard";
-    case "DRIVER":
-      return "/livreur/dashboard";
-    case "CLIENT":
-      return "/client/dashboard";
-    case "ADMIN":
-      return "/admin/dashboard";
-    default:
-      return "/";
-  }
-}
 
 export const config = {
   matcher: [

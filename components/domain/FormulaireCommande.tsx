@@ -125,7 +125,7 @@ export function FormulaireCommande({
     "w-full px-4 py-3 rounded-xl border border-hairline dark:border-slate-700 bg-white dark:bg-slate-800 text-brand dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand text-sm";
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950 text-brand dark:text-white py-8 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-cream text-ink py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto space-y-6">
         {/* §75 : cette page affiche des montants et n'avait aucun indicateur de
             mode test — elle est la seule page connectée sans en-tête KOLI. */}
@@ -533,7 +533,7 @@ export function FormulaireCommande({
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-4 px-4 rounded-2xl bg-brand hover:bg-brand-strong text-white font-semibold text-xs uppercase tracking-wider shadow-lg shadow-brand/25 hover:scale-[1.02] active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer border border-brand-border/60"
+                className="w-full py-4 px-4 rounded-2xl bg-brand hover:bg-brand-strong text-white font-semibold text-xs uppercase tracking-wider shadow-lg shadow-brand/25 transition-all disabled:opacity-50 flex items-center justify-center gap-2 cursor-pointer border border-brand-border/60"
               >
                 {loading
                   ? "Génération du lien en cours…"

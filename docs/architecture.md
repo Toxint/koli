@@ -789,3 +789,45 @@ Le contrôleur de contraste ne lisait que `background-color`. Un dégradé étan
 ### Accord en nombre
 
 `pluriel()` dans `lib/format.ts` remplace les « 1 vendeur(s) » disséminés dans l'interface. Le français ne met la marque du pluriel qu'à partir de 2 : « 0 commande » s'écrit au singulier, contrairement à l'anglais.
+
+---
+
+## 8 octies. Connexion Google et animation des boutons (21/08/2026)
+
+### Connexion Google (OAuth 2.0 / OpenID Connect)
+
+`lib/auth/google.ts` · `app/api/auth/google/route.ts` · `app/api/auth/google/callback/route.ts`
+
+**Trois protections, toutes obligatoires :**
+
+- **`state`** — jeton aléatoire déposé en cookie httpOnly avant la redirection, recomparé au retour **à durée constante**. Sans lui, un tiers peut forger un lien de rappel et connecter la victime sur *son* compte Google.
+- **PKCE (S256)** — le code d'autorisation ne vaut rien sans le `code_verifier`, qui ne quitte jamais le serveur. Protège si le code fuite par les journaux, l'en-tête `Referer` ou l'historique.
+- **`nonce`** — lie le jeton d'identité à cette demande précise, ce qui interdit de rejouer un jeton obtenu ailleurs.
+
+Le jeton d'identité est obtenu **directement** auprès du point de terminaison de Google, en TLS, authentifié par le secret client : OpenID Connect Core §3.1.3.7 dispense alors de vérifier la signature. Les claims qui restent à contrôler — `iss`, `aud`, `exp`, `nonce` — le sont explicitement ; ce sont eux qui empêchent d'accepter un jeton émis pour une autre application.
+
+**Le rattachement par e-mail exige `email_verified`.** Sans cette condition, il suffirait de créer un compte Google portant l'adresse d'un vendeur KOLI pour prendre la main sur sa boutique. Le lien durable se fait sur le claim `sub`, stable, et non sur l'adresse, qui peut changer de propriétaire.
+
+**Pourquoi une étape supplémentaire à l'inscription** (`/inscription/google`) — Google fournit le nom, l'e-mail et la photo, mais ni le **téléphone** ni le **rôle**. Or le numéro n'est pas un détail administratif chez KOLI : il porte la livraison, le code de réception (§27) et le rattachement des commandes passées en invité (`createOrderAction` relie l'acheteur à un compte par son numéro). Créer le compte sans lui donnerait un utilisateur qui ne verrait jamais ses propres achats. L'identitéYthon validée transite dans un **cookie signé** — déposée en clair, n'importe qui pourrait se déclarer titulaire de n'importe quelle adresse.
+
+**Comptes sans mot de passe** — `User.passwordHash` devient nullable. Deux conséquences traitées :
+
+- `loginAction` répond *« Ce compte se connecte avec Google »* au lieu de *« identifiant ou mot de passe incorrect »*, qui enverrait l'utilisateur essayer indéfiniment un mot de passe inexistant.
+- La page de profil propose de **définir** un premier mot de passe sans exiger l'actuel. Ce n'est pas un relâchement : en définir un n'enlève rien au propriétaire, qui continue d'entrer par Google et ne peut donc pas être mis dehors de cette façon.
+
+**Absence de configuration assumée** — sans `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`, le bouton ne s'affiche pas et le reste fonctionne normalement. Un bouton qui mène à une erreur vaut moins que pas de bouton.
+
+**Défaut trouvé à la vérification** — `/connexion` et `/inscription` étaient **pré-rendues statiquement**. `googleEstConfigure()` lisant des variables d'environnement serveur, la réponse était figée *à la construction* : un déploiement bâti sans identifiants n'aurait jamais affiché le bouton, même après les avoir renseignés en production. Invisible en local, où l'on reconstruit sans arrêt. Corrigé par `export const dynamic = "force-dynamic"` sur les deux pages.
+
+> **Limite à connaître.** Google n'accepte comme adresse de rappel que `localhost`, `127.0.0.1` ou un domaine en **HTTPS**. Une IP de réseau local (`192.168.x.x`, `172.20.x.x`) est refusée : la connexion Google ne fonctionnera donc **pas depuis un téléphone sur le wifi** tant qu'il n'y a pas de nom de domaine. Le reste de l'application, lui, continue de fonctionner sur l'IP locale.
+
+### Animation de tous les boutons
+
+Règle globale dans `globals.css`, hors couche, plutôt que des utilitaires recopiés bouton par bouton : **quatre boutons seulement** portaient une animation, avec des valeurs déjà divergentes entre eux ; les vingt-sept autres ne bougeaient pas. Sur un téléphone d'entrée de gamme, où l'affichage met un instant à suivre, rien ne confirmait alors que l'appui avait été pris en compte — et l'utilisateur appuyait deux fois.
+
+Les sélecteurs d'attribut (`a[class*="rounded"][class*="bg-"]`) visent les liens **stylés en bouton** sans toucher aux liens de texte courant, qui ne doivent pas bouger. Deux précautions :
+
+- `@media (hover: hover)` pour le soulèvement : sur un écran tactile, le survol « colle » après l'appui et le bouton resterait soulevé une fois le doigt parti ;
+- un bouton **désactivé** est exclu — il ne doit pas donner l'impression d'être pressable.
+
+Les animations restent soumises à `prefers-reduced-motion` (§70). Vérifié : 31 boutons inspectés sur trois pages, tous animés, le survol produit bien un déplacement mesurable.

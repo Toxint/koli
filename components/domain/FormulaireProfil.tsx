@@ -14,6 +14,8 @@ export interface ProfilInitial {
   businessName?: string | null;
   vehicle?: string | null;
   city?: string | null;
+  /** Un compte créé via Google n'en a pas encore : il en définit un premier. */
+  aMotDePasse: boolean;
 }
 
 const CHAMP =
@@ -190,7 +192,19 @@ export function FormulaireProfil({ initial }: { initial: ProfilInitial }) {
       </section>
 
       <section className="rounded-2xl border border-hairline p-6">
-        <h2 className="text-lg mb-4">Changer mon mot de passe</h2>
+        <h2 className="text-lg mb-4">
+          {initial.aMotDePasse
+            ? "Changer mon mot de passe"
+            : "Définir un mot de passe"}
+        </h2>
+
+        {!initial.aMotDePasse && (
+          <p className="mb-4 text-xs text-ink-muted">
+            Votre compte se connecte avec Google. En définissant un mot de
+            passe, vous pourrez aussi entrer avec votre numéro de téléphone —
+            utile si vous n&apos;avez pas accès à votre compte Google.
+          </p>
+        )}
 
         {msgMdp && (
           <p
@@ -210,22 +224,24 @@ export function FormulaireProfil({ initial }: { initial: ProfilInitial }) {
         )}
 
         <form action={changerMotDePasse} className="space-y-4">
-          <div>
-            <label
-              htmlFor="actuel"
-              className="block text-xs font-semibold mb-1.5"
-            >
-              Mot de passe actuel
-            </label>
-            <input
-              id="actuel"
-              name="actuel"
-              type="password"
-              required
-              autoComplete="current-password"
-              className={CHAMP}
-            />
-          </div>
+          {initial.aMotDePasse && (
+            <div>
+              <label
+                htmlFor="actuel"
+                className="block text-xs font-semibold mb-1.5"
+              >
+                Mot de passe actuel
+              </label>
+              <input
+                id="actuel"
+                name="actuel"
+                type="password"
+                required
+                autoComplete="current-password"
+                className={CHAMP}
+              />
+            </div>
+          )}
 
           <div>
             <label
@@ -254,7 +270,11 @@ export function FormulaireProfil({ initial }: { initial: ProfilInitial }) {
             disabled={enCoursMdp}
             className="min-h-[48px] px-6 rounded-2xl border border-brand text-brand hover:bg-brand-soft font-semibold text-sm transition-colors disabled:opacity-50"
           >
-            {enCoursMdp ? "Modification…" : "Modifier le mot de passe"}
+            {enCoursMdp
+              ? "Enregistrement…"
+              : initial.aMotDePasse
+                ? "Modifier le mot de passe"
+                : "Définir mon mot de passe"}
           </button>
         </form>
       </section>

@@ -39,6 +39,9 @@ export default async function ProfilPage() {
             phone: user.phone,
             email: user.email ?? "",
             role: user.role,
+            // Un compte cree via Google n'a pas de mot de passe : le formulaire
+            // propose alors d'en definir un premier plutot que d'en changer.
+            aMotDePasse: user.passwordHash !== null,
             ...(user.sellerProfile
               ? { businessName: user.sellerProfile.businessName }
               : {}),

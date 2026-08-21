@@ -84,7 +84,7 @@ export function ValidateOtpModal({
       <button
         type="button"
         onClick={handleOpen}
-        className="w-full sm:w-auto min-h-[48px] px-4 rounded-xl bg-brand hover:bg-brand-strong text-white font-semibold text-xs uppercase tracking-wider shadow-md shadow-brand/25 hover:shadow-brand/40 active:scale-[0.98] transition-all flex items-center justify-center gap-2 border border-brand-border/50 cursor-pointer"
+        className="w-full sm:w-auto min-h-[48px] px-4 rounded-xl bg-brand hover:bg-brand-strong text-white font-semibold text-xs uppercase tracking-wider shadow-md shadow-brand/25 hover:shadow-brand/40 transition-all flex items-center justify-center gap-2 border border-brand-border/50 cursor-pointer"
       >
         <span className="text-sm">🔑</span>
         <span>Valider la Livraison (Code OTP)</span>

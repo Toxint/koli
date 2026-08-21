@@ -69,7 +69,7 @@ export async function decryptSession(token: string): Promise<SessionPayload | nu
  *
  * On se fie donc au protocole reellement servi, declare dans NEXT_PUBLIC_APP_URL.
  */
-function cookieSecurise(): boolean {
+export function cookieSecurise(): boolean {
   return (process.env.NEXT_PUBLIC_APP_URL ?? "").startsWith("https://");
 }
 

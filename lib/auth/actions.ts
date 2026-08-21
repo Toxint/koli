@@ -6,6 +6,7 @@ import { hashPassword, verifyPassword } from "@/lib/auth/password";
 import { createSessionCookie, deleteSessionCookie, getSession } from "@/lib/auth/session";
 import { loginSchema, registerSchema } from "@/lib/auth/schemas";
 import { UserRole } from "@prisma/client";
+import { espaceParDefaut } from "@/lib/auth/dashboards";
 
 export interface ActionResponse {
   success: boolean;
@@ -95,6 +96,18 @@ export async function loginAction(
     };
   }
 
+  // Compte créé via Google : il n'a pas de mot de passe. Répondre
+  // « identifiant ou mot de passe incorrect » enverrait l'utilisateur essayer
+  // indéfiniment un mot de passe qui n'existe pas. On le dit, et cela ne
+  // divulgue rien qu'un clic sur « Continuer avec Google » ne révélerait.
+  if (!user.passwordHash) {
+    return {
+      success: false,
+      error:
+        "Ce compte se connecte avec Google. Utilisez le bouton « Continuer avec Google ».",
+    };
+  }
+
   const passwordValid = await verifyPassword(password, user.passwordHash);
   if (!passwordValid) {
     const tentatives = user.failedLoginAttempts + 1;
@@ -143,7 +156,7 @@ export async function loginAction(
     driverId: user.driverProfile?.id,
   });
 
-  const redirectTo = getDefaultDashboard(user.role);
+  const redirectTo = espaceParDefaut(user.role);
   return { success: true, redirectTo };
 }
 
@@ -245,7 +258,7 @@ export async function registerAction(
     driverId: user.driverProfile?.id,
   });
 
-  const redirectTo = getDefaultDashboard(user.role);
+  const redirectTo = espaceParDefaut(user.role);
   return { success: true, redirectTo };
 }
 
@@ -270,17 +283,3 @@ export async function getCurrentUser() {
   return user;
 }
 
-function getDefaultDashboard(role: UserRole): string {
-  switch (role) {
-    case "SELLER":
-      return "/vendeur/dashboard";
-    case "DRIVER":
-      return "/livreur/dashboard";
-    case "CLIENT":
-      return "/client/dashboard";
-    case "ADMIN":
-      return "/admin/dashboard";
-    default:
-      return "/";
-  }
-}

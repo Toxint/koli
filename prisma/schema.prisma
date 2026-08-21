@@ -135,8 +135,15 @@ model User {
   name         String
   phone        String     @unique
   email        String?    @unique
-  passwordHash String
+  // Nullable : un compte cree via Google n'a pas de mot de passe. Le laisser
+  // obligatoire aurait force a stocker un faux hachage, indistinguable d'un
+  // vrai mot de passe pour le reste du code.
+  passwordHash String?
   photoUrl     String?
+
+  // Identifiant Google stable (claim `sub`). C'est LUI qui lie le compte, et
+  // non l'e-mail : une adresse peut changer de proprietaire, `sub` non.
+  googleId     String?     @unique
   status       UserStatus @default(ACTIVE)
 
   // Limitation des tentatives de connexion (§47). La contrainte existait pour
