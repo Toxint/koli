@@ -193,10 +193,15 @@ label[class*="rounded"][class*="border"] {
 
 /* `hover: hover` : sur un ecran tactile, le survol « colle » apres l'appui et
    le bouton resterait souleve une fois le doigt parti. */
+/* Les appels a l'action sont exclus ici : ils ont leur propre soulevement,
+   plus marque, defini plus bas. Sans cette exclusion les deux regles se
+   disputaient le meme bouton, et c'est la plus specifique qui l'emportait —
+   `a[class*="rounded"][class*="bg-"]:hover` compte deux selecteurs d'attribut
+   contre un seul pour la regle des CTA, qui restait donc sans effet. */
 @media (hover: hover) {
-  button:not(:disabled):hover,
-  a[class*="rounded"][class*="bg-"]:hover,
-  a[class*="rounded"][class*="border"]:hover,
+  button:not(:disabled):not([class~="bg-brand"]):not([class~="bg-brand-strong"]):not([class~="bg-brand-accent"]):hover,
+  a[class*="rounded"][class*="bg-"]:not([class~="bg-brand"]):not([class~="bg-brand-strong"]):not([class~="bg-brand-accent"]):hover,
+  a[class*="rounded"][class*="border"]:not([class~="bg-brand"]):not([class~="bg-brand-strong"]):not([class~="bg-brand-accent"]):hover,
   label[class*="rounded"][class*="border"]:hover {
     transform: translateY(-1px);
   }
@@ -207,6 +212,112 @@ a[class*="rounded"][class*="bg-"]:active,
 a[class*="rounded"][class*="border"]:active,
 label[class*="rounded"][class*="border"]:active {
   transform: translateY(0) scale(0.97);
+}
+
+/**
+ * Appels a l'action — mouvement et ombre portee.
+ *
+ * `[class~="bg-brand"]` et non `[class*="bg-brand"]` : le premier compare des
+ * MOTS de la liste de classes, le second ferait aussi correspondre
+ * `bg-brand-soft`, qui est une pastille claire et surement pas un appel a
+ * l'action. La nuance decide quels boutons recoivent ce traitement.
+ *
+ * Selecteurs ecrits en toutes lettres et NON avec `:where()` : ce dernier
+ * annule la specificite, si bien que la regle generique des boutons
+ * (`button:not(:disabled):hover`, plus specifique) l'emportait et le CTA ne se
+ * soulevait que d'un pixel au lieu de deux.
+ *
+ * L'ombre est teintee de la marque, pas grise : une ombre neutre sous un
+ * bouton bordeaux donne un rendu sale.
+ *
+ * Le reflet (`::after`) balaie le bouton au survol. Animation DECLENCHEE et
+ * non perpetuelle : une boucle infinie sur chaque appel a l'action userait la
+ * batterie des telephones d'entree de gamme vises (§70).
+ */
+button[class~="bg-brand"],
+a[class~="bg-brand"],
+button[class~="bg-brand-strong"],
+a[class~="bg-brand-strong"],
+button[class~="bg-brand-accent"],
+a[class~="bg-brand-accent"] {
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 14px -6px color-mix(in srgb, var(--color-brand) 55%, transparent);
+}
+
+button[class~="bg-brand"]::after,
+a[class~="bg-brand"]::after,
+button[class~="bg-brand-strong"]::after,
+a[class~="bg-brand-strong"]::after,
+button[class~="bg-brand-accent"]::after,
+a[class~="bg-brand-accent"]::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    100deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.22) 50%,
+    transparent 70%
+  );
+  transform: translateX(-120%);
+  transition: transform 620ms cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+@media (hover: hover) {
+  button[class~="bg-brand"]:hover,
+  a[class~="bg-brand"]:hover,
+  button[class~="bg-brand-strong"]:hover,
+  a[class~="bg-brand-strong"]:hover,
+  button[class~="bg-brand-accent"]:hover,
+  a[class~="bg-brand-accent"]:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 22px -8px
+      color-mix(in srgb, var(--color-brand) 65%, transparent);
+  }
+
+  button[class~="bg-brand"]:hover::after,
+  a[class~="bg-brand"]:hover::after,
+  button[class~="bg-brand-strong"]:hover::after,
+  a[class~="bg-brand-strong"]:hover::after,
+  button[class~="bg-brand-accent"]:hover::after,
+  a[class~="bg-brand-accent"]:hover::after {
+    transform: translateX(120%);
+  }
+}
+
+/* A l'appui, l'ombre se resserre : le bouton parait s'enfoncer vers la page. */
+button[class~="bg-brand"]:active,
+a[class~="bg-brand"]:active,
+button[class~="bg-brand-strong"]:active,
+a[class~="bg-brand-strong"]:active,
+button[class~="bg-brand-accent"]:active,
+a[class~="bg-brand-accent"]:active {
+  box-shadow: 0 2px 6px -3px color-mix(in srgb, var(--color-brand) 60%, transparent);
+}
+
+/**
+ * Petits boutons secondaires — contour fin de la marque.
+ *
+ * Beaucoup n'avaient AUCUNE limite : un libelle bordeaux pose sur du blanc,
+ * sans rien qui indique la zone cliquable. Sur un telephone, ou l'on vise au
+ * doigt, la cible etait invisible tant qu'on ne l'avait pas touchee.
+ *
+ * On ne vise que les boutons sans fond et les pastilles a fond doux : un
+ * contour bordeaux sur le vert WhatsApp ou sur le rouge d'une action
+ * destructrice jurerait.
+ */
+:where(button, a)[class*="rounded"]:not([class*="bg-"]),
+:where(button, a)[class*="rounded"][class~="bg-brand-soft"],
+:where(button, a)[class*="rounded"][class~="bg-test-mode-surface"] {
+  border: 1px solid color-mix(in srgb, var(--color-brand) 20%, transparent);
+}
+
+/* Le menu lateral est sombre : un contour bordeaux y serait invisible, et la
+   liste des entrees a deja son propre langage visuel. */
+[data-menu-koli] :where(button, a) {
+  border-color: transparent;
 }
 
 /**

@@ -851,3 +851,28 @@ Le formulaire de création de commande était d'un seul tenant : douze champs su
 ### Point de reprise
 
 Phase 6 (catalogue), §34-36 (console d'administration), refonte visuelle, connexion Google et §18 (assistant en 5 étapes) sont terminés. Prochaine cible recommandée : **§28 — affichage des preuves de livraison**, aujourd'hui enregistrées mais jamais montrées, puis **§38 — facture après paiement**, dont le champ e-mail client vient d'être posé.
+
+---
+
+## 8 decies. Appels à l'action et petits boutons (21/08/2026)
+
+**Contours** — `--color-hairline` passe d'un gris froid à un bordeaux très dilué. Le gris disparaissait sur la crème : les blocs flottaient sans limite lisible. Teinter le **jeton** plutôt que chaque carte donne un contour cohérent dans toute l'application sans toucher au balisage.
+
+`.carte-koli` : contour à 12 % de la marque, qui se densifie à 38 % au survol avec une ombre teintée de la même couleur et un soulèvement de 3 px. `color-mix` plutôt qu'une couleur figée, pour que le contour suive `--color-brand` si l'identité évolue.
+
+**Appels à l'action** — ombre portée teintée de la marque au repos, qui s'accentue au survol ; soulèvement de 2 px ; un reflet balaie le bouton. L'ombre est bordeaux et non grise : une ombre neutre sous un bouton bordeaux donne un rendu sale. Le reflet est une animation **déclenchée** et non perpétuelle — une boucle infinie sur chaque CTA userait la batterie des téléphones d'entrée de gamme visés (§70).
+
+**Petits boutons** — beaucoup n'avaient **aucune** limite : un libellé bordeaux posé sur du blanc, sans rien qui indique la zone cliquable. Sur un téléphone, où l'on vise au doigt, la cible était invisible tant qu'on ne l'avait pas touchée. Seuls les boutons sans fond et les pastilles à fond doux sont visés : un contour bordeaux sur le vert WhatsApp ou sur le rouge d'une action destructrice jurerait.
+
+### Deux pièges de spécificité rencontrés — et la leçon
+
+Le CTA ne se soulevait que d'**un** pixel au lieu de deux, deux fois de suite :
+
+1. `:where(button, a)[class~="bg-brand"]:hover` — `:where()` **annule la spécificité** de son contenu. La règle valait (0,2,0) contre (0,2,1) pour `button:not(:disabled):hover`, qui l'emportait.
+2. Après avoir écrit les sélecteurs en toutes lettres — (0,2,1) — la règle générique des **liens** l'emportait encore : `a[class*="rounded"][class*="bg-"]:hover` compte **deux** sélecteurs d'attribut, soit (0,3,1).
+
+**La correction n'a pas été de surenchérir** en spécificité, ce qui aurait relancé la course au premier ajout suivant, mais d'**exclure** les appels à l'action de la règle générique. Chaque bouton relève désormais d'une seule règle de soulèvement, et l'intention est lisible dans le sélecteur.
+
+C'est le troisième piège de cascade de ce projet, après les deux de `@layer` notés au §8 ter. La règle qui s'en dégage : **quand deux règles se disputent la même propriété sur le même élément, on en supprime une, on n'ajoute pas de poids à l'autre.**
+
+Vérifié en mesurant les styles calculés : ombre présente au repos et accentuée au survol, `translateY(-2px)`, reflet passant de −120 % à +120 %, et 23 petits boutons contournés sur trois pages.
