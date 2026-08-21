@@ -70,7 +70,17 @@ async function main() {
   );
   await selecteurProduit.selectOption(optionProduit);
   await vendeur.locator("#quantity").fill("1");
-  await vendeur.locator("#deliveryFee").fill("2000");
+
+  const continuer = () =>
+    vendeur
+      .getByRole("button", { name: /Continuer/i })
+      .filter({ visible: true })
+      .first()
+      .click();
+
+  // Les cinq etapes du §18 : produit, client, livraison, resume, creation.
+  await continuer();
+  await vendeur.waitForTimeout(500);
 
   await vendeur.locator("#buyerName").fill("Awa Koné");
   // Le telephone du compte client de demonstration : la commande doit se
@@ -78,9 +88,16 @@ async function main() {
   await vendeur.locator("#buyerPhone").fill("+2250505050505");
   await vendeur.locator("#buyerCity").fill("Abidjan");
   await vendeur.locator("#buyerAddress").fill("Cocody Angré 8e Tranche");
+  await continuer();
+  await vendeur.waitForTimeout(500);
+
+  await vendeur.locator("#deliveryFee").fill("2000");
   await vendeur.locator("#buyerLandmark").fill("En face de la pharmacie");
+  await continuer();
+  await vendeur.waitForTimeout(500);
+
   await vendeur
-    .getByRole("button", { name: /Générer le lien de paiement/i })
+    .getByRole("button", { name: /Créer la commande/i })
     .filter({ visible: true })
     .first()
     .click();

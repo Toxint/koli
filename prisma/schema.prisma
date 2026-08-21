@@ -234,6 +234,10 @@ model Order {
 
   buyerName     String
   buyerPhone    String
+  // Etape 2 du formulaire de commande : e-mail facultatif du client. Servira a
+  // lui transmettre la facture ; le telephone reste l'identifiant, l'e-mail
+  // n'etant pas repandu dans le public vise.
+  buyerEmail    String?
   buyerCountry  String
   buyerCity     String
   buyerAddress  String

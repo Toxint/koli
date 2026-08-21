@@ -162,13 +162,24 @@ if (await optionRupture.count()) {
 }
 
 // -------------------------------------- 5. Commande, puis decompte au paiement
+// Le formulaire suit desormais les cinq etapes du §18 : produit, client,
+// livraison, resume, creation.
 await page.locator("#quantity").fill("2");
-await page.locator("#deliveryFee").fill("1000");
+await bouton(page, /Continuer/i).click();
+await page.waitForTimeout(500);
+
 await page.locator("#buyerName").fill("Awa Koné");
 await page.locator("#buyerPhone").fill("+2250505050505");
 await page.locator("#buyerCity").fill("Abidjan");
 await page.locator("#buyerAddress").fill("Cocody Angré");
-await bouton(page, /Générer le lien de paiement/i).click();
+await bouton(page, /Continuer/i).click();
+await page.waitForTimeout(500);
+
+await page.locator("#deliveryFee").fill("1000");
+await bouton(page, /Continuer/i).click();
+await page.waitForTimeout(500);
+
+await bouton(page, /Créer la commande/i).click();
 await page.waitForTimeout(4000);
 
 texte = await page.evaluate(() => document.body.innerText);

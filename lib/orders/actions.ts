@@ -17,6 +17,9 @@ const orderSchema = z.object({
   buyerCity: z.string().min(2, "La ville est requise"),
   buyerAddress: z.string().min(3, "L'adresse de livraison est requise"),
   buyerLandmark: z.string().optional(),
+  // Facultatif : la plupart des acheteurs n'en ont pas. Chaine vide toleree,
+  // le champ etant optionnel dans le formulaire.
+  buyerEmail: z.string().email("Email du client invalide").optional().or(z.literal("")),
   // Montants en FCFA : entiers obligatoires, la base les stocke en Int.
   // Sans `.int()`, une saisie comme 1500.7 passait la validation et faisait
   // echouer Prisma a l'ecriture.
@@ -42,6 +45,7 @@ export async function createOrderAction(formData: FormData) {
     buyerCity: formData.get("buyerCity") as string,
     buyerAddress: formData.get("buyerAddress") as string,
     buyerLandmark: formData.get("buyerLandmark") as string || undefined,
+    buyerEmail: (formData.get("buyerEmail") as string) || undefined,
     deliveryFee: formData.get("deliveryFee") as string,
     productId: (formData.get("productId") as string) || undefined,
     productName: formData.get("productName") as string,
@@ -165,6 +169,7 @@ export async function createOrderAction(formData: FormData) {
       buyerCity: data.buyerCity,
       buyerAddress: data.buyerAddress,
       buyerLandmark: data.buyerLandmark,
+      buyerEmail: data.buyerEmail ? data.buyerEmail.toLowerCase() : null,
       deliveryFee: data.deliveryFee,
       currency: deviseDuPays(data.buyerCountry),
       status: OrderStatus.PAYMENT_PENDING,

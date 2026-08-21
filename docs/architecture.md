@@ -831,3 +831,23 @@ Les sélecteurs d'attribut (`a[class*="rounded"][class*="bg-"]`) visent les lien
 - un bouton **désactivé** est exclu — il ne doit pas donner l'impression d'être pressable.
 
 Les animations restent soumises à `prefers-reduced-motion` (§70). Vérifié : 31 boutons inspectés sur trois pages, tous animés, le survol produit bien un déplacement mesurable.
+
+---
+
+## 8 nonies. §18 — assistant de commande en 5 étapes (21/08/2026)
+
+Le formulaire de création de commande était d'un seul tenant : douze champs sur une page. Le §18 en prescrit cinq étapes — produit, client, livraison, résumé, création.
+
+**Ce que le découpage apporte concrètement** — la validation a lieu **à chaque étape**. Auparavant le vendeur saisissait tout, cliquait, et découvrait alors seulement que le numéro du client était invalide. Désormais il l'apprend à l'étape 2, avant d'avoir saisi la suite.
+
+**Le contrôle est rejoué avant la création.** Revenir en arrière depuis le résumé, vider un champ puis relancer contournerait autrement la validation : `creer()` repasse les étapes 1 à 3 et renvoie à la première fautive. Ce n'est pas une redondance décorative, c'est le seul filet quand la navigation est libre.
+
+**`Order.buyerEmail`** — le §18 étape 2 demande un e-mail client facultatif, absent du schéma. Colonne optionnelle ajoutée ; le téléphone reste l'identifiant, l'e-mail n'étant pas répandu dans le public visé. Il servira à transmettre la facture (§38).
+
+**Fil d'étapes** — barres et non libellés côte à côte : à 320px, cinq libellés ne tiennent pas et se chevauchaient. Le libellé de l'étape courante est affiché seul en dessous, en `aria-hidden` — la liste porte déjà l'information complète pour les lecteurs d'écran, et sans cela la progression serait annoncée deux fois.
+
+**Défaut de méthode rencontré** — le test lisait l'étape courante avec `/Étape (\d) sur 5/` sur `document.body.innerText`. Or les libellés destinés aux lecteurs d'écran énumèrent les cinq étapes : la première correspondance renvoyait toujours « 1 ». Neuf assertions échouaient alors que l'application était correcte, pendant que les assertions de contenu (total, valeurs conservées) passaient — c'est cette contradiction qui a mis sur la piste. Le détecteur cible désormais le tiret cadratin de la ligne visible.
+
+### Point de reprise
+
+Phase 6 (catalogue), §34-36 (console d'administration), refonte visuelle, connexion Google et §18 (assistant en 5 étapes) sont terminés. Prochaine cible recommandée : **§28 — affichage des preuves de livraison**, aujourd'hui enregistrées mais jamais montrées, puis **§38 — facture après paiement**, dont le champ e-mail client vient d'être posé.
