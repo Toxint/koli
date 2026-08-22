@@ -224,6 +224,32 @@ async function main() {
     !/Commande terminée/.test(avantConfirmation),
     "les fonds ne sont PAS encore liberes"
   );
+
+  // §28 : la preuve etait ecrite en base depuis la premiere livraison sans
+  // jamais etre montree. Une preuve que personne ne peut consulter ne prouve
+  // rien.
+  const texteClient = await client.evaluate(() => document.body.innerText);
+  verifier(
+    /Preuve de livraison/i.test(texteClient),
+    "la preuve de livraison est affichee au client (§28)"
+  );
+  verifier(
+    new RegExp(`\\b${codeOtp}\\b`).test(texteClient),
+    "elle porte le code de reception effectivement remis"
+  );
+  verifier(
+    /Kouassi Express|Livreur/i.test(texteClient),
+    "elle nomme le livreur"
+  );
+
+  await vendeur.goto(`${BASE}/vendeur/commandes?q=${reference}`, {
+    waitUntil: "networkidle",
+  });
+  const texteVendeur = await vendeur.evaluate(() => document.body.innerText);
+  verifier(
+    /Remis le/i.test(texteVendeur),
+    "le vendeur constate lui aussi la remise depuis ses commandes"
+  );
   console.log("");
 
   // ------------------------------------------------------- 7. Confirmation

@@ -1,6 +1,8 @@
 import { prisma } from "@/lib/db/prisma";
 import { getCurrentUser } from "@/lib/auth/actions";
 import { PayFlow } from "./pay-flow";
+import { chargerPreuveLivraison } from "@/lib/deliveries/preuve";
+import { PreuveLivraison } from "@/components/domain/PreuveLivraison";
 
 export default async function PayReferencePage({
   params,
@@ -62,6 +64,12 @@ export default async function PayReferencePage({
       })),
     };
 
+    // §28 : la preuve existait en base depuis la premiere livraison, sans
+    // jamais etre montree a personne. Elle est visible par quiconque detient
+    // le lien — client, vendeur, livreur : c'est ce qui en fait une preuve
+    // opposable, et elle ne revele rien qu'un code deja consomme.
+    const preuve = await chargerPreuveLivraison(dbOrder.id);
+
     return (
       <main className="min-h-screen bg-cream">
         <PayFlow
@@ -69,6 +77,12 @@ export default async function PayReferencePage({
           estLeClient={estLeClient}
           codeReception={codeReception}
         />
+
+        {preuve && (
+          <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 pb-10">
+            <PreuveLivraison preuve={preuve} />
+          </div>
+        )}
       </main>
     );
   }

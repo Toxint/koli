@@ -991,3 +991,25 @@ GOOGLE_CLIENT_ID=faux-client.apps.googleusercontent.com GOOGLE_CLIENT_SECRET=fau
   GOOGLE_ISSUER=http://127.0.0.1:4545 npx next dev
 npm run verif:google-complet
 ```
+
+---
+
+## 8 quaterdecies. §28 — la preuve de livraison, enfin visible (22/08/2026)
+
+`DeliveryProof` était écrite à **chaque** validation de code depuis la première livraison, et n'apparaissait **nulle part** : ni le client, ni le vendeur, ni l'administration ne pouvaient constater la remise. Une preuve que personne ne peut consulter ne prouve rien.
+
+**Contenu (§28, V1)** — code de réception, date et heure, livreur et son véhicule. Les champs `signatureUrl`, `photoUrl`, `latitude` et `longitude` existent en base ; tant qu'ils ne sont pas collectés, l'interface **le dit** plutôt que de laisser croire à une preuve plus complète qu'elle ne l'est.
+
+**Où elle s'affiche** — en entier sur `/pay/<référence>`, la page que le client suit ; en une ligne sur chaque commande du vendeur.
+
+**Le code affiché est celui qui a été consommé.** C'est précisément ce qui fait la preuve : seul le client le détenait (§27), et sa saisie par le livreur atteste la remise en main propre. Un code consommé n'ouvre plus rien — le montrer ne confère aucun pouvoir, alors qu'il rend la remise opposable.
+
+Le parcours complet passe de 17 à **21 vérifications** : la preuve est affichée au client, elle porte le code réellement remis, elle nomme le livreur, et le vendeur la constate depuis ses commandes.
+
+## 8 quindecies. Contrôle des identifiants Google (22/08/2026)
+
+`scripts/verifier-google.mjs` (`npm run google:verifier`) dit **immédiatement** si le collage dans `.env` est bon, au lieu de le laisser découvrir au premier clic. Il vérifie la forme de l'identifiant, que le secret n'est pas une copie de l'identifiant, puis **interroge Google** : c'est Google qui dit s'il connaît ce client.
+
+**Une première version mentait.** Elle cherchait « invalid_client » dans le corps d'une réponse non suivie — corps qui ne contient qu'un « Moved Temporarily » de 462 octets. Elle déclarait donc valide un identifiant manifestement faux. Google ne met pas le motif dans le corps : il redirige vers `/signin/oauth/error` en plaçant l'erreur, encodée en base64url, dans le paramètre `authError`. C'est là qu'il faut la lire.
+
+Le défaut a été trouvé en testant l'outil **contre un identifiant que l'on savait faux** — un contrôle qui rassure à tort est pire que pas de contrôle du tout.

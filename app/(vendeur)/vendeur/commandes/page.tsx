@@ -10,6 +10,7 @@ import { formatCFA, pluriel } from "@/lib/format";
 import { libelleStatut, classesBadgeStatut } from "@/lib/orders/statusLabels";
 import { listAvailableDriversAction } from "@/lib/deliveries/assign";
 import { AssignerLivreur } from "@/components/domain/AssignerLivreur";
+import { PreuveLivraison } from "@/components/domain/PreuveLivraison";
 import Link from "next/link";
 
 const PAR_PAGE = 20;
@@ -52,7 +53,11 @@ export default async function SellerOrdersPage({
         // Volontairement PAS d'`otpCodes` : le code de reception n'appartient
         // qu'au client (§27). Il etait charge ici sans jamais etre affiche, ce
         // qui le faisait transiter dans la charge utile envoyee au vendeur.
-        delivery: { include: { driver: { include: { user: true } } } },
+        // `proof` : la preuve de livraison (§28) etait ecrite en base depuis
+        // la premiere remise sans jamais etre montree au vendeur.
+        delivery: {
+          include: { driver: { include: { user: true } }, proof: true },
+        },
         fund: true,
       },
       orderBy: { createdAt: "desc" },
@@ -165,6 +170,28 @@ export default async function SellerOrdersPage({
                       <p className="text-xs text-ink-muted">
                         {order.buyerAddress}, {order.buyerCity}
                       </p>
+
+                      {/* §28 : la preuve de la remise, sous forme courte. Le
+                          vendeur n'avait jusqu'ici aucun moyen de constater
+                          que son colis avait bien ete remis en main propre. */}
+                      {order.delivery?.proof && (
+                        <div className="mt-2 rounded-xl bg-brand-soft/50 border border-brand-border px-3 py-2">
+                          <PreuveLivraison
+                            compact
+                            preuve={{
+                              code: order.delivery.proof.otpCode,
+                              date: order.delivery.proof.confirmedAt,
+                              livreur:
+                                order.delivery.driver?.user.name ?? null,
+                              vehicule: order.delivery.driver?.vehicle ?? null,
+                              signatureUrl: order.delivery.proof.signatureUrl,
+                              photoUrl: order.delivery.proof.photoUrl,
+                              latitude: order.delivery.proof.latitude,
+                              longitude: order.delivery.proof.longitude,
+                            }}
+                          />
+                        </div>
+                      )}
 
                       {/* §26 : l'assignation d'un livreur est un acte explicite
                           du vendeur. Sans elle, la commande n'apparaissait dans
