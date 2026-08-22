@@ -911,3 +911,32 @@ C'est la même leçon qu'au §8 decies, transposée : quand deux couches se pron
 ### Diagnostic — ce qui a fait perdre du temps
 
 Trois hypothèses ont été formulées et **écartées par la mesure** avant la bonne : rendu serveur en échec (la page répondait 200 avec 804 caractères), fichiers JavaScript périmés après reconstruction (simulé en renvoyant 404 sur `/_next/**` : Next se rattrape), et redirection cassée au préchargement RSC (les requêtes `?_rsc=` abandonnées étaient une conséquence, pas la cause). La piste utile est venue du contexte : le compte de l'utilisateur avait été créé **avant** un rejeu du seed.
+
+---
+
+## 8 duodecies. Connexion Google — bouton invisible et origine de rappel (22/08/2026)
+
+Deux défauts distincts, dont un seul était visible.
+
+### 1. Le bouton disparaissait sans un mot
+
+Le composant renvoyait `null` tant que `GOOGLE_CLIENT_ID` et `GOOGLE_CLIENT_SECRET` n'étaient pas renseignés, sous prétexte qu'« un bouton menant à une erreur vaut moins que pas de bouton ». Le raisonnement se tenait pour un visiteur ; il était mauvais pour la personne qui pilote le produit : la fonction demandée s'évaporait, et rien à l'écran ne permettait de comprendre pourquoi.
+
+Le bouton s'affiche désormais **toujours**. Sans configuration, une mention le dit sous le bouton et le clic mène à un message qui nomme les deux variables à renseigner.
+
+### 2. L'origine de rappel — le défaut qui aurait tout cassé ensuite
+
+`NEXT_PUBLIC_APP_URL` valait `http://localhost:3000` alors que l'application se visite en `http://127.0.0.1:3000` et `http://172.20.10.7:3000`. L'adresse de rappel envoyée à Google était donc **toujours** `localhost`, quelle que soit l'origine visitée.
+
+Pour le navigateur, `127.0.0.1` et `localhost` sont **deux sites distincts**. Google aurait renvoyé l'utilisateur sur le second alors que les cookies `state`, `nonce` et vérifieur avaient été déposés sur le premier : ils ne seraient pas revenus, la vérification aurait échoué, et la connexion aurait raté **à tous les coups**. Le même piège frappait les redirections du callback, y compris celle qui suit une connexion réussie — l'utilisateur serait reparti déconnecté.
+
+L'adresse de rappel suit désormais l'origine réellement demandée. Deux précisions :
+
+- **`nextUrl.origin` ne convient pas** : il reflète l'adresse d'écoute du serveur, pas l'hôte saisi par le visiteur. Lancé sur `0.0.0.0` et visité en `127.0.0.1`, il renvoyait `localhost`. C'est l'en-tête `Host` (ou `X-Forwarded-Host` derrière un proxy) qui fait foi.
+- **L'en-tête `Host` vient du client**, donc il n'est pas accepté sur parole : `origineDeRappel()` ne laisse passer que les adresses locales de développement et l'origine déclarée en configuration. Tout le reste retombe sur cette dernière. Un test le vérifie avec une origine malveillante.
+
+### Ce qui reste à faire, et que le code ne peut pas faire
+
+Les identifiants OAuth ne peuvent être créés que depuis un compte Google : Google exige une application enregistrée. `.env` contient les deux lignes vides et la marche à suivre. Les URI de redirection à déclarer sont `http://localhost:3000/api/auth/google/callback` **et** `http://127.0.0.1:3000/api/auth/google/callback` — les deux, puisque l'application accepte maintenant l'une comme l'autre.
+
+**Limite inchangée** : Google refuse les adresses IP privées. La connexion Google ne fonctionnera pas depuis un téléphone sur le wifi (`172.20.10.7`) tant qu'il n'y a pas de nom de domaine en HTTPS. Le reste de l'application, lui, continue d'y fonctionner.

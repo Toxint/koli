@@ -5,8 +5,11 @@
  * lien fonctionne même si le script n'a pas encore été exécuté — cas fréquent
  * sur un réseau mobile lent.
  *
- * Le composant ne s'affiche pas si Google n'est pas configuré : proposer un
- * bouton qui mène à une erreur vaut moins que ne rien proposer.
+ * Le bouton s'affiche **toujours**. Il était auparavant masqué tant que les
+ * identifiants n'étaient pas renseignés : la fonction disparaissait alors sans
+ * un mot, et rien ne permettait de comprendre pourquoi. Quand la configuration
+ * manque, une mention le dit et le clic mène à un message qui nomme
+ * précisément ce qu'il reste à faire.
  */
 export function BoutonGoogle({
   configure,
@@ -15,8 +18,6 @@ export function BoutonGoogle({
   configure: boolean;
   libelle?: string;
 }) {
-  if (!configure) return null;
-
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-3">
@@ -55,6 +56,13 @@ export function BoutonGoogle({
         </svg>
         <span>{libelle}</span>
       </a>
+
+      {!configure && (
+        <p className="text-xs text-test-mode text-center">
+          Bouton en place, identifiants Google à renseigner — voir{" "}
+          <code className="font-mono">.env</code>.
+        </p>
+      )}
     </div>
   );
 }

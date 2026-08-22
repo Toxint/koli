@@ -121,7 +121,12 @@ describe("PKCE et URL d'autorisation", () => {
 
   it("transporte state, nonce et défi PKCE, sans jamais le vérifieur", () => {
     const url = new URL(
-      urlAutorisation({ etat: "E", verifieur: "V", nonce: "N" })
+      urlAutorisation({
+        etat: "E",
+        verifieur: "V",
+        nonce: "N",
+        origine: "http://localhost:3000",
+      })
     );
 
     expect(url.searchParams.get("state")).toBe("E");
@@ -130,6 +135,46 @@ describe("PKCE et URL d'autorisation", () => {
     expect(url.searchParams.get("code_challenge")).toBe(defiPkce("V"));
     // Le vérifieur ne doit jamais quitter le serveur : c'est tout l'intérêt.
     expect(url.toString()).not.toContain("code_verifier");
+    expect(url.searchParams.get("redirect_uri")).toBe(
+      "http://localhost:3000/api/auth/google/callback"
+    );
+  });
+
+  /**
+   * L'adresse de rappel doit suivre l'origine VISITEE.
+   *
+   * Avec `NEXT_PUBLIC_APP_URL` en dur, un visiteur venu de 127.0.0.1 etait
+   * renvoye sur localhost : deux sites distincts pour le navigateur, donc les
+   * cookies `state`, `nonce` et verifieur deposes avant le depart ne
+   * revenaient pas, et la connexion echouait systematiquement.
+   */
+  it("renvoie sur l'origine visitee et non sur celle configuree", () => {
+    const url = new URL(
+      urlAutorisation({
+        etat: "E",
+        verifieur: "V",
+        nonce: "N",
+        origine: "http://127.0.0.1:3000",
+      })
+    );
+
+    expect(url.searchParams.get("redirect_uri")).toBe(
+      "http://127.0.0.1:3000/api/auth/google/callback"
+    );
+  });
+
+  it("refuse une origine etrangere et retombe sur la configuration", () => {
+    // L'en-tete `Host` vient du client : l'accepter sans reserve laisserait un
+    // tiers detourner l'adresse de rappel.
+    const url = new URL(
+      urlAutorisation({
+        etat: "E",
+        verifieur: "V",
+        nonce: "N",
+        origine: "https://site-malveillant.example",
+      })
+    );
+
     expect(url.searchParams.get("redirect_uri")).toBe(
       "http://localhost:3000/api/auth/google/callback"
     );

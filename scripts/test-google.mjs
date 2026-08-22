@@ -43,28 +43,33 @@ const page = await ctx.newPage();
 const erreurs = [];
 page.on("pageerror", (e) => erreurs.push(e.message.slice(0, 140)));
 
-// ------------------------------------------- 1. Presence / absence du bouton
+// ------------------------------------------- 1. Le bouton est TOUJOURS la
+// Il etait auparavant masque sans configuration : la fonction disparaissait
+// sans un mot, et rien ne permettait de comprendre pourquoi.
 for (const chemin of ["/connexion", "/inscription"]) {
-  await page.goto(`${BASE}${chemin}`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE}${chemin}`, { waitUntil: "domcontentloaded" });
   const bouton = page
     .getByRole("link", { name: /avec Google/i })
     .filter({ visible: true });
   const nombre = await bouton.count();
 
-  verifier(
-    CONFIGURE ? nombre > 0 : nombre === 0,
-    CONFIGURE
-      ? `${chemin} propose la connexion Google`
-      : `${chemin} n'affiche aucun bouton Google tant qu'il n'est pas configure`,
-    `${nombre} bouton(s)`
-  );
+  verifier(nombre > 0, `${chemin} propose la connexion Google`, `${nombre} bouton(s)`);
 
-  if (CONFIGURE && nombre > 0) {
+  if (nombre > 0) {
     verifier(
       (await bouton.first().getAttribute("href")) === "/api/auth/google",
-      `${chemin} : le bouton part bien vers /api/auth/google`
+      `${chemin} : le bouton part vers /api/auth/google`
     );
   }
+
+  const texte = await page.evaluate(() => document.body.innerText);
+  const mention = /identifiants Google à renseigner/i.test(texte);
+  verifier(
+    CONFIGURE ? !mention : mention,
+    CONFIGURE
+      ? `${chemin} : aucune mention de configuration manquante`
+      : `${chemin} : la mention dit ce qu'il manque`
+  );
 }
 
 // ------------------------------------------------- 2. Depart de la poignee
@@ -97,6 +102,17 @@ for (const chemin of ["/connexion", "/inscription"]) {
     verifier(
       !destination.includes("code_verifier"),
       "le verifieur PKCE ne quitte jamais le serveur"
+    );
+
+    // L'adresse de rappel doit porter l'origine REELLEMENT visitee. Avec
+    // NEXT_PUBLIC_APP_URL en dur, un visiteur de 127.0.0.1 etait renvoye sur
+    // localhost : deux sites distincts pour le navigateur, donc les cookies de
+    // la poignee de main ne revenaient pas et la connexion echouait toujours.
+    verifier(
+      url.searchParams.get("redirect_uri") ===
+        `${BASE}/api/auth/google/callback`,
+      "l'adresse de rappel reste sur l'origine visitee",
+      url.searchParams.get("redirect_uri") ?? ""
     );
 
     const cookies = await ctx.cookies();

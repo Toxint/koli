@@ -25,8 +25,12 @@ export const COOKIE_NONCE = "koli_oauth_nonce";
 export const COOKIE_INSCRIPTION = "koli_google_inscription";
 
 /**
- * La connexion Google n'est proposée que si elle est réellement configurée.
- * Afficher un bouton qui mène à une erreur serait pire que ne rien afficher.
+ * La connexion Google est-elle reellement utilisable ?
+ *
+ * Le bouton s'affiche desormais dans TOUS les cas : le masquer quand la
+ * configuration manque revenait a faire disparaitre la fonction sans rien
+ * dire, et personne ne pouvait deviner pourquoi. Il mene alors a un message
+ * qui nomme precisement ce qu'il reste a faire.
  */
 export function googleEstConfigure(): boolean {
   return Boolean(
@@ -44,8 +48,64 @@ function baseApplication(): string {
   return base.replace(/\/+$/, "");
 }
 
-export function adresseDeRappel(): string {
-  return `${baseApplication()}/api/auth/google/callback`;
+/**
+ * Origine à laquelle Google doit nous renvoyer.
+ *
+ * On part de l'origine RÉELLEMENT visitée, et non de `NEXT_PUBLIC_APP_URL`.
+ * Sans cela, un utilisateur venu de `http://127.0.0.1:3000` était renvoyé sur
+ * `http://localhost:3000` : deux origines distinctes pour le navigateur, donc
+ * les cookies `state`, `nonce` et vérifieur déposés avant le départ n'étaient
+ * pas renvoyés au retour, et la connexion échouait systématiquement.
+ *
+ * L'origine n'est pas acceptée aveuglément — l'en-tête `Host` est fourni par
+ * le client. Seules passent les adresses locales de développement et
+ * l'origine déclarée dans la configuration ; tout le reste retombe sur cette
+ * dernière.
+ */
+export function origineDeRappel(origineVisitee: string | null): string {
+  const configuree = baseApplication();
+  if (!origineVisitee) return configuree;
+
+  try {
+    const u = new URL(origineVisitee);
+    const estLocale = u.hostname === "localhost" || u.hostname === "127.0.0.1";
+    if (estLocale || u.origin === configuree) return u.origin;
+  } catch {
+    // Origine illisible : on s'en tient à la configuration.
+  }
+
+  return configuree;
+}
+
+export function adresseDeRappel(origineVisitee: string | null = null): string {
+  return `${origineDeRappel(origineVisitee)}/api/auth/google/callback`;
+}
+
+/**
+ * Origine réellement demandée par le navigateur.
+ *
+ * `nextUrl.origin` ne convient pas : il reflète l'adresse d'écoute du serveur,
+ * pas l'hôte que le visiteur a saisi. Un serveur lancé sur `0.0.0.0` et visité
+ * en `127.0.0.1` renvoyait ainsi `localhost`, ce qui suffisait à casser toute
+ * la connexion Google.
+ *
+ * `x-forwarded-*` d'abord, pour rester correct derrière un proxy — c'est le
+ * cas en production. Ces en-têtes viennent du client, mais `origineDeRappel()`
+ * les confronte à une liste blanche : rien n'est accepté sur parole.
+ */
+export function origineDemandee(requete: {
+  headers: { get(nom: string): string | null };
+  url: string;
+}): string {
+  const hote =
+    requete.headers.get("x-forwarded-host") ?? requete.headers.get("host");
+  if (!hote) return baseApplication();
+
+  const protocole =
+    requete.headers.get("x-forwarded-proto") ??
+    new URL(requete.url).protocol.replace(":", "");
+
+  return origineDeRappel(`${protocole}://${hote}`);
 }
 
 function base64url(donnees: Buffer): string {
@@ -68,10 +128,11 @@ export function urlAutorisation(options: {
   etat: string;
   verifieur: string;
   nonce: string;
+  origine: string | null;
 }): string {
   const params = new URLSearchParams({
     client_id: process.env.GOOGLE_CLIENT_ID as string,
-    redirect_uri: adresseDeRappel(),
+    redirect_uri: adresseDeRappel(options.origine),
     response_type: "code",
     scope: "openid email profile",
     state: options.etat,
@@ -136,7 +197,8 @@ function lireCharge(idToken: string): ChargeIdToken {
 export async function echangerCodeContreIdentite(
   code: string,
   verifieur: string,
-  nonceAttendu: string
+  nonceAttendu: string,
+  origine: string | null = null
 ): Promise<IdentiteGoogle> {
   const reponse = await fetch(JETON, {
     method: "POST",
@@ -145,7 +207,8 @@ export async function echangerCodeContreIdentite(
       code,
       client_id: process.env.GOOGLE_CLIENT_ID as string,
       client_secret: process.env.GOOGLE_CLIENT_SECRET as string,
-      redirect_uri: adresseDeRappel(),
+      // MEME adresse qu'a l'aller : OAuth 2.0 impose que les deux coincident.
+      redirect_uri: adresseDeRappel(origine),
       grant_type: "authorization_code",
       code_verifier: verifieur,
     }),

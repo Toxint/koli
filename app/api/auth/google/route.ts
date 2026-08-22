@@ -1,10 +1,11 @@
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { cookieSecurise } from "@/lib/auth/session";
 import {
   COOKIE_ETAT,
   COOKIE_NONCE,
   COOKIE_VERIFIEUR,
   googleEstConfigure,
+  origineDemandee,
   jetonAleatoire,
   urlAutorisation,
 } from "@/lib/auth/google";
@@ -19,12 +20,19 @@ const DUREE_ETAT_SECONDES = 10 * 60;
  * l'utilisateur chez Google. Les trois sont revérifiés au retour, dans
  * `callback/route.ts`.
  */
-export async function GET() {
+export async function GET(requete: NextRequest) {
+  const origine = origineDemandee(requete);
+
   if (!googleEstConfigure()) {
+    // On reste sur l'origine visitée : changer d'origine ici perdrait les
+    // cookies de l'utilisateur (voir callback/route.ts).
     return NextResponse.redirect(
       new URL(
-        `/connexion?erreur=${encodeURIComponent("La connexion Google n'est pas configurée sur cette instance.")}`,
-        process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
+        `/connexion?erreur=${encodeURIComponent(
+          "La connexion Google n'est pas encore configurée sur cette instance. " +
+            "Renseignez GOOGLE_CLIENT_ID et GOOGLE_CLIENT_SECRET dans le fichier .env, puis redémarrez."
+        )}`,
+        origine
       )
     );
   }
@@ -34,7 +42,7 @@ export async function GET() {
   const nonce = jetonAleatoire();
 
   const reponse = NextResponse.redirect(
-    urlAutorisation({ etat, verifieur, nonce })
+    urlAutorisation({ etat, verifieur, nonce, origine: origine })
   );
 
   const options = {
