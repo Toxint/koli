@@ -1,4 +1,34 @@
+import { networkInterfaces } from "node:os";
 import type { NextConfig } from "next";
+
+/**
+ * Origines acceptées par le serveur de développement.
+ *
+ * Les adresses du réseau local sont **relevées sur la machine** plutôt
+ * qu'écrites en dur : la première version listait `172.20.10.7`, l'adresse
+ * d'un partage de connexion 4G. Le jour où le poste est repassé en wifi, elle
+ * est devenue `192.168.1.101` et la valeur figée ne servait plus à rien —
+ * silencieusement, comme toujours avec une adresse codée en dur.
+ */
+function originesDeveloppement(): string[] {
+  const origines = new Set(["localhost", "127.0.0.1"]);
+
+  for (const cartes of Object.values(networkInterfaces())) {
+    for (const carte of cartes ?? []) {
+      if (carte.family === "IPv4" && !carte.internal) {
+        origines.add(carte.address);
+      }
+    }
+  }
+
+  // Permet d'en ajouter une à la main (tunnel, nom de domaine de test).
+  for (const extra of (process.env.DEV_ORIGINS ?? "").split(",")) {
+    const valeur = extra.trim();
+    if (valeur) origines.add(valeur);
+  }
+
+  return [...origines];
+}
 
 const nextConfig: NextConfig = {
   // Le document de référence du projet vit dans docs/koli-plan.md (voir
@@ -19,7 +49,7 @@ const nextConfig: NextConfig = {
    *
    * Sans effet sur la production, qui ne passe pas par le serveur de dev.
    */
-  allowedDevOrigins: ["localhost", "127.0.0.1", "172.20.10.7"],
+  allowedDevOrigins: originesDeveloppement(),
 };
 
 export default nextConfig;

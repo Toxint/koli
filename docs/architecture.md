@@ -1013,3 +1013,41 @@ Le parcours complet passe de 17 à **21 vérifications** : la preuve est affich�
 **Une première version mentait.** Elle cherchait « invalid_client » dans le corps d'une réponse non suivie — corps qui ne contient qu'un « Moved Temporarily » de 462 octets. Elle déclarait donc valide un identifiant manifestement faux. Google ne met pas le motif dans le corps : il redirige vers `/signin/oauth/error` en plaçant l'erreur, encodée en base64url, dans le paramètre `authError`. C'est là qu'il faut la lire.
 
 Le défaut a été trouvé en testant l'outil **contre un identifiant que l'on savait faux** — un contrôle qui rassure à tort est pire que pas de contrôle du tout.
+
+---
+
+## 8 sexdecies. §38 — Factures (22/08/2026)
+
+`Invoice` était la dernière table financière jamais alimentée. Elle l'est désormais à l'aboutissement du paiement, **dans la même transaction** : émise après coup, un incident laisserait un encaissement sans pièce correspondante.
+
+### Numérotation — la règle inverse de celle des commandes
+
+| | Référence de commande | Numéro de facture |
+|---|---|---|
+| Forme | `KOLI-7MECGY2D` | `FAC-2026-000001` |
+| Propriété | **non devinable** | **séquentiel, sans trou** |
+| Pourquoi | elle fait office de capacité d'accès au lien de paiement | toute comptabilité doit pouvoir constater qu'aucune pièce ne manque |
+
+Les deux règles s'opposent, et c'est exactement ce qui les rend faciles à confondre lors d'une reprise — d'où `lib/invoices/numero.ts` et ses tests dédiés. Le numéro ne divulgue rien : la facture ne s'atteint que par la référence de la commande, jamais par son numéro.
+
+Le rang est calculé sous transaction ; SQLite sérialisant les écritures, deux paiements simultanés ne peuvent obtenir le même. La contrainte d'unicité sur `number` reste le dernier filet.
+
+**Le total est LU sur `Payment.amount`**, jamais recalculé : c'est le montant réellement réglé qui fait foi sur une facture. Le recalculer ferait diverger la pièce du mouvement financier si un prix changeait ensuite.
+
+### Présentation
+
+`/facture/<référence>` — atteignable comme le lien de paiement, puisque l'achat en mode invité est prévu et que le client doit pouvoir garder son reçu sans ouvrir de compte. Liée depuis le suivi client et depuis chaque commande du vendeur.
+
+**Pas de génération de PDF** : l'impression du navigateur suffit, fonctionne partout et n'ajoute aucune dépendance à télécharger sur un réseau lent. Une feuille de style `@media print` retire la navigation, le décor et le fond crème.
+
+Les douze champs énumérés par le §38 sont vérifiés un par un dans le parcours complet, qui passe de 21 à **35 vérifications**.
+
+### Incohérence corrigée dans le seed
+
+La commande de démonstration était marquée réglée mais n'avait **pas de facture** : le seed écrit la commande directement, sans passer par `simulatePaymentAction` qui l'émet. L'application tenait pourtant cet état pour impossible.
+
+## 8 septdecies. Une adresse IP codée en dur qui a rouillé (22/08/2026)
+
+`allowedDevOrigins` listait `172.20.10.7`, relevée un jour où la machine était en partage de connexion 4G. Repassée en wifi, elle est devenue `192.168.1.101` : la valeur figée ne servait plus à rien, silencieusement.
+
+Les adresses du réseau local sont désormais **relevées sur la machine** (`os.networkInterfaces()`), avec `DEV_ORIGINS` pour en ajouter une à la main. C'est le genre de valeur qui ne doit jamais être écrite en dur : elle change sans prévenir, et son obsolescence ne produit aucun message.

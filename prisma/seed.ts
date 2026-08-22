@@ -2,6 +2,7 @@ import { PrismaClient, UserRole, UserStatus, SellerVerificationStatus, OrderStat
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import bcrypt from "bcryptjs";
 import { generateOrderReference } from "../lib/orders/reference";
+import { formaterNumeroFacture } from "../lib/invoices/numero";
 
 const url = process.env.DATABASE_URL || "file:./prisma/dev.db";
 const adapter = new PrismaBetterSqlite3({ url });
@@ -227,6 +228,13 @@ async function main() {
             ],
           },
         },
+      },
+      // §38 : toute commande reglee a une facture. Le seed ecrit la commande
+      // directement, sans passer par `simulatePaymentAction` qui l'emet : sans
+      // cette ligne, la commande de demonstration etait payee mais sans piece,
+      // ce que le reste de l'application tient pour impossible.
+      invoice: {
+        create: { number: formaterNumeroFacture(new Date().getFullYear(), 1) },
       },
       statusHistory: {
         create: [

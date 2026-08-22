@@ -351,6 +351,40 @@ a[class~="bg-brand-accent"]:active {
   }
 }
 
+/**
+ * Impression — §38, le recu doit pouvoir etre garde.
+ *
+ * Pas de generation de PDF : l'impression du navigateur suffit, fonctionne
+ * partout et n'ajoute aucune dependance a telecharger sur un reseau lent. On
+ * retire seulement ce qui n'a rien a faire sur une piece comptable : les
+ * elements de navigation, le decor, et le fond creme qui gaspillerait de
+ * l'encre.
+ */
+@media print {
+  .imprimer-masquer,
+  aside,
+  header nav {
+    display: none !important;
+  }
+
+  html,
+  body {
+    background: #fff !important;
+  }
+
+  .carte-koli {
+    border-color: #d4d4d4 !important;
+    box-shadow: none !important;
+  }
+
+  /* Une facture coupee au milieu d'une ligne est illisible. */
+  article,
+  li,
+  dl {
+    break-inside: avoid;
+  }
+}
+
 /* §69 : navigation clavier. Aucun element focalisable n'avait d'indicateur. */
 :focus-visible {
   outline: 2px solid var(--color-brand-accent);

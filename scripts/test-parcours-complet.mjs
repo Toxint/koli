@@ -143,7 +143,46 @@ async function main() {
     "le code de reception est affiche au client (§27)"
   );
   verifier(/^\d{4}$/.test(codeOtp ?? ""), "code a 4 chiffres", codeOtp ?? "");
-  console.log(`  → code : ${codeOtp}\n`);
+  console.log(`  → code : ${codeOtp}`);
+
+  // §38 : la facture est emise dans la MEME transaction que le paiement. Emise
+  // apres coup, un incident laisserait un encaissement sans piece.
+  const lienRecu = client.getByRole("link", { name: /Reçu de paiement/i });
+  verifier(
+    (await lienRecu.count()) > 0,
+    "un recu de paiement est emis des que le paiement aboutit (§38)"
+  );
+
+  await lienRecu.first().click();
+  await client.waitForTimeout(2500);
+  const facture = await client.evaluate(() => document.body.innerText);
+
+  verifier(
+    /FAC-\d{4}-\d{6}/.test(facture),
+    "le recu porte un numero sequentiel",
+    facture.match(/FAC-\d{4}-\d{6}/)?.[0] ?? "aucun"
+  );
+
+  // Le §38 enumere ce que la piece doit contenir : on le verifie point par point.
+  for (const [motif, nom] of [
+    [/KOLI/, "KOLI"],
+    [new RegExp(reference), "numero de commande"],
+    [/Émise le|Passée le/i, "date"],
+    [/Boutique Chic/i, "vendeur"],
+    [/Awa Koné/i, "client"],
+    [/Robe Wax/i, "produit"],
+    [/Quantité|Qté/i, "quantite"],
+    [/Prix unitaire/i, "prix"],
+    [/Livraison/i, "livraison"],
+    [/Total réglé/i, "total"],
+    [/Paiement\s*:\s*Réglé/i, "statut du paiement"],
+    [/Commande\s*:/i, "statut de la commande"],
+  ]) {
+    verifier(motif.test(facture), `le §38 exige « ${nom} » : present`);
+  }
+
+  await client.goBack({ waitUntil: "networkidle" });
+  console.log("");
 
   // --------------------------------------------- 3. Le vendeur ne voit pas l'OTP
   console.log("3. Cloisonnement du code de reception");

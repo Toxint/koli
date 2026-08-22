@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { prisma } from "@/lib/db/prisma";
 import { getCurrentUser } from "@/lib/auth/actions";
 import { PayFlow } from "./pay-flow";
@@ -20,6 +21,7 @@ export default async function PayReferencePage({
       seller: { include: { user: true } },
       items: { include: { product: true } },
       payment: true,
+      invoice: true,
       delivery: { include: { otpCodes: true } },
     },
   });
@@ -70,6 +72,9 @@ export default async function PayReferencePage({
     // opposable, et elle ne revele rien qu'un code deja consomme.
     const preuve = await chargerPreuveLivraison(dbOrder.id);
 
+    // §38 : la facture n'existe qu'une fois le paiement abouti.
+    const facture = dbOrder.invoice;
+
     return (
       <main className="min-h-screen bg-cream">
         <PayFlow
@@ -78,9 +83,26 @@ export default async function PayReferencePage({
           codeReception={codeReception}
         />
 
-        {preuve && (
-          <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 pb-10">
-            <PreuveLivraison preuve={preuve} />
+        {(facture || preuve) && (
+          <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 pb-10 space-y-4">
+            {preuve && <PreuveLivraison preuve={preuve} />}
+
+            {facture && (
+              <Link
+                href={`/facture/${dbOrder.reference}`}
+                className="carte-koli bg-white rounded-2xl p-5 flex items-center justify-between gap-4"
+              >
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold">
+                    Reçu de paiement
+                  </span>
+                  <span className="block text-xs text-ink-muted font-mono break-all">
+                    {facture.number}
+                  </span>
+                </span>
+                <span aria-hidden="true" className="text-xl shrink-0">🧾</span>
+              </Link>
+            )}
           </div>
         )}
       </main>

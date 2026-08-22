@@ -6,6 +6,10 @@ import { OrderStatus, PaymentStatus } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { getPaymentProvider } from "@/lib/config/mode";
 import {
+  formaterNumeroFacture,
+  prefixeAnnee,
+} from "@/lib/invoices/numero";
+import {
   assertTransition,
   InvalidOrderTransitionError,
 } from "@/lib/orders/statusMachine";
@@ -177,6 +181,27 @@ export async function simulatePaymentAction(
             data: { quantity: { decrement: item.quantity } },
           });
         }
+
+        // Facture (§38) : emise a l'aboutissement du paiement, dans la MEME
+        // transaction. Emise apres coup, un incident laisserait un paiement
+        // encaisse sans piece correspondante.
+        //
+        // Le numero est sequentiel par annee (attendu de toute comptabilite) et
+        // calcule ici, sous transaction : SQLite serialise les ecritures, deux
+        // paiements simultanes ne peuvent donc pas obtenir le meme rang. La
+        // contrainte d'unicite sur `number` reste le dernier filet.
+        const annee = now.getFullYear();
+        const rang =
+          (await tx.invoice.count({
+            where: { number: { startsWith: prefixeAnnee(annee) } },
+          })) + 1;
+
+        await tx.invoice.create({
+          data: {
+            orderId: order.id,
+            number: formaterNumeroFacture(annee, rang),
+          },
+        });
       }
 
       await tx.order.update({

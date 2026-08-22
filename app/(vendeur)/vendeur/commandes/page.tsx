@@ -50,6 +50,8 @@ export default async function SellerOrdersPage({
       include: {
         items: { include: { product: true } },
         payment: true,
+        // §38 : le vendeur doit pouvoir retrouver la piece de chaque vente.
+        invoice: true,
         // Volontairement PAS d'`otpCodes` : le code de reception n'appartient
         // qu'au client (§27). Il etait charge ici sans jamais etre affiche, ce
         // qui le faisait transiter dans la charge utile envoyee au vendeur.
@@ -214,6 +216,18 @@ export default async function SellerOrdersPage({
                         <span className="text-xs text-ink-muted block">Total</span>
                         <span className="text-base font-semibold">{formatCFA(totalAmount)}</span>
                       </div>
+
+                      {/* §38 : le recu n'existe qu'une fois le paiement
+                          abouti — une commande non reglee n'a pas de piece. */}
+                      {order.invoice && (
+                        <Link
+                          href={`/facture/${order.reference}`}
+                          aria-label={`Reçu de la commande ${order.reference}`}
+                          className="inline-flex items-center justify-center min-h-[44px] px-3 rounded-lg border border-hairline hover:bg-brand-soft/40 text-xs font-bold"
+                        >
+                          Reçu 🧾
+                        </Link>
+                      )}
 
                       <Link
                         href={`/pay/${order.reference}`}
