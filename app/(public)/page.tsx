@@ -1,11 +1,12 @@
 import Link from "next/link";
+import { Icone } from "@/components/ui/Icone";
 
 const etapes = [
   {
     numero: "1",
     titre: "Commandez",
     texte: "Le vendeur vous envoie un lien de paiement KOLI sur WhatsApp, Instagram ou ailleurs.",
-    emoji: "🛍️",
+    icone: "boutique" as const,
     // Progression de teintes qui suit le trajet de l'argent : du bordeaux
     // profond de la commande a l'or du versement final. La couleur porte
     // l'etape, elle ne decore pas.
@@ -15,21 +16,21 @@ const etapes = [
     numero: "2",
     titre: "Payez",
     texte: "Vous réglez via le lien. KOLI conserve le montant : le vendeur n'est pas encore payé.",
-    emoji: "🔒",
+    icone: "cadenas" as const,
     pastille: "bg-brand",
   },
   {
     numero: "3",
     titre: "Recevez",
     texte: "Le livreur vous remet le colis et vous demande votre code de réception.",
-    emoji: "📦",
+    icone: "colis" as const,
     pastille: "bg-brand-accent",
   },
   {
     numero: "4",
     titre: "Validez",
     texte: "Vous confirmez avoir bien reçu votre commande. C'est seulement là que le vendeur est payé.",
-    emoji: "✅",
+    icone: "valide" as const,
     pastille: "bg-gold-deep",
   },
 ];
@@ -41,7 +42,7 @@ export default function AccueilPage() {
     <div className="min-h-screen bg-cream text-brand dark:text-white">
       {/* Bandeau mode test (§75) — visible a toutes les tailles d'ecran */}
       <div className="bg-brand-soft dark:bg-amber-950/70 text-brand dark:text-amber-200 text-center text-xs font-semibold px-4 py-2 border-b border-brand-border/60 dark:border-amber-800">
-        ⚡ KOLI fonctionne actuellement en mode test. Aucun paiement réel n&apos;est effectué.
+        <Icone nom="eclair" className="w-3.5 h-3.5" /> KOLI fonctionne actuellement en mode test. Aucun paiement réel n&apos;est effectué.
       </div>
 
       {/* En-tete (§59) */}
@@ -139,7 +140,7 @@ export default function AccueilPage() {
                       {etape.numero}
                     </span>
                     <span className="text-2xl" aria-hidden="true">
-                      {etape.emoji}
+                      <Icone nom={etape.icone} className="w-6 h-6 text-brand" />
                     </span>
                   </div>
                   <h3 className="font-bold text-lg">{etape.titre}</h3>

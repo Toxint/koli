@@ -5,6 +5,7 @@ import { DashboardNav } from "@/components/ui/DashboardNav";
 import { NAV_ADMIN } from "@/lib/navigation";
 import { formatCFA, pluriel } from "@/lib/format";
 import { libelleStatut, classesBadgeStatut } from "@/lib/orders/statusLabels";
+import { Icone } from "@/components/ui/Icone";
 import {
   chargerStatistiquesAdmin,
   chargerActivitesRecentes,
@@ -150,7 +151,7 @@ export default async function AdminDashboardPage() {
           <div className="flex flex-wrap items-center gap-3 mb-4">
             <h2 className="text-lg font-semibold">Flux financiers</h2>
             <span className="px-3 py-1 rounded-full bg-test-mode-surface text-test-mode text-[11px] font-semibold border border-brand-border/60 whitespace-nowrap">
-              ⚡ Mode test — aucun paiement réel
+              <Icone nom="eclair" className="w-3.5 h-3.5" /> Mode test — aucun paiement réel
             </span>
           </div>
 

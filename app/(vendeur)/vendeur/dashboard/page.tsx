@@ -6,6 +6,7 @@ import { NAV_VENDEUR } from "@/lib/navigation";
 import { formatCFA } from "@/lib/format";
 import { libelleStatut, classesBadgeStatut } from "@/lib/orders/statusLabels";
 import Link from "next/link";
+import { Icone } from "@/components/ui/Icone";
 
 export default async function SellerDashboardPage() {
   const user = await getCurrentUser();
@@ -65,10 +66,10 @@ export default async function SellerDashboardPage() {
 
           <div className="relative z-10">
             <span className="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-white/20 text-white mb-2">
-              🛍️ Espace Vendeur KOLI
+              <Icone nom="boutique" className="w-3.5 h-3.5" /> Espace vendeur KOLI
             </span>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-              Bonjour, {user.sellerProfile.businessName || user.name} 👋
+              Bonjour, {user.sellerProfile.businessName || user.name}
             </h1>
             <p className="text-white/90 text-xs sm:text-sm font-medium mt-1">
               Gérez vos ventes, générez des liens de paiement sécurisés KOLI et suivez vos livraisons.
@@ -156,7 +157,7 @@ export default async function SellerDashboardPage() {
 
           {orders.length === 0 ? (
             <div className="text-center py-12 border-2 border-dashed border-hairline dark:border-slate-800 rounded-xl">
-              <span className="text-4xl block mb-2">📦</span>
+              <Icone nom="colis" className="w-9 h-9 mx-auto mb-2 text-brand" />
               <p className="text-sm font-semibold text-brand dark:text-slate-300">
                 Aucune commande enregistrée pour l&apos;instant
               </p>
@@ -235,7 +236,7 @@ export default async function SellerDashboardPage() {
                         aria-label={`Ouvrir le lien de paiement de la commande ${order.reference}`}
                         className="inline-flex items-center justify-center w-full md:w-auto min-h-[44px] px-3 rounded-lg bg-brand-soft text-brand hover:bg-brand-soft dark:bg-emerald-950/60 dark:text-emerald-300 text-xs font-bold transition-all"
                       >
-                        Partager le lien 🔗
+                        <Icone nom="lien" className="w-4 h-4" /> Partager le lien
                       </Link>
                     </div>
                   </li>

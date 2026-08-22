@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Icone } from "@/components/ui/Icone";
 
 export const metadata: Metadata = {
   title: "Comment ça marche",
@@ -11,28 +12,28 @@ const etapes = [
   {
     numero: "1",
     titre: "Commandez",
-    emoji: "🛍️",
+    icone: "boutique" as const,
     texte:
       "Le vendeur vous envoie un lien de paiement KOLI, sur WhatsApp, Instagram, Facebook ou par SMS. Vous y retrouvez le produit, le prix, les frais de livraison et votre adresse.",
   },
   {
     numero: "2",
     titre: "Payez",
-    emoji: "🔒",
+    icone: "cadenas" as const,
     texte:
       "Vous réglez via le lien. KOLI conserve le montant : le vendeur voit que la commande est payée, mais il ne reçoit pas encore l'argent.",
   },
   {
     numero: "3",
     titre: "Recevez",
-    emoji: "📦",
+    icone: "colis" as const,
     texte:
       "Le vendeur prépare le colis et le confie à un livreur. À la remise, le livreur vous demande le code de réception que vous seul possédez.",
   },
   {
     numero: "4",
     titre: "Validez",
-    emoji: "✅",
+    icone: "valide" as const,
     texte:
       "Vous confirmez avoir bien reçu votre commande. C'est seulement à ce moment-là que le vendeur est payé. Tant que vous n'avez pas validé, l'argent ne bouge pas.",
   },
@@ -68,7 +69,7 @@ export default function CommentCaMarchePage() {
                 {etape.numero}
               </span>
               <span className="text-2xl" aria-hidden="true">
-                {etape.emoji}
+                <Icone nom={etape.icone} className="w-6 h-6 text-brand" />
               </span>
               <h2 className="font-bold text-lg">{etape.titre}</h2>
             </div>

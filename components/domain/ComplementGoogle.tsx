@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { terminerInscriptionGoogleAction } from "@/lib/auth/googleInscription";
+import { Icone } from "@/components/ui/Icone";
 
 const CHAMP =
   "w-full min-h-[48px] px-4 rounded-xl border border-hairline bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand";
@@ -12,19 +13,19 @@ const ROLES = [
     valeur: "SELLER",
     titre: "Vendeur",
     detail: "Je vends et j'envoie des liens de paiement",
-    emoji: "🛍️",
+    icone: "boutique" as const,
   },
   {
     valeur: "CLIENT",
     titre: "Client",
     detail: "J'achète et je suis mes commandes",
-    emoji: "👤",
+    icone: "client" as const,
   },
   {
     valeur: "DRIVER",
     titre: "Livreur",
     detail: "Je livre les colis",
-    emoji: "🛵",
+    icone: "livreur" as const,
   },
 ];
 
@@ -109,7 +110,7 @@ export function ComplementGoogle({
                 className="sr-only"
               />
               <span aria-hidden="true" className="text-xl">
-                {r.emoji}
+                <Icone nom={r.icone} className="w-6 h-6 text-brand" />
               </span>
               <span className="min-w-0">
                 <span className="block text-sm font-semibold">{r.titre}</span>

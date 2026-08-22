@@ -1,4 +1,5 @@
 import type { PreuveLivraison as Preuve } from "@/lib/deliveries/preuve";
+import { Icone } from "@/components/ui/Icone";
 
 const DATE_FR = new Intl.DateTimeFormat("fr-FR", {
   dateStyle: "long",
@@ -37,7 +38,7 @@ export function PreuveLivraison({
     >
       <div className="flex items-center gap-2 mb-3">
         <span aria-hidden="true" className="text-xl">
-          🧾
+          <Icone nom="recu" className="w-5 h-5 text-brand" />
         </span>
         <h2 id="titre-preuve" className="text-base font-semibold">
           Preuve de livraison

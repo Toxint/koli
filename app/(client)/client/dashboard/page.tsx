@@ -6,6 +6,7 @@ import { NAV_CLIENT } from "@/lib/navigation";
 import { formatCFA, pluriel } from "@/lib/format";
 import { libelleStatut, classesBadgeStatut } from "@/lib/orders/statusLabels";
 import Link from "next/link";
+import { Icone } from "@/components/ui/Icone";
 
 export default async function ClientDashboardPage() {
   const user = await getCurrentUser();
@@ -44,7 +45,7 @@ export default async function ClientDashboardPage() {
         <div className="bg-brand rounded-2xl p-6 sm:p-8 text-white shadow-lg shadow-brand/20 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <div>
             <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-white">
-              Bienvenue, {user.name} 👋
+              Bienvenue, {user.name}
             </h1>
             <p className="text-white/90 text-sm mt-1">
               Retrouvez l&apos;ensemble de vos achats sécurisés et suivez la livraison de vos colis en direct.
@@ -62,7 +63,7 @@ export default async function ClientDashboardPage() {
 
           {orders.length === 0 ? (
             <div className="text-center py-12 bg-white dark:bg-slate-900 border border-hairline dark:border-slate-800 rounded-2xl p-8">
-              <span className="text-4xl block mb-2">🛒</span>
+              <Icone nom="commandes" className="w-9 h-9 mx-auto mb-2 text-brand" />
               <p className="text-sm font-semibold">
                 Vous n&apos;avez effectué aucune commande pour le moment.
               </p>
@@ -113,7 +114,7 @@ export default async function ClientDashboardPage() {
                         aria-label={`Suivre la commande ${order.reference}`}
                         className="inline-flex items-center justify-center min-h-[44px] px-4 rounded-xl bg-brand-soft text-brand hover:brightness-95 dark:bg-purple-950 dark:text-purple-300 font-bold text-xs transition-all whitespace-nowrap"
                       >
-                        Suivi 📦
+                        <Icone nom="colis" className="w-4 h-4" /> Suivi
                       </Link>
                     </div>
                   </div>

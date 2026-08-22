@@ -1051,3 +1051,41 @@ La commande de démonstration était marquée réglée mais n'avait **pas de fac
 `allowedDevOrigins` listait `172.20.10.7`, relevée un jour où la machine était en partage de connexion 4G. Repassée en wifi, elle est devenue `192.168.1.101` : la valeur figée ne servait plus à rien, silencieusement.
 
 Les adresses du réseau local sont désormais **relevées sur la machine** (`os.networkInterfaces()`), avec `DEV_ORIGINS` pour en ajouter une à la main. C'est le genre de valeur qui ne doit jamais être écrite en dur : elle change sans prévenir, et son obsolescence ne produit aucun message.
+
+---
+
+## 8 octodecies. Icônes professionnelles, déconnexion partout, mot de passe oublié (22/08/2026)
+
+### Les emoji quittent l'interface
+
+89 emoji, dans 27 fichiers. Ils posaient trois problèmes : leur **dessin change d'un appareil à l'autre** (Android, iOS et Windows n'affichent pas le même 🛵), ils portent une **couleur qu'on ne maîtrise pas**, et ils donnent un **ton familier** qui jure avec une application qui manipule l'argent de commerçants.
+
+`components/ui/Icone.tsx` — une trentaine de tracés SVG en ligne, grille 24×24, graisse unique, `currentColor`. Pas de bibliothèque : une dépendance d'icônes représente plusieurs centaines de kilo-octets pour un public souvent en 3G.
+
+**Un défaut général corrigé à la source.** La préflight de Tailwind pose `svg { display: block }` : une icône glissée à côté d'un libellé se retrouvait **seule sur sa propre ligne**, au-dessus du texte — quatorze endroits étaient concernés. Plutôt que rendre `flex` chacun des parents (ce qu'il aurait fallu refaire à chaque nouvelle icône), une règle unique `svg[data-icone] { display: inline-block }` règle le cas partout. Elle préserve au passage le centrage des icônes d'état vide, posées dans un conteneur `text-center`.
+
+### Déconnexion : trois écrans n'en avaient aucune
+
+L'assistant de commande, le reçu et le suivi de paiement n'affichent pas le menu latéral — le premier occupe tout l'écran, les deux autres sont ouverts par des visiteurs qui n'ont pas forcément de compte. Aucun **n'offrait de moyen de se déconnecter** : il fallait revenir au tableau de bord, ce que rien n'indiquait. Sur un téléphone partagé, situation courante chez le public visé, c'est un vrai problème.
+
+`components/ui/BarreCompte.tsx` porte l'indicateur de mode test et la déconnexion. Elle ne s'affiche que si une session existe : sur le reçu et le suivi, ouverts en mode invité, il n'y a rien à quitter.
+
+### §62 — Mot de passe oublié
+
+Le lien manquait sur la page de connexion : **un compte verrouillé par cinq tentatives ratées n'avait aucune issue.**
+
+Le mécanisme est celui de production :
+
+| Propriété | Pourquoi |
+|---|---|
+| Jeton tiré par `randomBytes` | jamais `Math.random` : ce jeton ouvre un compte |
+| Seul le **hachage** est stocké | une fuite de la base ne doit pas donner la main sur les comptes ayant une demande en cours |
+| Expiration 30 minutes, usage unique | le jeton est effacé dès qu'il a servi |
+| Comparaison à durée constante | un `===` sur un secret fuit sa longueur |
+| Réponse **identique** si le compte existe ou non | sinon ce formulaire devient un moyen de savoir qui est inscrit sur KOLI |
+| Un compte suspendu n'émet aucun jeton | il ne doit pas pouvoir être repris par ce biais |
+| La réinitialisation **déverrouille** le compte | c'est souvent la raison même de la demande |
+
+**Le seul écart au modèle de production est le canal d'envoi.** Le SMS et l'e-mail arrivent aux phases 25 et 31 ; en attendant, le lien est affiché à l'écran, comme le code de réception l'est au client, et **l'interface le signale explicitement comme un artefact du mode test**. Cela ne doit jamais rester ainsi en production : n'importe qui pourrait réinitialiser n'importe quel compte en saisissant un numéro.
+
+`scripts/test-mot-de-passe-oublie.mjs` vérifie les treize points, dont le fait que le jeton n'est jamais stocké en clair — lu directement dans la base.

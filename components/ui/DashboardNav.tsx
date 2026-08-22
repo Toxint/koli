@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { logoutAction } from "@/lib/auth/actions";
-import { IconeNav } from "@/components/ui/IconesNav";
+import { Icone } from "@/components/ui/Icone";
 import type { NavItem } from "@/lib/navigation";
 
 export type { NavItem };
@@ -135,7 +135,7 @@ export function DashboardNav({
                       : "text-white/75 hover:bg-white/10 hover:text-white"
                   }`}
                 >
-                  <IconeNav nom={item.icone} className="w-5 h-5 shrink-0" />
+                  <Icone nom={item.icone} className="w-5 h-5 shrink-0" />
                   <span className="truncate">{item.label}</span>
                 </Link>
               </li>
@@ -148,7 +148,7 @@ export function DashboardNav({
         {/* §75 : l'indicateur de mode test reste visible à toutes les tailles. */}
         <div className="rounded-2xl bg-white/10 border border-gold/30 px-3 py-2.5">
           <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-gold">
-            <span aria-hidden="true">⚡</span> Mode test
+            <Icone nom="eclair" className="w-3.5 h-3.5" /> Mode test
           </span>
           <span className="block text-[11px] text-white/70 mt-0.5">
             Aucun paiement réel
@@ -160,18 +160,7 @@ export function DashboardNav({
             type="submit"
             className="w-full flex items-center gap-3 rounded-2xl px-3 min-h-[46px] text-sm font-semibold text-white/70 hover:text-white hover:bg-white/10 transition-colors"
           >
-            <svg
-              className="w-5 h-5 shrink-0"
-              aria-hidden="true"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={1.7}
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
+            <Icone nom="deconnexion" className="w-5 h-5 shrink-0" />
             <span>Déconnexion</span>
           </button>
         </form>
@@ -223,8 +212,8 @@ export function DashboardNav({
             </span>
           </Link>
 
-          <span className="shrink-0 px-2.5 py-1 rounded-full bg-white/10 text-gold text-[11px] font-semibold border border-gold/30 whitespace-nowrap">
-            ⚡ Test
+          <span className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/10 text-gold text-[11px] font-semibold border border-gold/30 whitespace-nowrap">
+            <Icone nom="eclair" className="w-3.5 h-3.5" /> Test
           </span>
         </div>
       </header>

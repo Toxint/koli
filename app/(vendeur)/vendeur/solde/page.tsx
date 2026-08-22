@@ -6,6 +6,7 @@ import { prisma } from "@/lib/db/prisma";
 import { DashboardNav } from "@/components/ui/DashboardNav";
 import { formatCFA } from "@/lib/format";
 import { NAV_VENDEUR } from "@/lib/navigation";
+import { Icone } from "@/components/ui/Icone";
 
 export const metadata: Metadata = { title: "Solde" };
 
@@ -124,9 +125,7 @@ export default async function SoldeVendeurPage() {
 
           {mouvements.length === 0 ? (
             <div className="text-center py-12 border-2 border-dashed border-hairline rounded-2xl">
-              <span className="text-4xl block mb-2" aria-hidden="true">
-                📄
-              </span>
+              <Icone nom="document" className="w-9 h-9 mx-auto text-brand" />
               <p className="text-sm font-semibold">Aucun mouvement</p>
               <p className="text-xs text-ink-muted mt-1">
                 Les paiements et libérations de vos commandes apparaîtront ici.

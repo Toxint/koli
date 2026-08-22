@@ -1,8 +1,9 @@
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { chargerFacture } from "@/lib/invoices/facture";
 import { formatCFA } from "@/lib/format";
 import { libelleStatut } from "@/lib/orders/statusLabels";
+import { getCurrentUser } from "@/lib/auth/actions";
+import { BarreCompte } from "@/components/ui/BarreCompte";
 
 const DATE_FR = new Intl.DateTimeFormat("fr-FR", {
   dateStyle: "long",
@@ -53,6 +54,10 @@ export default async function PageFacture({
 }) {
   const { reference } = await params;
   const facture = await chargerFacture(reference);
+  // Le recu est ouvrable par toute personne detenant la reference — l'achat en
+  // mode invite est prevu. La deconnexion n'a donc de sens que si une session
+  // existe.
+  const utilisateur = await getCurrentUser();
 
   // Pas de facture tant que le paiement n'a pas abouti : une commande non
   // réglée n'a pas de pièce à présenter.
@@ -61,16 +66,12 @@ export default async function PageFacture({
   return (
     <main className="min-h-screen bg-cream py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-2xl mx-auto space-y-4">
-        <div className="flex flex-wrap items-center justify-between gap-3 imprimer-masquer">
-          <Link
-            href={`/pay/${facture.referenceCommande}`}
-            className="inline-flex items-center min-h-[44px] text-xs font-bold text-ink-muted hover:text-brand"
-          >
-            ← Retour au suivi de la commande
-          </Link>
-          <span className="px-3 py-1 rounded-full bg-test-mode-surface text-test-mode text-[11px] font-semibold border border-brand-border/60">
-            ⚡ Mode test — aucun paiement réel
-          </span>
+        <div className="imprimer-masquer">
+          <BarreCompte
+            retourHref={`/pay/${facture.referenceCommande}`}
+            retourLibelle="Retour au suivi de la commande"
+            connecte={utilisateur !== null}
+          />
         </div>
 
         <article className="carte-koli bg-white rounded-2xl p-6 sm:p-8 space-y-6">

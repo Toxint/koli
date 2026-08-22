@@ -5,6 +5,8 @@ import Link from "next/link";
 import { createOrderAction } from "@/lib/orders/actions";
 import { formatCFA } from "@/lib/format";
 import { markets } from "@/data/markets";
+import { Icone } from "@/components/ui/Icone";
+import { BarreCompte } from "@/components/ui/BarreCompte";
 
 export interface ProduitCatalogue {
   id: string;
@@ -268,19 +270,14 @@ export function FormulaireCommande({
   return (
     <div className="min-h-screen bg-cream text-ink py-8 px-4 sm:px-6 lg:px-8">
       <div className="max-w-3xl mx-auto space-y-6">
-        {/* §75 : cette page affiche des montants et n'avait aucun indicateur de
-            mode test — elle est la seule page connectée sans en-tête KOLI. */}
-        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-          <Link
-            href="/vendeur/dashboard"
-            className="inline-flex items-center min-h-[44px] gap-1.5 text-xs font-bold text-ink-muted hover:text-brand"
-          >
-            ← Retour au tableau de bord
-          </Link>
-          <span className="px-3 py-1 rounded-full bg-test-mode-surface text-test-mode text-[11px] font-semibold border border-brand-border/60 whitespace-nowrap">
-            ⚡ Mode test — aucun paiement réel
-          </span>
-        </div>
+        {/* §75 : cette page affiche des montants sans en-tête KOLI. La barre
+            de compte y porte l'indicateur de mode test ET la déconnexion, qui
+            n'était atteignable nulle part depuis cet écran. */}
+        <BarreCompte
+          retourHref="/vendeur/dashboard"
+          retourLibelle="Retour au tableau de bord"
+          connecte
+        />
 
         <div className="bg-white rounded-2xl border border-hairline p-6 sm:p-8 shadow-xl shadow-slate-200/50 space-y-6">
           <div>
@@ -714,7 +711,7 @@ export function FormulaireCommande({
           {etape === 5 && createdReference && (
             <div className="bg-brand-soft border-2 border-brand-border rounded-2xl p-6 sm:p-8 text-center space-y-4">
               <div className="w-14 h-14 rounded-2xl bg-brand text-white flex items-center justify-center mx-auto text-2xl">
-                ✅
+                <Icone nom="valide" className="w-7 h-7" />
               </div>
               <h2 className="text-xl font-semibold">
                 Commande {createdReference} créée
@@ -735,7 +732,7 @@ export function FormulaireCommande({
                   onClick={handleCopierLien}
                   className="w-full min-h-[44px] px-3 rounded-lg bg-brand text-white font-bold text-xs hover:bg-brand-strong"
                 >
-                  {copie ? "✓ Lien copié" : "Copier le lien 📋"}
+                  {copie ? (<><Icone nom="valide" className="w-4 h-4" /> Lien copié</>) : (<><Icone nom="document" className="w-4 h-4" /> Copier le lien</>)}
                 </button>
                 {erreurCopie && (
                   <p role="alert" className="text-xs text-test-mode">
@@ -764,7 +761,7 @@ export function FormulaireCommande({
                   target="_blank"
                   className="inline-flex items-center min-h-[44px] px-5 rounded-xl bg-brand text-white font-bold text-xs"
                 >
-                  Ouvrir la page de paiement 🔗
+                  <Icone nom="lien" className="w-4 h-4" /> Ouvrir la page de paiement
                 </Link>
                 <button
                   type="button"

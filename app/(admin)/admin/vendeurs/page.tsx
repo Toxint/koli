@@ -9,6 +9,7 @@ import { DashboardNav } from "@/components/ui/DashboardNav";
 import { NAV_ADMIN } from "@/lib/navigation";
 import { formatCFA, pluriel } from "@/lib/format";
 import { VerificationVendeur } from "@/components/domain/VerificationVendeur";
+import { Icone } from "@/components/ui/Icone";
 
 const PAR_PAGE = 20;
 
@@ -147,9 +148,7 @@ export default async function AdminVendeursPage({
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-hairline dark:border-slate-800 shadow-sm p-6">
           {vendeurs.length === 0 ? (
             <div className="text-center py-12">
-              <span className="text-4xl block mb-2" aria-hidden="true">
-                🏪
-              </span>
+              <Icone nom="boutique" className="w-8 h-8 mx-auto text-brand" />
               <p className="text-sm font-semibold">
                 {q || statut
                   ? "Aucun vendeur ne correspond à cette recherche"

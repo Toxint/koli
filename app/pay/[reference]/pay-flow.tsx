@@ -5,6 +5,7 @@ import Link from "next/link";
 import { formatCFA } from "@/lib/format";
 import { simulatePaymentAction } from "@/lib/payments/actions";
 import { confirmReceptionAction } from "@/lib/orders/actions";
+import { Icone } from "@/components/ui/Icone";
 
 interface PayFlowProps {
   order: {
@@ -105,7 +106,7 @@ export function PayFlow({
               : "bg-brand-soft text-brand shadow-brand/25"
           }`}
         >
-          {attendConfirmation ? "📦" : "✅"}
+          <Icone nom={attendConfirmation ? "colis" : "valide"} className="w-8 h-8" />
         </div>
         <h1 className="text-2xl font-semibold text-brand dark:text-white">
           {attendConfirmation
@@ -123,7 +124,7 @@ export function PayFlow({
         </p>
 
         <span className="inline-block px-3 py-1 rounded-full bg-test-mode-surface dark:bg-amber-950/80 text-test-mode dark:text-amber-300 text-[11px] font-bold uppercase tracking-wider border border-brand-border/60">
-          ⚡ Mode test — aucun paiement réel
+          <Icone nom="eclair" className="w-3.5 h-3.5" /> Mode test — aucun paiement réel
         </span>
 
         {/* Code de réception (§27) — visible du seul client authentifié. */}
@@ -281,7 +282,7 @@ export function PayFlow({
         <div className="bg-white dark:bg-slate-900 rounded-3xl border border-brand-border/40 dark:border-amber-500/20 p-6 shadow-xl shadow-amber-500/5 space-y-6">
           <div>
             <div className="inline-block px-3 py-1 rounded-full bg-brand-soft dark:bg-amber-950 text-brand dark:text-amber-300 text-[10px] font-bold uppercase tracking-wider mb-2 border border-brand-border/50">
-              ⚡ Mode Test MVP
+              <Icone nom="eclair" className="w-3.5 h-3.5" /> Mode test MVP
             </div>
             <h2 className="text-lg font-bold dark:text-white">
               Simulation de Paiement Sécurisé
@@ -301,7 +302,7 @@ export function PayFlow({
               {loading ? (
                 <span>Traitement en cours...</span>
               ) : (
-                "💳 Simuler un paiement réussi"
+                <><Icone nom="solde" className="w-4 h-4" /> Simuler un paiement réussi</>
               )}
             </button>
 
@@ -311,12 +312,12 @@ export function PayFlow({
               onClick={() => handleSimulatePayment("FAILURE")}
               className="w-full py-3 px-4 rounded-xl border border-hairline dark:border-slate-700 hover:bg-brand-soft dark:hover:bg-slate-800 text-brand dark:text-slate-300 font-semibold text-xs transition-colors"
             >
-              ❌ Simuler un paiement échoué
+              <Icone nom="fermer" className="w-4 h-4" /> Simuler un paiement échoué
             </button>
           </div>
 
           <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 text-xs">
-            🛡️ <strong>Garantie KOLI :</strong> le vendeur n&apos;est payé qu&apos;après que vous ayez confirmé avoir reçu votre commande. En mode test, aucun montant réel n&apos;est prélevé ni détenu.
+            <Icone nom="bouclier" className="w-4 h-4 inline-block" /> <strong>Garantie KOLI :</strong> le vendeur n&apos;est payé qu&apos;après que vous ayez confirmé avoir reçu votre commande. En mode test, aucun montant réel n&apos;est prélevé ni détenu.
           </div>
         </div>
       </div>

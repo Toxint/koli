@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Icone } from "@/components/ui/Icone";
 
 export const metadata: Metadata = {
   title: "Conditions d'utilisation",
@@ -29,7 +30,7 @@ export default function ConditionsPage() {
 
       <div className="mt-6 bg-test-mode-surface dark:bg-amber-950/60 border border-brand-border dark:border-amber-800 rounded-2xl p-6">
         <p className="font-bold text-test-mode dark:text-amber-300">
-          ⚡ Document en cours de préparation
+          <Icone nom="info" className="w-4 h-4" /> Document en cours de préparation
         </p>
         <p className="mt-2 text-sm text-brand dark:text-slate-300">
           KOLI fonctionne actuellement en mode test : aucun paiement réel

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Icone } from "@/components/ui/Icone";
 
 export const metadata: Metadata = {
   title: "Pour les vendeurs",
@@ -9,25 +10,25 @@ export const metadata: Metadata = {
 
 const arguments_ = [
   {
-    emoji: "📱",
+    icone: "telephone" as const,
     titre: "Vous gardez votre façon de vendre",
     texte:
       "KOLI ne remplace pas votre boutique ni vos réseaux. Vous continuez à vendre là où vous êtes déjà — WhatsApp, Facebook, TikTok, Instagram ou votre site.",
   },
   {
-    emoji: "🔗",
+    icone: "lien" as const,
     titre: "Un lien de paiement par commande",
     texte:
       "Vous créez la commande, KOLI génère un lien. Vous l'envoyez au client comme n'importe quel message.",
   },
   {
-    emoji: "🛡️",
+    icone: "bouclier" as const,
     titre: "Le client est rassuré, donc il achète",
     texte:
       "Le client sait que son argent ne part chez vous qu'une fois le colis reçu. C'est ce qui débloque les ventes auprès de gens qui ne vous connaissent pas encore.",
   },
   {
-    emoji: "📦",
+    icone: "colis" as const,
     titre: "Livraison suivie et vérifiée",
     texte:
       "Vous assignez un livreur. La remise est confirmée par un code que seul le client possède — vous avez une preuve, pas une parole.",
@@ -59,7 +60,7 @@ export default function PourLesVendeursPage() {
             className="bg-white dark:bg-slate-900 rounded-2xl border border-hairline dark:border-slate-800 p-6"
           >
             <span className="text-2xl block mb-2" aria-hidden="true">
-              {a.emoji}
+              <Icone nom={a.icone} className="w-6 h-6 text-brand" />
             </span>
             <h2 className="font-bold">{a.titre}</h2>
             <p className="mt-1.5 text-sm text-ink-muted dark:text-slate-300">

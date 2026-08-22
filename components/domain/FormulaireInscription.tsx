@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { AuthHeader } from "@/components/ui/AuthHeader";
 import { registerAction } from "@/lib/auth/actions";
 import { BoutonGoogle } from "@/components/ui/BoutonGoogle";
+import { Icone } from "@/components/ui/Icone";
 
 type RoleType = "SELLER" | "DRIVER" | "CLIENT";
 
@@ -102,7 +103,7 @@ export function FormulaireInscription({
                       : "border-hairline dark:border-slate-800 hover:border-hairline bg-white dark:bg-slate-800 text-brand dark:text-slate-300"
                   }`}
                 >
-                  <span className="text-2xl block mb-1">🛍️</span>
+                  <Icone nom="boutique" className="w-6 h-6 mb-1 text-brand" />
                   <span className="font-bold text-sm block">Vendeur</span>
                   <span className="text-[11px] text-ink-muted dark:text-slate-400 block mt-0.5">
                     Sécurisez vos ventes WhatsApp & RS
@@ -120,7 +121,7 @@ export function FormulaireInscription({
                       : "border-hairline dark:border-slate-800 hover:border-hairline bg-white dark:bg-slate-800 text-brand dark:text-slate-300"
                   }`}
                 >
-                  <span className="text-2xl block mb-1">🛵</span>
+                  <Icone nom="livreur" className="w-6 h-6 mb-1 text-brand" />
                   <span className="font-bold text-sm block">Livreur</span>
                   <span className="text-[11px] text-ink-muted dark:text-slate-400 block mt-0.5">
                     Effectuez les livraisons et validez par OTP
@@ -138,7 +139,7 @@ export function FormulaireInscription({
                       : "border-hairline dark:border-slate-800 hover:border-hairline bg-white dark:bg-slate-800 text-brand dark:text-slate-300"
                   }`}
                 >
-                  <span className="text-2xl block mb-1">👤</span>
+                  <Icone nom="client" className="w-6 h-6 mb-1 text-brand" />
                   <span className="font-bold text-sm block">Client</span>
                   <span className="text-[11px] text-ink-muted dark:text-slate-400 block mt-0.5">
                     Achetez en toute confiance

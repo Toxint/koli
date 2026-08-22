@@ -4,6 +4,8 @@ import { getCurrentUser } from "@/lib/auth/actions";
 import { PayFlow } from "./pay-flow";
 import { chargerPreuveLivraison } from "@/lib/deliveries/preuve";
 import { PreuveLivraison } from "@/components/domain/PreuveLivraison";
+import { Icone } from "@/components/ui/Icone";
+import { BarreCompte } from "@/components/ui/BarreCompte";
 
 export default async function PayReferencePage({
   params,
@@ -77,6 +79,15 @@ export default async function PayReferencePage({
 
     return (
       <main className="min-h-screen bg-cream">
+        {/* Le suivi est ouvert a quiconque detient le lien. La barre de compte
+            n'apparait donc que si une session existe — et elle porte alors la
+            deconnexion, qui n'etait atteignable depuis aucun de ces ecrans. */}
+        {user && (
+          <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+            <BarreCompte connecte />
+          </div>
+        )}
+
         <PayFlow
           order={formattedOrder}
           estLeClient={estLeClient}
@@ -100,7 +111,7 @@ export default async function PayReferencePage({
                     {facture.number}
                   </span>
                 </span>
-                <span aria-hidden="true" className="text-xl shrink-0">🧾</span>
+                <Icone nom="recu" className="w-6 h-6 shrink-0 text-brand" />
               </Link>
             )}
           </div>
@@ -114,7 +125,7 @@ export default async function PayReferencePage({
     <main className="min-h-screen bg-cream flex items-center justify-center p-4">
       <div className="max-w-md w-full text-center space-y-4">
         <div className="w-16 h-16 rounded-full bg-brand-soft text-brand flex items-center justify-center text-3xl mx-auto">
-          ⚠️
+          <Icone nom="alerte" className="w-8 h-8 mx-auto" />
         </div>
         <h1 className="text-xl font-bold text-brand dark:text-white">
           Commande introuvable

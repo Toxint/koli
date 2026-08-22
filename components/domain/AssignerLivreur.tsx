@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { assignDriverAction, type DriverOption } from "@/lib/deliveries/assign";
+import { Icone } from "@/components/ui/Icone";
 
 interface AssignerLivreurProps {
   orderReference: string;
@@ -31,7 +32,7 @@ export function AssignerLivreur({
   if (assigneA) {
     return (
       <div className="flex items-center gap-2 text-xs font-semibold text-brand">
-        <span aria-hidden="true">🛵</span>
+        <Icone nom="livreur" className="w-4 h-4" />
         <span>Livreur : {assigneA}</span>
       </div>
     );

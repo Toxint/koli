@@ -5,6 +5,7 @@ import { DashboardNav } from "@/components/ui/DashboardNav";
 import { NAV_LIVREUR } from "@/lib/navigation";
 import { ValidateOtpModal } from "@/components/driver/ValidateOtpModal";
 import { pluriel } from "@/lib/format";
+import { Icone } from "@/components/ui/Icone";
 
 export default async function DriverDashboardPage() {
   const user = await getCurrentUser();
@@ -47,10 +48,10 @@ export default async function DriverDashboardPage() {
           
           <div className="relative z-10">
             <span className="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-white/20 text-white mb-2">
-              ⚡ Espace Livreur KOLI
+              <Icone nom="eclair" className="w-3.5 h-3.5" /> Espace livreur KOLI
             </span>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
-              Bienvenue, {user.name} 🛵
+              Bienvenue, {user.name}
             </h1>
             <p className="text-white/90 text-xs sm:text-sm font-medium mt-1">
               Véhicule : <strong className="font-bold">{user.driverProfile.vehicle || "Moto KOLI Express"}</strong> • Numéro Vendeur & Client disponibles ci-dessous.
@@ -69,13 +70,13 @@ export default async function DriverDashboardPage() {
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-bold dark:text-white flex items-center gap-2">
-              <span>📋</span> Vos courses & livraisons en cours
+              <Icone nom="document" className="w-5 h-5" /> Vos courses & livraisons en cours
             </h2>
           </div>
 
           {deliveries.length === 0 ? (
             <div className="text-center py-12 bg-white dark:bg-slate-900 border border-hairline dark:border-slate-800 rounded-3xl p-8 shadow-sm">
-              <span className="text-5xl block mb-3 animate-float">🛵</span>
+              <Icone nom="livreur" className="w-12 h-12 mx-auto mb-3 text-brand" />
               <h3 className="text-base font-bold dark:text-white">
                 Aucune livraison en attente
               </h3>
@@ -112,7 +113,7 @@ export default async function DriverDashboardPage() {
                             href={`tel:${order.buyerPhone.replace(/\s/g, "")}`}
                             className="inline-flex items-center min-h-[44px] text-xs text-ink-muted dark:text-slate-400 font-medium whitespace-nowrap hover:text-brand"
                           >
-                            📞 {order.buyerPhone}
+                            <Icone nom="telephone" className="w-4 h-4" /> {order.buyerPhone}
                           </a>
                         </div>
                       </div>
@@ -125,7 +126,10 @@ export default async function DriverDashboardPage() {
                               : "bg-brand-soft text-brand dark:bg-amber-950 dark:text-amber-300 border border-brand-border/50"
                           }`}
                         >
-                          {isDelivered ? "✅ LIVRÉE" : "⏳ EN COURS DE LIVRAISON"}
+                          <>
+                            <Icone nom={isDelivered ? "valide" : "horloge"} className="w-3.5 h-3.5" />
+                            {isDelivered ? "Livrée" : "En cours de livraison"}
+                          </>
                         </span>
                       </div>
                     </div>
@@ -134,7 +138,7 @@ export default async function DriverDashboardPage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                       <div className="bg-white dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-1">
                         <span className="text-[11px] font-semibold text-brand dark:text-amber-400 uppercase tracking-wider block">
-                          📍 Adresse de Livraison Client
+                          <Icone nom="position" className="w-3.5 h-3.5" /> Adresse de livraison
                         </span>
                         <p className="font-bold text-brand dark:text-slate-100">
                           {order.buyerAddress}, {order.buyerCity}
@@ -151,7 +155,7 @@ export default async function DriverDashboardPage() {
 
                       <div className="bg-white dark:bg-slate-800/40 p-4 rounded-2xl border border-slate-100 dark:border-slate-800 space-y-1">
                         <span className="text-[11px] font-semibold text-brand dark:text-amber-400 uppercase tracking-wider block">
-                          🏬 Vendeur Expéditeur
+                          <Icone nom="boutique" className="w-3.5 h-3.5" /> Vendeur expéditeur
                         </span>
                         <p className="font-bold text-brand dark:text-slate-100">
                           {order.seller.businessName || order.seller.user.name}

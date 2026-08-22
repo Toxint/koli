@@ -9,6 +9,7 @@ import { DashboardNav } from "@/components/ui/DashboardNav";
 import { NAV_VENDEUR } from "@/lib/navigation";
 import { formatCFA, pluriel } from "@/lib/format";
 import { BoutonStatutProduit } from "@/components/domain/BoutonStatutProduit";
+import { Icone } from "@/components/ui/Icone";
 
 const PAR_PAGE = 20;
 
@@ -101,9 +102,7 @@ export default async function CataloguePage({
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-hairline dark:border-slate-800 shadow-sm p-6">
           {produits.length === 0 ? (
             <div className="text-center py-12">
-              <span className="text-4xl block mb-2" aria-hidden="true">
-                🏷️
-              </span>
+              <Icone nom="etiquette" className="w-9 h-9 mx-auto text-brand" />
               <p className="text-sm font-semibold">
                 {q || statut
                   ? "Aucun produit ne correspond à cette recherche"
@@ -153,7 +152,7 @@ export default async function CataloguePage({
                           aria-hidden="true"
                           className="w-14 h-14 rounded-xl bg-brand-soft flex items-center justify-center text-xl shrink-0"
                         >
-                          🏷️
+                          <Icone nom="etiquette" className="w-9 h-9 mx-auto text-brand" />
                         </div>
                       )}
 

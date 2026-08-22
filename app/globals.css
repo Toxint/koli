@@ -385,6 +385,26 @@ a[class~="bg-brand-accent"]:active {
   }
 }
 
+/**
+ * Icones : elles accompagnent le texte, elles ne le precedent pas d'une ligne.
+ *
+ * La preflight de Tailwind pose `svg { display: block }`. Une icone glissee a
+ * cote d'un libelle se retrouvait donc SEULE sur sa propre ligne, au-dessus du
+ * texte — quatorze endroits etaient concernes. La corriger a la source vaut
+ * mieux que rendre `flex` chacun des parents, ce qu'il aurait fallu refaire a
+ * chaque nouvelle icone.
+ *
+ * `inline-block` conserve par ailleurs le centrage des icones posees dans un
+ * conteneur `text-center` (etats vides), ce qu'un `display: block` avec
+ * `mx-auto` faisait deja et que cette regle preserve.
+ *
+ * Hors couche : doit l'emporter sur la preflight.
+ */
+svg[data-icone] {
+  display: inline-block;
+  vertical-align: -0.15em;
+}
+
 /* §69 : navigation clavier. Aucun element focalisable n'avait d'indicateur. */
 :focus-visible {
   outline: 2px solid var(--color-brand-accent);

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Icone } from "@/components/ui/Icone";
 
 /**
  * §65 : « Toutes les erreurs doivent être compréhensibles. »
@@ -9,7 +10,7 @@ export default function PageIntrouvable() {
     <main className="min-h-screen flex items-center justify-center px-4 py-16">
       <div className="max-w-md w-full text-center space-y-4">
         <span className="text-5xl block" aria-hidden="true">
-          🧭
+          <Icone nom="recherche" className="w-12 h-12 mx-auto text-brand" />
         </span>
         <h1 className="text-2xl font-bold">Cette page n&apos;existe pas</h1>
         <p className="text-sm text-ink-muted dark:text-slate-400">

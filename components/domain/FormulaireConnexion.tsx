@@ -7,6 +7,7 @@ import { AuthHeader } from "@/components/ui/AuthHeader";
 import { loginAction } from "@/lib/auth/actions";
 import { BoutonGoogle } from "@/components/ui/BoutonGoogle";
 import { useSearchParams } from "next/navigation";
+import { Icone } from "@/components/ui/Icone";
 
 export function FormulaireConnexion({
   googleConfigure,
@@ -102,10 +103,18 @@ export function FormulaireConnexion({
             </div>
 
             <div>
-              <div className="flex justify-between items-center mb-2">
+              <div className="flex justify-between items-center gap-3 mb-2">
                 <label htmlFor="password" className="block text-xs font-semibold text-brand dark:text-slate-300 uppercase tracking-wider">
                   Mot de passe
                 </label>
+                {/* §62 : ce lien manquait. Un compte verrouille par cinq
+                    tentatives ratees n'avait aucune issue. */}
+                <Link
+                  href="/mot-de-passe-oublie"
+                  className="inline-flex items-center min-h-[44px] text-xs font-semibold text-brand hover:text-brand-strong underline underline-offset-4 whitespace-nowrap"
+                >
+                  Mot de passe oublié ?
+                </Link>
               </div>
               <div className="relative">
                 <input
@@ -161,8 +170,11 @@ export function FormulaireConnexion({
 
           {/* Quick Demo Login Shortcut Section */}
           <div className="mt-8 pt-6 border-t border-hairline dark:border-slate-800">
-            <p className="text-xs font-bold text-ink-muted dark:text-slate-400 uppercase tracking-wider mb-3 text-center">
-              ⚡ Raccourcis comptes de test MVP (Mode Démo)
+            {/* `inline-flex` : le SVG est un bloc par defaut et se placait
+                seul au-dessus du libelle au lieu de l'accompagner. */}
+            <p className="flex items-center justify-center gap-1.5 text-xs font-bold text-ink-muted dark:text-slate-400 uppercase tracking-wider mb-3">
+              <Icone nom="eclair" className="w-3.5 h-3.5 shrink-0" />
+              Raccourcis comptes de test
             </p>
             <div className="grid grid-cols-2 gap-2 text-xs">
               <button
@@ -170,7 +182,8 @@ export function FormulaireConnexion({
                 onClick={() => fillDemoAccount("vendeur@koli.ci")}
                 className="p-2.5 rounded-lg border border-hairline dark:border-slate-800 hover:border-brand-border dark:hover:border-brand-border bg-white dark:bg-slate-800/50 text-brand dark:text-slate-300 font-medium text-left transition-colors"
               >
-                🛍️ <span className="font-semibold text-brand dark:text-white">Vendeur</span>
+                <Icone nom="boutique" className="w-4 h-4 mb-1 text-brand" />
+                <span className="block font-semibold text-brand dark:text-white">Vendeur</span>
                 <span className="block text-[10px] text-ink-muted">vendeur@koli.ci</span>
               </button>
               <button
@@ -178,7 +191,8 @@ export function FormulaireConnexion({
                 onClick={() => fillDemoAccount("client@koli.ci")}
                 className="p-2.5 rounded-lg border border-hairline dark:border-slate-800 hover:border-brand-border dark:hover:border-brand-border bg-white dark:bg-slate-800/50 text-brand dark:text-slate-300 font-medium text-left transition-colors"
               >
-                👤 <span className="font-semibold text-brand dark:text-white">Client</span>
+                <Icone nom="client" className="w-4 h-4 mb-1 text-brand" />
+                <span className="block font-semibold text-brand dark:text-white">Client</span>
                 <span className="block text-[10px] text-ink-muted">client@koli.ci</span>
               </button>
               <button
@@ -186,7 +200,8 @@ export function FormulaireConnexion({
                 onClick={() => fillDemoAccount("livreur@koli.ci")}
                 className="p-2.5 rounded-lg border border-hairline dark:border-slate-800 hover:border-brand-border dark:hover:border-brand-border bg-white dark:bg-slate-800/50 text-brand dark:text-slate-300 font-medium text-left transition-colors"
               >
-                🛵 <span className="font-semibold text-brand dark:text-white">Livreur</span>
+                <Icone nom="livreur" className="w-4 h-4 mb-1 text-brand" />
+                <span className="block font-semibold text-brand dark:text-white">Livreur</span>
                 <span className="block text-[10px] text-ink-muted">livreur@koli.ci</span>
               </button>
               <button
@@ -194,7 +209,8 @@ export function FormulaireConnexion({
                 onClick={() => fillDemoAccount("admin@koli.ci")}
                 className="p-2.5 rounded-lg border border-hairline dark:border-slate-800 hover:border-brand-border dark:hover:border-brand-border bg-white dark:bg-slate-800/50 text-brand dark:text-slate-300 font-medium text-left transition-colors"
               >
-                🛡️ <span className="font-semibold text-brand dark:text-white">Admin</span>
+                <Icone nom="bouclier" className="w-4 h-4 mb-1 text-brand" />
+                <span className="block font-semibold text-brand dark:text-white">Admin</span>
                 <span className="block text-[10px] text-ink-muted">admin@koli.ci</span>
               </button>
             </div>

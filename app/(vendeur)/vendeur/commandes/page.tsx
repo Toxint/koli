@@ -12,6 +12,7 @@ import { listAvailableDriversAction } from "@/lib/deliveries/assign";
 import { AssignerLivreur } from "@/components/domain/AssignerLivreur";
 import { PreuveLivraison } from "@/components/domain/PreuveLivraison";
 import Link from "next/link";
+import { Icone } from "@/components/ui/Icone";
 
 const PAR_PAGE = 20;
 
@@ -119,9 +120,7 @@ export default async function SellerOrdersPage({
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-hairline dark:border-slate-800 shadow-sm p-6">
           {orders.length === 0 ? (
             <div className="text-center py-12">
-              <span className="text-4xl block mb-2" aria-hidden="true">
-                📦
-              </span>
+              <Icone nom="colis" className="w-9 h-9 mx-auto text-brand" />
               <p className="text-sm font-semibold">
                 {q || statut
                   ? "Aucune commande ne correspond à cette recherche"
@@ -225,7 +224,7 @@ export default async function SellerOrdersPage({
                           aria-label={`Reçu de la commande ${order.reference}`}
                           className="inline-flex items-center justify-center min-h-[44px] px-3 rounded-lg border border-hairline hover:bg-brand-soft/40 text-xs font-bold"
                         >
-                          Reçu 🧾
+                          <Icone nom="recu" className="w-4 h-4" /> Reçu
                         </Link>
                       )}
 
@@ -234,7 +233,7 @@ export default async function SellerOrdersPage({
                         aria-label={`Ouvrir le lien de paiement de la commande ${order.reference}`}
                         className="inline-flex items-center justify-center min-h-[44px] px-3 rounded-lg bg-brand-soft text-brand hover:bg-brand-soft dark:bg-emerald-950/60 dark:text-emerald-300 text-xs font-bold transition-all"
                       >
-                        Lien 🔗
+                        <Icone nom="lien" className="w-4 h-4" /> Lien
                       </Link>
                     </div>
                   </div>

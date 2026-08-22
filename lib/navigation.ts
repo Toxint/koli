@@ -1,4 +1,4 @@
-import type { NomIcone } from "@/components/ui/IconesNav";
+import type { NomIcone } from "@/components/ui/Icone";
 
 export interface NavItem {
   label: string;

@@ -151,6 +151,12 @@ model User {
   // illimite d'essais.
   failedLoginAttempts Int       @default(0)
   lockedUntil         DateTime?
+
+  // Reinitialisation du mot de passe (§62). On stocke le HACHAGE du jeton, pas
+  // le jeton : une fuite de la base ne doit pas permettre de prendre la main
+  // sur les comptes dont une demande est en cours.
+  resetTokenHash   String?
+  resetTokenExpiry DateTime?
   createdAt    DateTime   @default(now())
   updatedAt    DateTime   @updatedAt
 

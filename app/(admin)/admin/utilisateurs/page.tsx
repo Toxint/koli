@@ -9,6 +9,7 @@ import { BarreRecherche } from "@/components/ui/BarreRecherche";
 import { Pagination } from "@/components/ui/Pagination";
 import { BoutonSuspension } from "@/components/domain/BoutonSuspension";
 import { pluriel } from "@/lib/format";
+import { Icone } from "@/components/ui/Icone";
 
 export const metadata: Metadata = { title: "Utilisateurs" };
 
@@ -117,9 +118,7 @@ export default async function AdminUtilisateursPage({
         <div className="rounded-2xl border border-hairline p-4 sm:p-6">
           {utilisateurs.length === 0 ? (
             <div className="text-center py-12">
-              <span className="text-4xl block mb-2" aria-hidden="true">
-                👥
-              </span>
+              <Icone nom="utilisateurs" className="w-8 h-8 mx-auto text-brand" />
               <p className="text-sm font-semibold">
                 Aucun utilisateur ne correspond à cette recherche
               </p>

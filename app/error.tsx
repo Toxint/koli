@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import { Icone } from "@/components/ui/Icone";
 
 /**
  * §65 : ne jamais afficher un « Error 500 » brut.
@@ -24,7 +25,7 @@ export default function ErreurApplication({
     <main className="min-h-screen flex items-center justify-center px-4 py-16">
       <div className="max-w-md w-full text-center space-y-4">
         <span className="text-5xl block" aria-hidden="true">
-          ⚠️
+          <Icone nom="alerte" className="w-12 h-12 mx-auto text-danger" />
         </span>
         <h1 className="text-2xl font-bold">Une erreur est survenue</h1>
         <p className="text-sm text-ink-muted dark:text-slate-400">

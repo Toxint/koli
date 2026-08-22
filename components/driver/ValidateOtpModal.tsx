@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { validateDeliveryOtpAction } from "@/lib/deliveries/actions";
+import { Icone } from "@/components/ui/Icone";
 
 interface ValidateOtpModalProps {
   deliveryId: string;
@@ -86,7 +87,7 @@ export function ValidateOtpModal({
         onClick={handleOpen}
         className="w-full sm:w-auto min-h-[48px] px-4 rounded-xl bg-brand hover:bg-brand-strong text-white font-semibold text-xs uppercase tracking-wider shadow-md shadow-brand/25 hover:shadow-brand/40 transition-all flex items-center justify-center gap-2 border border-brand-border/50 cursor-pointer"
       >
-        <span className="text-sm">🔑</span>
+        <Icone nom="cadenas" className="w-4 h-4" />
         <span>Valider la Livraison (Code OTP)</span>
       </button>
 
@@ -125,7 +126,7 @@ export function ValidateOtpModal({
                 aria-label="Fermer"
                 className="shrink-0 min-h-[44px] min-w-[44px] flex items-center justify-center text-ink-muted hover:text-brand dark:text-slate-300 dark:hover:text-white text-lg rounded-lg transition-colors"
               >
-                ✕
+                <Icone nom="fermer" className="w-5 h-5" />
               </button>
             </div>
 
@@ -138,14 +139,14 @@ export function ValidateOtpModal({
                 role="alert"
                 className="p-3.5 rounded-xl bg-red-50 dark:bg-red-950/60 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-300 text-xs font-medium flex items-center gap-2"
               >
-                <span aria-hidden="true">⚠️</span>
+                <Icone nom="alerte" className="w-4 h-4 shrink-0" />
                 <span>{error}</span>
               </div>
             )}
 
             {successMsg && (
               <div className="p-4 rounded-2xl bg-brand-soft dark:bg-amber-950/80 border border-brand-border dark:border-amber-700 text-brand dark:text-amber-200 text-xs font-bold space-y-1 text-center animate-gold-pulse">
-                <div className="text-2xl">🎉</div>
+                <Icone nom="valide" className="w-8 h-8 text-brand" />
                 <p>{successMsg}</p>
               </div>
             )}
