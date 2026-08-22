@@ -20,10 +20,11 @@
  */
 
 import { chromium } from "playwright";
-import { execSync } from "node:child_process";
+import Database from "better-sqlite3";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const marque = Date.now().toString().slice(-7);
+const EMAIL_TEST = `ephemere${marque}@exemple.ci`;
 
 console.log(`\n=== SESSION ORPHELINE depuis ${BASE} ===\n`);
 
@@ -46,7 +47,7 @@ page.on("pageerror", (e) => erreurs.push(e.message.slice(0, 160)));
 await page.goto(`${BASE}/inscription`, { waitUntil: "domcontentloaded" });
 await page.locator("#name").fill("Compte Ephemere");
 await page.locator("#phone").fill(`+22507${marque}`);
-await page.locator("#email").fill(`ephemere${marque}@exemple.ci`);
+await page.locator("#email").fill(EMAIL_TEST);
 await page.locator("#password").fill("MotDePasseTest2026");
 const boutique = page.locator("#businessName");
 if (await boutique.count()) await boutique.fill("Boutique Ephemere");
@@ -63,7 +64,16 @@ verifier(
 );
 
 // 2. Le compte disparait, le cookie reste.
-execSync("npx prisma db seed", { cwd: process.cwd(), stdio: "ignore" });
+// On efface UNIQUEMENT le compte de ce test.
+//
+// Rejouer le seed entier effacait tous les comptes, y compris ceux qu'un
+// autre test etait en train d'utiliser : ce test devenait hostile a ses
+// voisins et les faisait echouer sans rapport avec ce qu'ils verifient.
+{
+  const db = new Database("prisma/dev.db");
+  db.prepare("DELETE FROM User WHERE email = ?").run(EMAIL_TEST);
+  db.close();
+}
 
 // 3. L'utilisateur revient sur son espace.
 let erreurNavigation = null;

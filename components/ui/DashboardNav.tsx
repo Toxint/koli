@@ -3,8 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { logoutAction } from "@/lib/auth/actions";
 import { Icone } from "@/components/ui/Icone";
+import { BoutonDeconnexion } from "@/components/ui/BoutonDeconnexion";
 import type { NavItem } from "@/lib/navigation";
 
 export type { NavItem };
@@ -120,6 +120,12 @@ export function DashboardNav({
       </Link>
 
       <nav aria-label="Navigation de l'espace" className="min-w-0 flex-1">
+        {/* Le menu change selon le role, et rien ne le disait : un client
+            s'etonnait de ne pas voir les entrees du vendeur. Nommer l'espace
+            rend la difference immediatement comprehensible. */}
+        <p className="px-3 mb-2 text-[10px] font-bold uppercase tracking-wider text-white/40">
+          Espace {roleName.toLowerCase()}
+        </p>
         <ul className="space-y-1">
           {navItems.map((item) => {
             const actif = item.href === hrefActif;
@@ -155,15 +161,7 @@ export function DashboardNav({
           </span>
         </div>
 
-        <form action={logoutAction}>
-          <button
-            type="submit"
-            className="w-full flex items-center gap-3 rounded-2xl px-3 min-h-[46px] text-sm font-semibold text-white/70 hover:text-white hover:bg-white/10 transition-colors"
-          >
-            <Icone nom="deconnexion" className="w-5 h-5 shrink-0" />
-            <span>Déconnexion</span>
-          </button>
-        </form>
+        <BoutonDeconnexion nomCompte={userName} />
       </div>
     </div>
   );

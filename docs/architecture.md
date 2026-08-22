@@ -1089,3 +1089,33 @@ Le mécanisme est celui de production :
 **Le seul écart au modèle de production est le canal d'envoi.** Le SMS et l'e-mail arrivent aux phases 25 et 31 ; en attendant, le lien est affiché à l'écran, comme le code de réception l'est au client, et **l'interface le signale explicitement comme un artefact du mode test**. Cela ne doit jamais rester ainsi en production : n'importe qui pourrait réinitialiser n'importe quel compte en saisissant un numéro.
 
 `scripts/test-mot-de-passe-oublie.mjs` vérifie les treize points, dont le fait que le jeton n'est jamais stocké en clair — lu directement dans la base.
+
+---
+
+## 8 novodecies. Confirmation de déconnexion, espace nommé, message Google (22/08/2026)
+
+### La déconnexion partait au premier clic (§58)
+
+Sur un téléphone — l'appareil de la quasi-totalité des utilisateurs — le bouton voisine avec la navigation et se touche par mégarde. Un vendeur au milieu d'une commande perdait sa saisie sans avoir rien demandé.
+
+`components/ui/BoutonDeconnexion.tsx` ouvre une boîte de dialogue qui **rappelle le compte concerné** : sur un téléphone partagé, situation courante chez le public visé, cela évite de déconnecter quelqu'un d'autre. Fermable par Échap, par « Annuler », ou en touchant à côté.
+
+**Un défaut d'accessibilité découvert en écrivant le test** : le voile et le bouton portaient tous deux le nom « Annuler ». Un lecteur d'écran l'annonçait deux fois, et le voile ajoutait une tabulation vers un élément invisible. Le voile est devenu un `div` `aria-hidden` : le clavier dispose d'Échap et du bouton visible.
+
+### « Les paramètres du vendeur ont disparu »
+
+Signalé sur une capture. **Rien n'avait disparu** : le compte en question (`ultimeclaude@gmail.com`) est enregistré comme **client**, et reçoit donc `NAV_CLIENT` — deux entrées au lieu des six du vendeur.
+
+Le menu était juste, mais **rien ne l'expliquait**. Il porte désormais le nom de l'espace (« ESPACE VENDEUR », « ESPACE CLIENT »…) au-dessus de ses entrées : la différence devient immédiatement compréhensible au lieu de passer pour une régression.
+
+### Le message Google s'adressait à la mauvaise personne
+
+Il disait : « Renseignez GOOGLE_CLIENT_ID et GOOGLE_CLIENT_SECRET dans le fichier .env, puis redémarrez. » C'est une instruction de développeur, affichée à un commerçant, qui n'y peut rien.
+
+Le détail technique part maintenant au **journal du serveur** ; l'écran dit simplement que la connexion Google n'est pas encore disponible et invite à utiliser le téléphone ou l'e-mail. La mention sous le bouton devient « Bientôt disponible ».
+
+### Un test qui sabotait ses voisins
+
+`test-session-orpheline.mjs` rejouait **le seed entier** pour faire disparaître son compte — ce qui effaçait aussi les comptes qu'un autre test était en train d'utiliser. Il échouait donc de façon intermittente, et faisait échouer les autres, pour des raisons étrangères à ce qu'ils vérifient. Il n'efface plus que **son propre compte**.
+
+Même famille de correction que le cas « compte suspendu » du test Google : un test ne doit dépendre que de ce qu'il vérifie.

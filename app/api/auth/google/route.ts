@@ -24,13 +24,22 @@ export async function GET(requete: NextRequest) {
   const origine = origineDemandee(requete);
 
   if (!googleEstConfigure()) {
+    // Le détail technique va au journal du serveur, pas à l'écran : les
+    // instructions « renseignez GOOGLE_CLIENT_ID dans .env » s'adressaient à
+    // un développeur et s'affichaient à un commerçant, qui n'y peut rien.
+    console.warn(
+      "[KOLI] Connexion Google demandée mais non configurée. " +
+        "Renseignez GOOGLE_CLIENT_ID et GOOGLE_CLIENT_SECRET dans .env, " +
+        "puis redémarrez. Contrôle : npm run google:verifier"
+    );
+
     // On reste sur l'origine visitée : changer d'origine ici perdrait les
     // cookies de l'utilisateur (voir callback/route.ts).
     return NextResponse.redirect(
       new URL(
         `/connexion?erreur=${encodeURIComponent(
-          "La connexion Google n'est pas encore configurée sur cette instance. " +
-            "Renseignez GOOGLE_CLIENT_ID et GOOGLE_CLIENT_SECRET dans le fichier .env, puis redémarrez."
+          "La connexion avec Google n'est pas encore disponible. " +
+            "Utilisez votre numéro de téléphone ou votre e-mail pour vous connecter."
         )}`,
         origine
       )

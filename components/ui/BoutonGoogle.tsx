@@ -59,8 +59,7 @@ export function BoutonGoogle({
 
       {!configure && (
         <p className="text-xs text-test-mode text-center">
-          Bouton en place, identifiants Google à renseigner — voir{" "}
-          <code className="font-mono">.env</code>.
+          Bientôt disponible.
         </p>
       )}
     </div>

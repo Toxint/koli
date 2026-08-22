@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { logoutAction } from "@/lib/auth/actions";
+import { BoutonDeconnexion } from "@/components/ui/BoutonDeconnexion";
 import { Icone } from "@/components/ui/Icone";
 
 /**
@@ -19,11 +19,14 @@ export function BarreCompte({
   retourHref,
   retourLibelle,
   connecte,
+  nomCompte,
 }: {
   retourHref?: string;
   retourLibelle?: string;
   /** Sans session, il n'y a rien à quitter : le bouton ne s'affiche pas. */
   connecte: boolean;
+  /** Rappelé dans la confirmation : utile sur un téléphone partagé. */
+  nomCompte?: string;
 }) {
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
@@ -43,17 +46,7 @@ export function BarreCompte({
           <Icone nom="eclair" className="w-3.5 h-3.5" /> Mode test
         </span>
 
-        {connecte && (
-          <form action={logoutAction}>
-            <button
-              type="submit"
-              className="inline-flex items-center gap-1.5 min-h-[44px] px-3 rounded-xl border border-hairline text-xs font-semibold text-ink-muted hover:text-danger hover:border-red-200"
-            >
-              <Icone nom="deconnexion" className="w-4 h-4" />
-              <span>Déconnexion</span>
-            </button>
-          </form>
-        )}
+        {connecte && <BoutonDeconnexion variante="compact" nomCompte={nomCompte} />}
       </div>
     </div>
   );

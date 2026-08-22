@@ -63,12 +63,14 @@ for (const chemin of ["/connexion", "/inscription"]) {
   }
 
   const texte = await page.evaluate(() => document.body.innerText);
-  const mention = /identifiants Google à renseigner/i.test(texte);
+  // Le message s'adresse a un commercant, pas a un developpeur : le detail
+  // technique est parti au journal du serveur.
+  const mention = /Bientôt disponible/i.test(texte);
   verifier(
     CONFIGURE ? !mention : mention,
     CONFIGURE
-      ? `${chemin} : aucune mention de configuration manquante`
-      : `${chemin} : la mention dit ce qu'il manque`
+      ? `${chemin} : aucune mention d'indisponibilite`
+      : `${chemin} : l'indisponibilite est annoncee sobrement`
   );
 }
 
