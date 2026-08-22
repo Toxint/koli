@@ -19,6 +19,31 @@ const AUTORISATION = "https://accounts.google.com/o/oauth2/v2/auth";
 const JETON = "https://oauth2.googleapis.com/token";
 const EMETTEURS = ["https://accounts.google.com", "accounts.google.com"];
 
+/**
+ * Points de terminaison OpenID.
+ *
+ * Surchargeables UNIQUEMENT hors production, pour brancher un fournisseur
+ * local lors du test de bout en bout (`scripts/faux-google.mjs`). Sans cela,
+ * la chaîne complète — départ, PKCE, retour, échange du code, création du
+ * compte — ne pourrait jamais être exercée sans identifiants Google réels.
+ *
+ * En production, la garde `NODE_ENV` rend ces variables inertes : l'application
+ * ne parle qu'aux serveurs de Google, quoi qu'il y ait dans l'environnement.
+ */
+function pointsDeTerminaison() {
+  const horsProduction = process.env.NODE_ENV !== "production";
+
+  return {
+    autorisation:
+      (horsProduction && process.env.GOOGLE_AUTH_URL) || AUTORISATION,
+    jeton: (horsProduction && process.env.GOOGLE_TOKEN_URL) || JETON,
+    emetteurs:
+      horsProduction && process.env.GOOGLE_ISSUER
+        ? [process.env.GOOGLE_ISSUER]
+        : EMETTEURS,
+  };
+}
+
 export const COOKIE_ETAT = "koli_oauth_etat";
 export const COOKIE_VERIFIEUR = "koli_oauth_verifieur";
 export const COOKIE_NONCE = "koli_oauth_nonce";
@@ -144,7 +169,7 @@ export function urlAutorisation(options: {
     prompt: "select_account",
   });
 
-  return `${AUTORISATION}?${params.toString()}`;
+  return `${pointsDeTerminaison().autorisation}?${params.toString()}`;
 }
 
 export interface IdentiteGoogle {
@@ -200,7 +225,7 @@ export async function echangerCodeContreIdentite(
   nonceAttendu: string,
   origine: string | null = null
 ): Promise<IdentiteGoogle> {
-  const reponse = await fetch(JETON, {
+  const reponse = await fetch(pointsDeTerminaison().jeton, {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
@@ -224,7 +249,7 @@ export async function echangerCodeContreIdentite(
 
   const charge = lireCharge(donnees.id_token);
 
-  if (!charge.iss || !EMETTEURS.includes(charge.iss)) {
+  if (!charge.iss || !pointsDeTerminaison().emetteurs.includes(charge.iss)) {
     throw new Error("Émetteur du jeton inattendu.");
   }
   if (charge.aud !== process.env.GOOGLE_CLIENT_ID) {

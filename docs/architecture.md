@@ -940,3 +940,54 @@ L'adresse de rappel suit désormais l'origine réellement demandée. Deux préci
 Les identifiants OAuth ne peuvent être créés que depuis un compte Google : Google exige une application enregistrée. `.env` contient les deux lignes vides et la marche à suivre. Les URI de redirection à déclarer sont `http://localhost:3000/api/auth/google/callback` **et** `http://127.0.0.1:3000/api/auth/google/callback` — les deux, puisque l'application accepte maintenant l'une comme l'autre.
 
 **Limite inchangée** : Google refuse les adresses IP privées. La connexion Google ne fonctionnera pas depuis un téléphone sur le wifi (`172.20.10.7`) tant qu'il n'y a pas de nom de domaine en HTTPS. Le reste de l'application, lui, continue d'y fonctionner.
+
+---
+
+## 8 terdecies. Connexion Google éprouvée de bout en bout (22/08/2026)
+
+Les identifiants OAuth ne peuvent être créés que depuis un compte Google : l'application doit être enregistrée auprès de Google, ce qu'aucun code ne peut faire à la place d'une personne. Le reste, en revanche, devait pouvoir être **prouvé**.
+
+### Un fournisseur OpenID local, qui ne fait pas de complaisance
+
+`scripts/faux-google.mjs` parle le vrai protocole et **refuse ce que Google refuserait** : `client_id` inconnu, secret erroné, `redirect_uri` différente de l'aller, code déjà consommé, et surtout **PKCE vérifié pour de bon** — SHA-256 du vérifieur comparé au défi envoyé au départ. C'est ce qui donne sa valeur au test : une erreur d'un seul de ces points ferait échouer l'échange ici exactement comme chez Google.
+
+`lib/auth/google.ts` accepte des points de terminaison surchargés **uniquement hors production** (garde `NODE_ENV`). En production, l'application ne parle qu'aux serveurs de Google, quoi qu'il y ait dans l'environnement.
+
+### Ce que le test prouve — `scripts/test-google-bout-en-bout.mjs`
+
+| Cas | Vérifié |
+|---|---|
+| Compte Google inconnu | complète son profil (§18), compte créé, session ouverte, tableau de bord affiché ; au retour suivant il entre directement |
+| E-mail **vérifié** correspondant à un compte KOLI | rattachement au compte existant, sans doublon |
+| E-mail **non vérifié** portant l'adresse d'un autre | **aucun** rattachement, et un téléphone déjà pris est refusé |
+| Compte suspendu | entrée refusée avec le motif, aucune session ouverte |
+
+Ce qui n'est pas prouvé : les serveurs de Google eux-mêmes.
+
+### Deux défauts trouvés grâce à ce test
+
+**1. `next dev` répondait 403 sur les actions serveur.** Depuis Next 15.2, le serveur de développement refuse ses ressources internes et ses actions serveur quand la requête vient d'une origine qu'il ne juge pas canonique. Or l'application se teste depuis `127.0.0.1` et depuis l'adresse réseau, pour vérifier le rendu sur téléphone. Les formulaires **échouaient silencieusement, sans le moindre message** : le clic ne produisait rien. Corrigé par `allowedDevOrigins` dans `next.config.ts`. Sans effet sur la production.
+
+**2. Un test qui dépendait d'un écran sans rapport.** Le cas « compte suspendu » passait par la console d'administration pour suspendre le vendeur. Il échouait de façon intermittente pour des raisons étrangères à Google. La suspension s'écrit désormais **directement en base** : le test porte sur le refus côté Google, et l'interface admin a son propre test.
+
+### Marche à suivre pour activer
+
+1. https://console.cloud.google.com/apis/credentials → créer un projet, puis l'écran de consentement OAuth (externe)
+2. Créer des identifiants → ID client OAuth → Application Web
+3. URI de redirection autorisés — **les deux** :
+   `http://localhost:3000/api/auth/google/callback`
+   `http://127.0.0.1:3000/api/auth/google/callback`
+4. Coller `GOOGLE_CLIENT_ID` et `GOOGLE_CLIENT_SECRET` dans `.env`, puis relancer
+
+**Limite inchangée** : Google refuse les adresses IP privées. La connexion Google ne fonctionnera pas depuis un téléphone sur le wifi tant qu'il n'y a pas de nom de domaine en HTTPS.
+
+### Rejouer le test
+
+```
+node scripts/faux-google.mjs
+GOOGLE_CLIENT_ID=faux-client.apps.googleusercontent.com GOOGLE_CLIENT_SECRET=faux-secret \
+  GOOGLE_AUTH_URL=http://127.0.0.1:4545/o/oauth2/v2/auth \
+  GOOGLE_TOKEN_URL=http://127.0.0.1:4545/token \
+  GOOGLE_ISSUER=http://127.0.0.1:4545 npx next dev
+npm run verif:google-complet
+```
