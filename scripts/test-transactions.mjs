@@ -75,6 +75,16 @@ const bouton = (page, libelle) =>
 
 const texte = (page) => page.evaluate(() => document.body.innerText);
 
+/**
+ * La commande créée par ce test, pour pouvoir la retirer ensuite.
+ *
+ * Ce test passe une vraie commande et la fait payer : le stock du catalogue
+ * est donc décompté à chaque exécution (§17). Sans restitution, il finissait
+ * par tomber à zéro et faisait échouer `verif:etapes`, qui choisit un produit
+ * disponible — un test qui dégrade l'environnement des autres.
+ */
+let aNettoyer = null;
+
 /** Même séparateur de milliers que `formatCFA` : espace fine insécable. */
 const enFCFA = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
 
@@ -218,6 +228,10 @@ try {
   );
 
   if (!commande) throw new Error("Aucune commande : la suite est sans objet.");
+
+  // Retenu dès maintenant : si la suite échoue, le nettoyage doit quand même
+  // rendre l'article au catalogue.
+  aNettoyer = { orderId: commande.id, produitId: produit.id, quantite: 1 };
 
   const reference = commande.reference;
   // Assiette de la commission : le prix des articles, hors frais de livraison.
@@ -517,6 +531,27 @@ try {
     `cm-verif-${Date.now()}`,
     new Date().toISOString().replace("Z", "+00:00")
   );
+
+  // La commande de test est retirée et le stock rendu au catalogue.
+  //
+  // Sans cela, chaque exécution consommait un article (§17 : le stock est
+  // décompté au paiement) et le catalogue finissait vide : `verif:etapes`,
+  // qui choisit un produit disponible, échouait alors pour une raison
+  // totalement étrangère à ce qu'il vérifie.
+  //
+  // La suppression de la commande emporte en cascade son paiement, sa facture,
+  // ses écritures et son séquestre. C'est précisément le cas que la
+  // numérotation des factures doit encaisser sans collision — elle part
+  // désormais du plus grand numéro, plus du nombre de factures.
+  if (aNettoyer) {
+    ecrire('DELETE FROM "Order" WHERE id = ?', aNettoyer.orderId);
+    ecrire(
+      "UPDATE Product SET quantity = quantity + ? WHERE id = ?",
+      aNettoyer.quantite,
+      aNettoyer.produitId
+    );
+  }
+
   db.close();
   await navigateur.close();
 }

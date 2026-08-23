@@ -7,7 +7,7 @@ import { prisma } from "@/lib/db/prisma";
 import { getPaymentProvider } from "@/lib/config/mode";
 import {
   formaterNumeroFacture,
-  prefixeAnnee,
+  rangSuivant,
 } from "@/lib/invoices/numero";
 import {
   assertTransition,
@@ -190,11 +190,13 @@ export async function simulatePaymentAction(
         // calcule ici, sous transaction : SQLite serialise les ecritures, deux
         // paiements simultanes ne peuvent donc pas obtenir le meme rang. La
         // contrainte d'unicite sur `number` reste le dernier filet.
+        //
+        // Le rang vient du PLUS GRAND numero de l'annee, et non du nombre de
+        // factures : `Invoice` etant en cascade depuis `Order`, une suppression
+        // de commande faisait redescendre le compte et le numero suivant
+        // entrait en collision. Voir `lib/invoices/numero.ts`.
         const annee = now.getFullYear();
-        const rang =
-          (await tx.invoice.count({
-            where: { number: { startsWith: prefixeAnnee(annee) } },
-          })) + 1;
+        const rang = await rangSuivant(tx, annee);
 
         await tx.invoice.create({
           data: {

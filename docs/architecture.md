@@ -672,7 +672,7 @@ L'enum `DeliveryStatus` gagne l'état **`UNASSIGNED`** qui lui manquait : une li
 
 ### Tables existantes mais encore vides (par choix, phases à venir)
 
-`Dispute`, `DisputeMessage` (Phase 21) · `Refund` (Phase 22) · `Invoice` (Phase 20) · `Notification` (Phase 25) · `AuditLog` (Phase 26) · `KycDocument` (Phase 24) · `Commission` — **traité en Phase 19** le 23/08/2026, voir §14.
+`Dispute`, `DisputeMessage` — **Phase 21 faite** · `Refund` — **Phase 22 faite** · `Invoice` — **Phase 20 faite** le 23/08/2026, voir §15 · `Notification` (Phase 25) · `AuditLog` (Phase 26) · `KycDocument` (Phase 24) · `Commission` — **traité en Phase 19** le 23/08/2026, voir §14.
 
 ## 8 quinquies. Complétion fonctionnelle (20/08/2026)
 
@@ -1289,3 +1289,41 @@ Le cloisonnement repose entièrement sur la présence de `sellerId` dans `charge
 
 - **Prisma stocke les `DateTime` SQLite en TEXTE ISO-8601**, pas en entier. Le nettoyage du script de vérification écrivait `Date.now()` : SQLite classant tout entier avant tout texte, ces lignes se retrouvaient systématiquement en fin de tri décroissant. `tauxCommissionActif()` ordonnant par `createdAt desc`, la ligne réactivée pouvait ne pas être celle retenue. Défaut du script, pas de l'application — mais du genre à fausser silencieusement les exécutions suivantes.
 - **`check-responsive.mjs` n'ouvrait pas les pages des phases 7, 21 et 22.** Un contrôle qui ne visite jamais une page ne dit rien d'elle. Une fois la liste complétée, il a immédiatement trouvé une cible tactile de 31px sur `/admin/remboursements`.
+
+---
+
+## 15. Phase 20 — Factures (23/08/2026)
+
+### Ce qui était déjà fait, et ce qui manquait
+
+La pièce elle-même existait depuis le §38 (commit `1707de5`) : émise **dans la transaction du paiement** — émise après coup, un incident laisserait un paiement encaissé sans pièce correspondante —, consultable à `/facture/<référence>`, portant les douze mentions exigées.
+
+Ce qui manquait était la **consultation d'ensemble**. Le vendeur n'atteignait une facture que depuis la ligne de sa commande ; le client, seulement depuis son lien de paiement. Personne ne pouvait répondre à « combien ai-je facturé ce mois-ci ».
+
+### La numérotation partait du nombre, elle part désormais du maximum
+
+Le rang était déduit du **nombre** de factures de l'année (`count + 1`). C'est juste tant que rien ne disparaît — mais `Invoice` est en `onDelete: Cascade` depuis `Order` : supprimer une commande supprime sa facture, le compte redescend, et la facture suivante réutilise un numéro déjà attribué. La contrainte d'unicité l'aurait rejetée, faisant échouer **un paiement pourtant valide**.
+
+En comptabilité, un trou dans la numérotation se constate et s'explique ; un doublon invalide le registre. Partir du plus grand numéro ne peut produire qu'un trou.
+
+Le tri est fait par la base sur la chaîne : c'est le remplissage à six chiffres qui rend l'ordre alphabétique identique à l'ordre numérique (`000009` < `000010`). Sans lui, `99` passerait après `100`.
+
+### Deux vues, un seul chargeur
+
+`chargerFacturesVendeur` et `chargerFacturesClient` appellent la même fonction ; seule la **portée** les sépare, et cette portée vient de la session, **jamais de l'URL**. Une facture porte le nom, le téléphone et l'adresse d'un client : la laisser fuir est une fuite de données personnelles, pas seulement une indiscrétion commerciale.
+
+Quand une recherche est présente, portée et recherche sont liées par un `AND` explicite. Posées au même niveau, une recherche sur un nom courant ferait remonter les factures de tout le monde — c'est ce que verrouille le test, falsifié avant d'être retenu.
+
+Côté client, le rattachement se fait par **compte OU téléphone**. Le second est indispensable : une grande partie du public achète en mode invité via un lien WhatsApp, puis crée un compte plus tard. Sans lui, ces reçus resteraient invisibles à la personne qui les a pourtant payés.
+
+### Vocabulaire
+
+« Factures » côté vendeur, « **Reçus** » côté client. Le client a payé : il ne doit rien, et le mot « facture » évoque une somme à régler. La contrepartie affichée change également de côté — le vendeur veut savoir à qui il a facturé, le client de qui vient le reçu. Afficher l'acheteur des deux côtés donnerait au client une liste où chaque ligne porte son propre nom.
+
+### Un test qui dégradait l'environnement des autres
+
+`test-transactions.mjs` passait une vraie commande et la faisait payer : le stock du catalogue était donc décompté à chaque exécution (§17). Sans restitution, il tombait à zéro et faisait échouer `verif:etapes`, qui choisit un produit disponible — un test qui échouait pour une raison totalement étrangère à ce qu'il vérifie.
+
+Il rend désormais l'article et supprime sa commande. Cette suppression emporte en cascade la facture : c'est précisément le cas que la nouvelle numérotation encaisse sans collision.
+
+`test-factures.mjs` pose ses propres fixtures en base — une facture concurrente, un achat sans compte — plutôt que de dépendre du jeu de données. Deux contrôles s'étaient d'abord annoncés « non vérifiés » faute de données ; un contrôle qui disparaît en silence se lit comme une réussite.

@@ -1,3 +1,5 @@
+import type { Prisma } from "@prisma/client";
+
 /**
  * Numérotation des factures (§38).
  *
@@ -24,4 +26,42 @@ export function prefixeAnnee(annee: number): string {
 
 export function estNumeroFacture(valeur: string): boolean {
   return new RegExp(`^${PREFIXE_FACTURE}-\\d{4}-\\d{6}$`).test(valeur);
+}
+
+/** Rang porté par un numéro, ou 0 si la chaîne n'en est pas un. */
+export function rangDuNumero(numero: string): number {
+  if (!estNumeroFacture(numero)) return 0;
+  return Number(numero.slice(-6));
+}
+
+/**
+ * Rang suivant pour une année, déduit du PLUS GRAND numéro existant.
+ *
+ * Il était auparavant déduit du NOMBRE de factures de l'année (`count + 1`).
+ * C'est juste tant que rien ne disparaît — mais `Invoice` est en
+ * `onDelete: Cascade` depuis `Order` : supprimer une commande supprime sa
+ * facture, le compte redescend, et la facture suivante réutilise un numéro
+ * déjà attribué. La contrainte d'unicité l'aurait alors rejetée, faisant
+ * échouer un paiement pourtant valide.
+ *
+ * En comptabilité, un trou dans la numérotation se constate et s'explique ;
+ * un doublon, lui, invalide le registre. Partir du maximum ne peut produire
+ * qu'un trou.
+ *
+ * Le tri est fait par la base sur la chaîne : le format à six chiffres
+ * complétés par des zéros rend l'ordre alphabétique identique à l'ordre
+ * numérique (`000009` < `000010`), ce qui ne serait pas vrai sans le
+ * remplissage.
+ */
+export async function rangSuivant(
+  client: Prisma.TransactionClient,
+  annee: number
+): Promise<number> {
+  const dernier = await client.invoice.findFirst({
+    where: { number: { startsWith: prefixeAnnee(annee) } },
+    orderBy: { number: "desc" },
+    select: { number: true },
+  });
+
+  return dernier === null ? 1 : rangDuNumero(dernier.number) + 1;
 }

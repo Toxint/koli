@@ -24,6 +24,7 @@ export const NAV_VENDEUR: NavItem[] = [
   },
   { label: "Catalogue", href: "/vendeur/produits", icone: "catalogue" },
   { label: "Clients", href: "/vendeur/clients", icone: "utilisateurs" },
+  { label: "Factures", href: "/vendeur/factures", icone: "recu" },
   { label: "Transactions", href: "/vendeur/transactions", icone: "journal" },
   { label: "Solde", href: "/vendeur/solde", icone: "solde" },
   { label: "Profil", href: "/vendeur/profil", icone: "profil" },
@@ -31,6 +32,7 @@ export const NAV_VENDEUR: NavItem[] = [
 
 export const NAV_CLIENT: NavItem[] = [
   { label: "Mes commandes", href: "/client/dashboard", icone: "commandes" },
+  { label: "Mes reçus", href: "/client/factures", icone: "recu" },
   { label: "Profil", href: "/client/profil", icone: "profil" },
 ];
 
