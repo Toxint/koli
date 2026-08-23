@@ -32,7 +32,7 @@ export default async function DriverDashboardPage() {
   });
 
   return (
-    <div className="min-h-screen bg-cream text-ink lg:pl-[15.5rem]">
+    <div className="min-h-screen bg-cream text-ink lg:pl-[var(--largeur-menu)]">
       <DashboardNav
         userName={user.name}
         roleName="Livreur"

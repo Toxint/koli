@@ -1,6 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Icone } from "@/components/ui/Icone";
@@ -19,16 +24,48 @@ interface DashboardNavProps {
   navItems?: NavItem[];
 }
 
+/** Doit rester identique à la valeur lue par le script anti-scintillement. */
+const CLE_REPLI = "koli-menu-replie";
+const LARGEUR_OUVERT = "15.5rem";
+const LARGEUR_REPLIE = "4.75rem";
+
+/**
+ * L'état du repli vit sur `<html>`, pas dans React.
+ *
+ * C'est le script du `layout` qui le pose avant la première peinture, pour
+ * éviter le sursaut de mise en page. React doit donc le *lire* plutôt que
+ * l'inventer — d'où `useSyncExternalStore`, qui sait justement s'abonner à un
+ * état extérieur sans provoquer de désaccord entre le rendu serveur et le
+ * rendu client.
+ */
+const abonnes = new Set<() => void>();
+
+function sAbonnerAuRepli(rappel: () => void) {
+  abonnes.add(rappel);
+  return () => {
+    abonnes.delete(rappel);
+  };
+}
+
+function lireRepli(): boolean {
+  return document.documentElement.dataset.menuKoliReplie === "1";
+}
+
+/** Au rendu serveur, le menu est toujours déployé : il n'y a pas de DOM. */
+function lireRepliServeur(): boolean {
+  return false;
+}
+
 /**
  * Menu latéral des espaces connectés (§10).
  *
- * Fixe à gauche à partir de 1024px, tiroir glissant en dessous. Les pages
- * réservent la place avec `lg:pl-[15.5rem]` : la barre étant `fixed`, elle
- * sort du flux et recouvrirait sinon le contenu.
+ * Fixe à gauche à partir de 1024px, tiroir glissant en dessous.
  *
- * Le composant conserve son nom et ses props d'origine bien qu'il ne soit plus
- * un en-tête horizontal : les quinze pages qui l'utilisent n'ont ainsi rien à
- * changer d'autre que la classe de leur conteneur.
+ * **Largeur pilotée par `--largeur-menu`**, et non par une classe figée : les
+ * quinze pages réservent la place avec `lg:pl-[var(--largeur-menu)]`, si bien
+ * que replier la barre fait respirer le contenu sans qu'aucune page ait à le
+ * savoir. La barre étant `fixed`, elle sort du flux et recouvrirait sinon le
+ * contenu.
  */
 export function DashboardNav({
   userName,
@@ -38,6 +75,32 @@ export function DashboardNav({
 }: DashboardNavProps) {
   const [tiroirOuvert, setTiroirOuvert] = useState(false);
   const chemin = usePathname();
+
+  const replie = useSyncExternalStore(
+    sAbonnerAuRepli,
+    lireRepli,
+    lireRepliServeur
+  );
+
+  const basculerRepli = useCallback(() => {
+    const racine = document.documentElement;
+    const apres = racine.dataset.menuKoliReplie !== "1";
+
+    racine.style.setProperty(
+      "--largeur-menu",
+      apres ? LARGEUR_REPLIE : LARGEUR_OUVERT
+    );
+    racine.dataset.menuKoliReplie = apres ? "1" : "0";
+
+    try {
+      localStorage.setItem(CLE_REPLI, apres ? "1" : "0");
+    } catch {
+      // Navigation privée, stockage refusé : le repli vaut pour cette page,
+      // il ne sera simplement pas mémorisé.
+    }
+
+    for (const rappel of abonnes) rappel();
+  }, []);
 
   /**
    * Entrée active = le plus long préfixe correspondant.
@@ -77,55 +140,102 @@ export function DashboardNav({
   const hrefProfil =
     navItems.find((i) => i.icone === "profil")?.href ?? homeHref;
 
-  const contenu = (
+  /**
+   * `compact` : rendu réduit aux icônes. Le tiroir mobile reste toujours
+   * complet — replier n'a de sens que pour gagner de la place sur un grand
+   * écran, pas sur un panneau qui recouvre déjà tout.
+   */
+  const contenu = (compact: boolean) => (
     <div
       data-menu-koli=""
-      className="flex h-full flex-col gap-5 bg-menu bg-gradient-to-b from-menu to-menu-deep px-3.5 py-5 lg:rounded-3xl"
+      className="flex h-full flex-col gap-4 bg-menu bg-gradient-to-b from-menu to-menu-deep px-3 py-4 lg:rounded-3xl"
     >
-      <Link
-        href={homeHref}
-        aria-label="Accueil de mon espace KOLI"
-        onClick={() => setTiroirOuvert(false)}
-        className="flex items-center gap-2.5 px-1.5 min-h-[44px] shrink-0 group"
+      {/* Replié, le logo et le bouton s'empilent : à 4,75rem de large, les
+          poser côte à côte les écraserait l'un contre l'autre. */}
+      <div
+        className={`flex shrink-0 ${
+          compact
+            ? "flex-col items-center gap-1"
+            : "items-center justify-between gap-2"
+        }`}
       >
-        <span className="w-9 h-9 rounded-xl bg-gold flex items-center justify-center text-menu-deep font-bold text-lg group-hover:scale-105 transition-transform">
-          K
-        </span>
-        <span className="font-bold text-xl tracking-tight text-white">
-          KOLI
-        </span>
-      </Link>
+        <Link
+          href={homeHref}
+          aria-label="Accueil de mon espace KOLI"
+          onClick={() => setTiroirOuvert(false)}
+          className="flex items-center gap-2.5 min-h-[44px] group"
+        >
+          <span className="w-9 h-9 shrink-0 rounded-xl bg-gold flex items-center justify-center text-menu-deep font-bold text-lg group-hover:scale-105 transition-transform">
+            K
+          </span>
+          {!compact && (
+            <span className="font-bold text-xl tracking-tight text-white">
+              KOLI
+            </span>
+          )}
+        </Link>
+
+        {/* Le repli n'existe qu'à partir du laptop : sous 1024px, le menu est
+            un tiroir qui se ferme déjà entièrement. */}
+        <button
+          type="button"
+          onClick={basculerRepli}
+          aria-expanded={!compact}
+          aria-label={compact ? "Déployer le menu" : "Replier le menu"}
+          title={compact ? "Déployer le menu" : "Replier le menu"}
+          className="hidden lg:flex items-center justify-center min-h-[36px] min-w-[36px] rounded-xl text-white/60 hover:text-white hover:bg-white/10 transition-colors"
+        >
+          <Icone
+            nom="fleche-droite"
+            className={`w-4 h-4 transition-transform ${compact ? "" : "rotate-180"}`}
+          />
+        </button>
+      </div>
 
       {/* Carte d'identité : rappelle en permanence sous quel compte on agit —
           un vendeur et un administrateur ne voient pas les mêmes montants. */}
       <Link
         href={hrefProfil}
         onClick={() => setTiroirOuvert(false)}
-        className="flex items-center gap-3 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/10 px-3 py-2.5 min-h-[44px] transition-colors"
+        title={compact ? `${userName} — ${roleName}` : undefined}
+        className={`flex items-center gap-3 shrink-0 rounded-2xl bg-white/10 hover:bg-white/15 border border-white/10 min-h-[44px] transition-colors ${
+          compact ? "justify-center p-2" : "px-3 py-2.5"
+        }`}
       >
         <span
           aria-hidden="true"
-          className="w-10 h-10 shrink-0 rounded-full bg-gold text-menu-deep flex items-center justify-center font-bold text-sm"
+          className="w-9 h-9 shrink-0 rounded-full bg-gold text-menu-deep flex items-center justify-center font-bold text-sm"
         >
           {initiales || "K"}
         </span>
-        <span className="min-w-0">
-          <span className="block text-sm font-semibold text-white truncate">
-            {userName}
+        {!compact && (
+          <span className="min-w-0">
+            <span className="block text-sm font-semibold text-white truncate">
+              {userName}
+            </span>
+            <span className="block text-[11px] text-white/70 truncate">
+              {roleName} · Voir mon profil
+            </span>
           </span>
-          <span className="block text-[11px] text-white/70 truncate">
-            {roleName} · Voir mon profil
-          </span>
-        </span>
+        )}
       </Link>
 
-      <nav aria-label="Navigation de l'espace" className="min-w-0 flex-1">
-        {/* Le menu change selon le role, et rien ne le disait : un client
-            s'etonnait de ne pas voir les entrees du vendeur. Nommer l'espace
-            rend la difference immediatement comprehensible. */}
-        <p className="px-3 mb-2 text-[10px] font-bold uppercase tracking-wider text-white/40">
-          Espace {roleName.toLowerCase()}
-        </p>
+      {/*
+       * `min-h-0` + `overflow-y-auto` : SANS eux, le panneau débordait et le
+       * bloc du bas — dont la DÉCONNEXION — sortait de l'écran sans aucun
+       * moyen d'y accéder. Le défaut est apparu en ajoutant une septième
+       * entrée au menu vendeur : sous ~670px de hauteur de fenêtre, le bouton
+       * devenait purement et simplement inatteignable.
+       */}
+      <nav
+        aria-label="Navigation de l'espace"
+        className="min-w-0 flex-1 min-h-0 overflow-y-auto"
+      >
+        {!compact && (
+          <p className="px-3 mb-2 text-[10px] font-bold uppercase tracking-wider text-white/40">
+            Espace {roleName.toLowerCase()}
+          </p>
+        )}
         <ul className="space-y-1">
           {navItems.map((item) => {
             const actif = item.href === hrefActif;
@@ -135,14 +245,21 @@ export function DashboardNav({
                   href={item.href}
                   onClick={() => setTiroirOuvert(false)}
                   aria-current={actif ? "page" : undefined}
-                  className={`flex items-center gap-3 rounded-2xl px-3 min-h-[46px] text-sm font-semibold transition-colors ${
+                  title={compact ? item.label : undefined}
+                  className={`flex items-center gap-3 rounded-2xl min-h-[46px] text-sm font-semibold transition-colors ${
+                    compact ? "justify-center px-2" : "px-3"
+                  } ${
                     actif
                       ? "bg-white text-brand-strong shadow-sm"
                       : "text-white/75 hover:bg-white/10 hover:text-white"
                   }`}
                 >
                   <Icone nom={item.icone} className="w-5 h-5 shrink-0" />
-                  <span className="truncate">{item.label}</span>
+                  {compact ? (
+                    <span className="sr-only">{item.label}</span>
+                  ) : (
+                    <span className="truncate">{item.label}</span>
+                  )}
                 </Link>
               </li>
             );
@@ -152,25 +269,40 @@ export function DashboardNav({
 
       <div className="space-y-2 shrink-0">
         {/* §75 : l'indicateur de mode test reste visible à toutes les tailles. */}
-        <div className="rounded-2xl bg-white/10 border border-gold/30 px-3 py-2.5">
-          <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-gold">
-            <Icone nom="eclair" className="w-3.5 h-3.5" /> Mode test
-          </span>
-          <span className="block text-[11px] text-white/70 mt-0.5">
-            Aucun paiement réel
-          </span>
+        <div
+          title={compact ? "Mode test — aucun paiement réel" : undefined}
+          className={`rounded-2xl bg-white/10 border border-gold/30 ${
+            compact ? "flex justify-center p-2.5" : "px-3 py-2.5"
+          }`}
+        >
+          {compact ? (
+            <>
+              <Icone nom="eclair" className="w-4 h-4 text-gold" />
+              <span className="sr-only">Mode test — aucun paiement réel</span>
+            </>
+          ) : (
+            <>
+              <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-gold">
+                <Icone nom="eclair" className="w-3.5 h-3.5" /> Mode test
+              </span>
+              <span className="block text-[11px] text-white/70 mt-0.5">
+                Aucun paiement réel
+              </span>
+            </>
+          )}
         </div>
 
-        <BoutonDeconnexion nomCompte={userName} />
+        <BoutonDeconnexion nomCompte={userName} compact={compact} />
       </div>
     </div>
   );
 
   return (
     <>
-      {/* Barre latérale permanente à partir du laptop. */}
-      <aside className="hidden lg:block fixed inset-y-0 left-0 w-[15.5rem] z-40 p-3">
-        {contenu}
+      {/* Barre latérale permanente à partir du laptop. Sa largeur suit
+          `--largeur-menu`, que le bouton de repli modifie. */}
+      <aside className="hidden lg:block fixed inset-y-0 left-0 w-[var(--largeur-menu)] z-40 p-2 transition-[width] duration-200">
+        {contenu(replie)}
       </aside>
 
       {/* En-tête compact sur mobile et tablette. */}
@@ -230,9 +362,11 @@ export function DashboardNav({
             role="dialog"
             aria-modal="true"
             aria-label="Menu de l'espace"
-            className="relative w-[15.5rem] max-w-[85vw] h-full animate-tiroir overflow-y-auto"
+            className="relative w-[15.5rem] max-w-[85vw] h-full animate-tiroir"
           >
-            {contenu}
+            {/* Le tiroir reste toujours complet : replier n'a de sens que pour
+                gagner de la place sur un grand écran. */}
+            {contenu(false)}
           </div>
         </div>
       )}

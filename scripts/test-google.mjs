@@ -17,13 +17,28 @@
 import { chromium } from "playwright";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
-const CONFIGURE = process.env.GOOGLE_CONFIGURE === "1";
+/**
+ * Les identifiants sont-ils configurés ? On le DEMANDE AU SERVEUR.
+ *
+ * C'était auparavant une variable d'environnement à poser à la main
+ * (`GOOGLE_CONFIGURE=1`). Qui l'oubliait faisait vérifier à ce script la
+ * mauvaise moitié de lui-même : il a signalé trois défauts inexistants, et il
+ * aurait tout aussi bien pu en taire trois réels. Un test dont on choisit
+ * soi-même la réponse ne vérifie plus rien.
+ *
+ * Le départ de la poignée de main dit tout : vers Google, c'est configuré ;
+ * de retour sur /connexion, ça ne l'est pas.
+ */
+const sonde = await fetch(`${BASE}/api/auth/google`, { redirect: "manual" });
+const CONFIGURE = (sonde.headers.get("location") ?? "").startsWith(
+  "https://accounts.google.com"
+);
 
 console.log(`\n=== CONNEXION GOOGLE depuis ${BASE} ===`);
 console.log(
   CONFIGURE
-    ? "  (identifiants Google configures)\n"
-    : "  (identifiants Google ABSENTS : on verifie l'absence propre)\n"
+    ? "  (identifiants Google configurés — constaté sur le serveur)\n"
+    : "  (identifiants Google ABSENTS — constaté sur le serveur)\n"
 );
 
 const navigateur = await chromium.launch();

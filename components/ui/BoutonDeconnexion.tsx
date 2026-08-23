@@ -19,10 +19,13 @@ import { Icone } from "@/components/ui/Icone";
 export function BoutonDeconnexion({
   nomCompte,
   variante = "menu",
+  compact = false,
 }: {
   nomCompte?: string;
   /** `menu` : pleine largeur dans la barre latérale. `compact` : en ligne. */
   variante?: "menu" | "compact";
+  /** Barre latérale repliée : icône seule, libellé réservé aux lecteurs d écran. */
+  compact?: boolean;
 }) {
   const [confirme, setConfirme] = useState(false);
   const boutonConfirmer = useRef<HTMLButtonElement>(null);
@@ -50,7 +53,9 @@ export function BoutonDeconnexion({
 
   const classesDeclencheur =
     variante === "menu"
-      ? "w-full flex items-center gap-3 rounded-2xl px-3 min-h-[46px] text-sm font-semibold text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+      ? `w-full flex items-center gap-3 rounded-2xl min-h-[46px] text-sm font-semibold text-white/70 hover:text-white hover:bg-white/10 transition-colors ${
+          compact ? "justify-center px-2" : "px-3"
+        }`
       : "inline-flex items-center gap-1.5 min-h-[44px] px-3 rounded-xl border border-hairline text-xs font-semibold text-ink-muted hover:text-danger hover:border-red-200";
 
   return (
@@ -58,13 +63,14 @@ export function BoutonDeconnexion({
       <button
         type="button"
         onClick={() => setConfirme(true)}
+        title={compact ? "Déconnexion" : undefined}
         className={classesDeclencheur}
       >
         <Icone
           nom="deconnexion"
           className={variante === "menu" ? "w-5 h-5 shrink-0" : "w-4 h-4"}
         />
-        <span>Déconnexion</span>
+        <span className={compact ? "sr-only" : undefined}>Déconnexion</span>
       </button>
 
       {confirme && (

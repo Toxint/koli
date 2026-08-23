@@ -34,9 +34,30 @@ export const viewport: Viewport = {
   themeColor: "#047857",
 };
 
+/**
+ * Rétablit l'état du menu latéral AVANT le premier rendu.
+ *
+ * Sans cela, la page s'affiche menu déployé puis se replie une fois React
+ * monté : un sursaut de mise en page à chaque navigation, pour qui a choisi de
+ * replier. Le script est minuscule et synchrone, précisément pour s'exécuter
+ * avant la peinture.
+ *
+ * Le `try` est indispensable : `localStorage` lève en navigation privée sur
+ * certains navigateurs, et une exception ici casserait tout le document.
+ */
+const RETABLIR_MENU = `try{
+  if(localStorage.getItem('koli-menu-replie')==='1'){
+    document.documentElement.style.setProperty('--largeur-menu','4.75rem');
+    document.documentElement.dataset.menuKoliReplie='1';
+  }
+}catch(e){}`;
+
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="fr" className={jakarta.variable}>
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: RETABLIR_MENU }} />
+      </head>
       <body className="bg-cream text-ink antialiased">{children}</body>
     </html>
   );
