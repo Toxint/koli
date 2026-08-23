@@ -4,8 +4,8 @@
  * Ce que ce test protege :
  *  - le tableau de bord affiche bien TOUTES les rubriques du §34, y compris
  *    celles dont la table est encore vide (litiges, remboursements) ;
- *  - la projection de commission est presentee comme une projection et non
- *    comme un revenu acquis ;
+ *  - la commission affichee est celle REELLEMENT prelevee (§41), et non une
+ *    projection presentee comme un revenu ;
  *  - la decision de verification d'un vendeur (§36) persiste et n'est pas
  *    accessible a un non-administrateur ;
  *  - les filtres role / etat du compte sont deux notions distinctes.
@@ -82,10 +82,17 @@ verifier(
   "le mode test est signale sur les montants (§75)"
 );
 
-// La projection de commission ne doit jamais se lire comme un revenu acquis.
+// Le chiffre de commission doit correspondre a ce qui a REELLEMENT ete
+// preleve. Ce controle exigeait auparavant l'inverse — que le tableau annonce
+// une simple projection — parce qu'aucun prelevement n'existait encore
+// (phase 19). L'invariant a change avec le code : il est reecrit, pas efface.
 verifier(
-  /aucun prélèvement n'est effectué/i.test(texte),
-  "la commission est presentee comme une projection, pas comme un revenu"
+  /réellement prélevé/i.test(texte) || /aucun taux actif/i.test(texte),
+  "la commission affichee est celle reellement prelevee, pas une projection"
+);
+verifier(
+  !/projection sur les fonds/i.test(texte),
+  "le tableau de bord n'annonce plus une projection de commission"
 );
 
 // Les activites recentes doivent contenir de vraies lignes, pas un vide.

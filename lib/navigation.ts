@@ -24,6 +24,7 @@ export const NAV_VENDEUR: NavItem[] = [
   },
   { label: "Catalogue", href: "/vendeur/produits", icone: "catalogue" },
   { label: "Clients", href: "/vendeur/clients", icone: "utilisateurs" },
+  { label: "Transactions", href: "/vendeur/transactions", icone: "journal" },
   { label: "Solde", href: "/vendeur/solde", icone: "solde" },
   { label: "Profil", href: "/vendeur/profil", icone: "profil" },
 ];
@@ -44,5 +45,7 @@ export const NAV_ADMIN: NavItem[] = [
   { label: "Vendeurs", href: "/admin/vendeurs", icone: "vendeurs" },
   { label: "Litiges", href: "/admin/litiges", icone: "bouclier" },
   { label: "Remboursements", href: "/admin/remboursements", icone: "argent" },
+  { label: "Transactions", href: "/admin/transactions", icone: "journal" },
+  { label: "Commissions", href: "/admin/commissions", icone: "pourcentage" },
   { label: "Profil", href: "/admin/profil", icone: "profil" },
 ];

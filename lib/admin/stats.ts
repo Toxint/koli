@@ -55,11 +55,15 @@ export interface StatistiquesAdmin {
   commission: {
     tauxActif: number | null;
     /**
-     * Montant que la commission representerait sur les fonds deja liberes.
-     * AUCUN prelevement n'est effectue a ce stade (phase 19) : cette valeur
-     * est une projection, et l'interface doit le dire explicitement.
+     * Commission REELLEMENT prelevee, lue au journal.
+     *
+     * C'etait auparavant une projection calculee a la volee sur les fonds
+     * liberes, faute de prelevement effectif : le tableau de bord annoncait
+     * une recette que la plateforme n'avait jamais encaissee.
      */
-    projectionSurFondsLiberes: number;
+    prelevee: number;
+    /** Nombre de prelevements inscrits au journal. */
+    nombrePrelevements: number;
   };
 }
 
@@ -88,6 +92,7 @@ export async function chargerStatistiquesAdmin(): Promise<StatistiquesAdmin> {
     remboursementsTotal,
     volumeRembourse,
     commissionActive,
+    commissionPrelevee,
   ] = await Promise.all([
     prisma.user.count(),
     prisma.sellerProfile.count(),
@@ -135,6 +140,12 @@ export async function chargerStatistiquesAdmin(): Promise<StatistiquesAdmin> {
       orderBy: { createdAt: "desc" },
       select: { ratePercent: true },
     }),
+
+    prisma.transaction.aggregate({
+      where: { type: "COMMISSION" },
+      _sum: { amount: true },
+      _count: { _all: true },
+    }),
   ]);
 
   const montantLibere = libere._sum.amount ?? 0;
@@ -168,10 +179,10 @@ export async function chargerStatistiquesAdmin(): Promise<StatistiquesAdmin> {
     },
     commission: {
       tauxActif: taux,
-      // Arrondi a l'entier inferieur : le FCFA n'a pas de centimes, et aucune
-      // politique d'arrondi n'est encore arretee (§41, phase 19).
-      projectionSurFondsLiberes:
-        taux === null ? 0 : Math.floor((montantLibere * taux) / 100),
+      // Les ecritures COMMISSION sont negatives (debit du point de vue du
+      // vendeur) : on les repasse en positif pour l'affichage.
+      prelevee: Math.abs(commissionPrelevee._sum.amount ?? 0),
+      nombrePrelevements: commissionPrelevee._count._all,
     },
   };
 }

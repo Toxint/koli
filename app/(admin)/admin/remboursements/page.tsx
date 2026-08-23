@@ -175,9 +175,13 @@ export default async function AdminRemboursementsPage({
                       {r.order.dispute && (
                         <p className="text-xs text-ink-muted mt-0.5">
                           Motif : {libelleMotif(r.order.dispute.reason)} ·{" "}
+                          {/* `min-h-[44px]` : cible tactile (§74). Le lien
+                              faisait 31px, difficile à viser au pouce sur un
+                              écran de téléphone — l'appareil de la quasi
+                              totalité des utilisateurs. */}
                           <Link
                             href={`/litige/${r.order.reference}`}
-                            className="text-brand underline"
+                            className="inline-flex items-center min-h-[44px] text-brand underline"
                           >
                             voir le litige
                           </Link>

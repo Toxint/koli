@@ -19,6 +19,7 @@ const prismaMock = {
   dispute: { count: vi.fn() },
   refund: { count: vi.fn(), aggregate: vi.fn() },
   commission: { findFirst: vi.fn() },
+  transaction: { aggregate: vi.fn() },
   orderStatusHistory: { findMany: vi.fn() },
 };
 
@@ -123,6 +124,10 @@ describe("chargerStatistiquesAdmin", () => {
     prismaMock.refund.aggregate.mockResolvedValue({ _sum: { amount: null } });
     prismaMock.commission.findFirst.mockResolvedValue({ ratePercent: 5 });
     prismaMock.fund.aggregate.mockResolvedValue({ _sum: { amount: 0 } });
+    prismaMock.transaction.aggregate.mockResolvedValue({
+      _sum: { amount: 0 },
+      _count: { _all: 0 },
+    });
   });
 
   it("exclut les fonds liberes du montant sequestre", async () => {
@@ -135,19 +140,28 @@ describe("chargerStatistiquesAdmin", () => {
     expect(appels).toContainEqual({ released: true });
   });
 
-  it("projette la commission sans la prelever, arrondie a l'entier", async () => {
+  it("lit la commission au journal, et non par projection", async () => {
+    // Le point du test : le montant affiche vient des ecritures COMMISSION,
+    // pas d'un pourcentage recalcule sur les fonds liberes. Les deux chiffres
+    // sont volontairement incompatibles ici — 5 % de 18 501 donnerait 925 —
+    // pour que le test echoue si quelqu'un revient a la projection.
     prismaMock.fund.aggregate
       .mockResolvedValueOnce({ _sum: { amount: 0 } }) // sequestre
       .mockResolvedValueOnce({ _sum: { amount: 18_501 } }); // libere
+    prismaMock.transaction.aggregate.mockResolvedValue({
+      _sum: { amount: -1_200 },
+      _count: { _all: 3 },
+    });
 
     const s = await chargerStatistiquesAdmin();
 
-    // 5 % de 18 501 = 925,05 -> 925, le FCFA n'ayant pas de centimes.
     expect(s.commission.tauxActif).toBe(5);
-    expect(s.commission.projectionSurFondsLiberes).toBe(925);
+    // Repasse en positif : l'ecriture est un debit.
+    expect(s.commission.prelevee).toBe(1_200);
+    expect(s.commission.nombrePrelevements).toBe(3);
   });
 
-  it("ne projette rien quand aucun taux n'est actif", async () => {
+  it("n'affiche aucune commission quand rien n'a ete preleve", async () => {
     prismaMock.commission.findFirst.mockResolvedValue(null);
     prismaMock.fund.aggregate
       .mockResolvedValueOnce({ _sum: { amount: 0 } })
@@ -156,7 +170,10 @@ describe("chargerStatistiquesAdmin", () => {
     const s = await chargerStatistiquesAdmin();
 
     expect(s.commission.tauxActif).toBeNull();
-    expect(s.commission.projectionSurFondsLiberes).toBe(0);
+    // Des fonds liberes SANS commission prelevee : c'est exactement le cas
+    // qu'une projection maquillait en recette.
+    expect(s.commission.prelevee).toBe(0);
+    expect(s.commission.nombrePrelevements).toBe(0);
   });
 
   it("traite une somme vide comme zero et non comme NaN", async () => {

@@ -2,13 +2,17 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth/actions";
-import { prisma } from "@/lib/db/prisma";
 import { DashboardNav } from "@/components/ui/DashboardNav";
 import { formatCFA } from "@/lib/format";
 import { NAV_VENDEUR } from "@/lib/navigation";
+import { chargerSoldeVendeur } from "@/lib/finance/solde";
+import { chargerJournal } from "@/lib/finance/journal";
+import { TableauJournal } from "@/components/domain/TableauJournal";
 import { Icone } from "@/components/ui/Icone";
 
 export const metadata: Metadata = { title: "Solde" };
+
+const DERNIERS_MOUVEMENTS = 10;
 
 export default async function SoldeVendeurPage() {
   const user = await getCurrentUser();
@@ -18,36 +22,12 @@ export default async function SoldeVendeurPage() {
 
   const sellerId = user.sellerProfile.id;
 
-  // Agrege en base plutot que de charger toutes les lignes (§46, §70).
-  const [sequestre, libere, mouvements] = await Promise.all([
-    prisma.fund.aggregate({
-      where: { sellerId, secured: true, released: false },
-      _sum: { amount: true },
-    }),
-    prisma.fund.aggregate({
-      where: { sellerId, released: true },
-      _sum: { amount: true },
-    }),
-    // Historique (§42) : les ecritures comptables des commandes du vendeur.
-    prisma.transaction.findMany({
-      where: { order: { sellerId } },
-      include: { order: { select: { reference: true } } },
-      orderBy: { createdAt: "desc" },
-      take: 30,
-    }),
+  // Le solde vient d'un module partagé avec le tableau de bord (§42) : deux
+  // calculs séparés d'un même chiffre finissent toujours par diverger.
+  const [solde, journal] = await Promise.all([
+    chargerSoldeVendeur(sellerId),
+    chargerJournal({ sellerId, page: 1, parPage: DERNIERS_MOUVEMENTS }),
   ]);
-
-  const fondsSecurises = sequestre._sum.amount ?? 0;
-  const soldeDisponible = libere._sum.amount ?? 0;
-  const totalGagne = fondsSecurises + soldeDisponible;
-
-  const libelleType: Record<string, string> = {
-    PAYMENT: "Paiement du client",
-    FUNDS_SECURED: "Fonds sécurisés",
-    FUNDS_RELEASED: "Fonds libérés",
-    COMMISSION: "Commission KOLI",
-    REFUND: "Remboursement",
-  };
 
   return (
     <div className="min-h-screen bg-cream text-ink lg:pl-[var(--largeur-menu)]">
@@ -74,7 +54,7 @@ export default async function SoldeVendeurPage() {
               Fonds sécurisés (test)
             </span>
             <div className="text-2xl font-bold text-brand">
-              {formatCFA(fondsSecurises)}
+              {formatCFA(solde.fondsSecurises)}
             </div>
             <p className="mt-1 text-xs text-ink-muted">
               Commandes payées, en attente de confirmation par le client.
@@ -86,10 +66,21 @@ export default async function SoldeVendeurPage() {
               Solde disponible (test)
             </span>
             <div className="text-2xl font-bold text-brand">
-              {formatCFA(soldeDisponible)}
+              {formatCFA(solde.soldeDisponible)}
             </div>
+            {/* Le solde est net de commission. Le dire ici évite qu'un vendeur
+                compare ce chiffre au montant de ses ventes et croie à une
+                erreur — il manquerait sinon quelques milliers de francs sans
+                aucune explication à l'écran. */}
             <p className="mt-1 text-xs text-ink-muted">
-              Libéré après confirmation de réception.
+              {solde.commissionRetenue > 0 ? (
+                <>
+                  {formatCFA(solde.brutLibere)} libérés, moins{" "}
+                  {formatCFA(solde.commissionRetenue)} de commission KOLI.
+                </>
+              ) : (
+                "Libéré après confirmation de réception."
+              )}
             </p>
           </div>
 
@@ -97,9 +88,11 @@ export default async function SoldeVendeurPage() {
             <span className="block text-[11px] font-semibold uppercase tracking-wider text-ink-muted mb-1">
               Total gagné (test)
             </span>
-            <div className="text-2xl font-bold">{formatCFA(totalGagne)}</div>
+            <div className="text-2xl font-bold">
+              {formatCFA(solde.totalGagne)}
+            </div>
             <p className="mt-1 text-xs text-ink-muted">
-              Sécurisé et libéré cumulés.
+              Sécurisé et disponible cumulés.
             </p>
           </div>
         </div>
@@ -121,49 +114,23 @@ export default async function SoldeVendeurPage() {
         </section>
 
         <section>
-          <h2 className="text-lg mb-3">Historique des mouvements</h2>
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+            <h2 className="text-lg">Derniers mouvements</h2>
+            <Link
+              href="/vendeur/transactions"
+              className="inline-flex items-center gap-1 min-h-[44px] text-xs font-semibold text-brand hover:underline"
+            >
+              Voir tout le journal
+              <Icone nom="fleche-droite" className="w-3.5 h-3.5" />
+            </Link>
+          </div>
 
-          {mouvements.length === 0 ? (
-            <div className="text-center py-12 border-2 border-dashed border-hairline rounded-2xl">
-              <Icone nom="document" className="w-9 h-9 mx-auto text-brand" />
-              <p className="text-sm font-semibold">Aucun mouvement</p>
-              <p className="text-xs text-ink-muted mt-1">
-                Les paiements et libérations de vos commandes apparaîtront ici.
-              </p>
-              <Link
-                href="/vendeur/commandes/nouvelle"
-                className="inline-flex items-center justify-center min-h-[44px] px-5 mt-4 rounded-xl bg-brand hover:bg-brand-strong text-white text-xs font-semibold"
-              >
-                Créer une commande
-              </Link>
-            </div>
-          ) : (
-            <ul className="divide-y divide-hairline border border-hairline rounded-2xl">
-              {mouvements.map((m) => (
-                <li
-                  key={m.id}
-                  className="p-4 flex flex-wrap items-center justify-between gap-x-4 gap-y-1"
-                >
-                  <div className="min-w-0">
-                    <span className="block text-sm font-semibold">
-                      {libelleType[m.type] ?? m.type}
-                    </span>
-                    <span className="block text-xs font-mono text-ink-muted break-all">
-                      {m.order.reference}
-                    </span>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <span className="block font-semibold whitespace-nowrap">
-                      {formatCFA(m.amount)}
-                    </span>
-                    <span className="block text-xs text-ink-muted whitespace-nowrap">
-                      {m.createdAt.toLocaleDateString("fr-FR")}
-                    </span>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
+          <div className="rounded-2xl border border-hairline p-4 sm:p-6">
+            <TableauJournal
+              lignes={journal.lignes}
+              lienCommande={(reference) => `/pay/${reference}`}
+            />
+          </div>
         </section>
       </main>
     </div>

@@ -40,6 +40,8 @@ export type NomIcone =
   | "position"
   | "argent"
   | "document"
+  | "journal"
+  | "pourcentage"
   // États
   | "valide"
   | "alerte"
@@ -94,6 +96,11 @@ const CHEMINS: Record<NomIcone, string> = {
     "M12 3.5v17M15.5 7.5c-.7-1-2-1.6-3.5-1.6-2.2 0-3.6 1.1-3.6 2.7 0 4 7.4 2.2 7.4 6.3 0 1.7-1.6 2.8-3.9 2.8-1.7 0-3.1-.6-3.9-1.7",
   document:
     "M13.5 3.5H7A1.5 1.5 0 005.5 5v14A1.5 1.5 0 007 20.5h10a1.5 1.5 0 001.5-1.5V8.5l-5-5zM13.5 3.5v5h5M9 13h6M9 16.5h4",
+  // Registre : un grand livre ouvert, avec ses lignes d'écriture.
+  journal:
+    "M4 5.5A1.5 1.5 0 015.5 4H10a2 2 0 012 2v13a2 2 0 00-2-2H5.5A1.5 1.5 0 014 15.5v-10zM20 5.5A1.5 1.5 0 0018.5 4H14a2 2 0 00-2 2v13a2 2 0 012-2h4.5a1.5 1.5 0 001.5-1.5v-10z",
+  pourcentage:
+    "M6.5 6.5h.01M17.5 17.5h.01M18.5 5.5l-13 13M8.5 6.5a2 2 0 11-4 0 2 2 0 014 0zM19.5 17.5a2 2 0 11-4 0 2 2 0 014 0z",
 
   // ── États ─────────────────────────────────────────────
   valide: "M12 21a9 9 0 100-18 9 9 0 000 18zM8.5 12.2l2.4 2.4 4.6-4.9",

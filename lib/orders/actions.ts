@@ -9,6 +9,7 @@ import { z } from "zod";
 import { findTransitionPath } from "@/lib/orders/statusMachine";
 import { generateOrderReference } from "@/lib/orders/reference";
 import { deviseDuPays } from "@/data/markets";
+import { preleverCommission } from "@/lib/finance/commission";
 
 const orderSchema = z.object({
   buyerName: z.string().min(2, "Le nom du client est requis"),
@@ -150,7 +151,8 @@ export async function createOrderAction(formData: FormData) {
   // Convention : `Payment.amount` est le total regle par le client (articles +
   // livraison), tandis que `Fund.amount` est ce qui revient au vendeur, donc
   // hors frais de livraison. Les deux ne sont volontairement pas egaux.
-  // La commission KOLI (§41) sera prelevee sur Fund.amount en phase 19.
+  // La commission KOLI (§41) porte sur `Fund.amount` et n'est prelevee qu'a la
+  // liberation des fonds : voir lib/finance/commission.ts.
   const totalItemAmount = prixUnitaire * data.quantity;
   const grandTotal = totalItemAmount + data.deliveryFee;
 
@@ -388,6 +390,15 @@ export async function confirmReceptionAction(
           type: "FUNDS_RELEASED",
           amount: releasedAmount,
         },
+      });
+
+      // §41 : la commission KOLI est prélevée ici, sur l'argent effectivement
+      // remis au vendeur — jamais au paiement, puisqu'une commande peut encore
+      // finir remboursée. Dans la MÊME transaction que la libération : une
+      // libération sans sa commission serait un manque à gagner invisible.
+      await preleverCommission(tx, {
+        orderId: order.id,
+        assiette: releasedAmount,
       });
 
       await tx.order.update({

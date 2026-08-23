@@ -672,7 +672,7 @@ L'enum `DeliveryStatus` gagne l'état **`UNASSIGNED`** qui lui manquait : une li
 
 ### Tables existantes mais encore vides (par choix, phases à venir)
 
-`Dispute`, `DisputeMessage` (Phase 21) · `Refund` (Phase 22) · `Invoice` (Phase 20) · `Notification` (Phase 25) · `AuditLog` (Phase 26) · `KycDocument` (Phase 24) · `Commission` — la table est alimentée, mais aucun prélèvement n'est calculé (Phase 19).
+`Dispute`, `DisputeMessage` (Phase 21) · `Refund` (Phase 22) · `Invoice` (Phase 20) · `Notification` (Phase 25) · `AuditLog` (Phase 26) · `KycDocument` (Phase 24) · `Commission` — **traité en Phase 19** le 23/08/2026, voir §14.
 
 ## 8 quinquies. Complétion fonctionnelle (20/08/2026)
 
@@ -1233,3 +1233,59 @@ Le décompte total charge une ligne par client (et non par commande) pour pagine
 ### Flakiness de test corrigée au passage
 
 Le test échouait au démarrage à froid du serveur : il cliquait « Se connecter » avant l'hydratation de React, si bien que le formulaire — géré en JavaScript — ne réagissait pas. `domcontentloaded` remplacé par `networkidle`. Le test échouait donc pour une raison étrangère à ce qu'il vérifie, ce qui est le pire défaut qu'un test puisse avoir.
+
+---
+
+## 14. Phase 19 — Transactions, journal financier et commission (23/08/2026)
+
+### Ce qui manquait vraiment
+
+Les écritures comptables s'accumulaient depuis le début du projet **sans qu'aucun écran ne les montre** — ni au vendeur, ni à l'administration. Un registre qui s'écrit sans jamais se lire ne prouve rien : personne ne peut constater qu'il est juste.
+
+Surtout, la **commission KOLI (§41) n'était jamais prélevée**. Le tableau de bord admin affichait un pourcentage appliqué à la volée sur les fonds libérés, sous l'étiquette « projection ». C'était honnête, mais cela revenait à ce que la plateforme n'ait aucune recette : la seule source de revenu du produit n'existait pas.
+
+### Trois décisions structurantes
+
+**1. La commission est prélevée à la LIBÉRATION, jamais au paiement.**
+
+C'est le point le moins évident et le plus important. KOLI promet au client que son argent est retenu jusqu'à ce qu'il confirme avoir reçu son colis ; une commande peut donc finir remboursée. Prélever au paiement obligerait à rendre la commission — un mouvement dans un sens puis dans l'autre, pour un service qui n'a finalement pas été rendu. Prélever à la libération fait disparaître le problème : **KOLI ne se rémunère que sur l'argent qui arrive réellement au vendeur.**
+
+Corollaire : il existe **deux** chemins de libération — la confirmation de réception (§29) et un litige tranché en faveur du vendeur (§32). Les deux prélèvent. En oublier un n'aurait cassé rien de visible : la plateforme aurait simplement cessé de se rémunérer sur les commandes arbitrées, c'est-à-dire celles qui lui coûtent le plus de travail.
+
+**2. L'assiette exclut les frais de livraison.**
+
+`Fund.amount` est ce qui revient au vendeur ; `Payment.amount` y ajoute la livraison. Prélever sur le second reviendrait à prendre une part de l'argent du transport, qui n'est pas le chiffre d'affaires du vendeur. Le §40 illustre son exemple sur un montant unique, sans frais distincts : les deux lectures s'y confondent.
+
+**3. Le taux est figé sur chaque écriture.**
+
+`Transaction.rate` est écrit au moment du prélèvement et n'est jamais relu depuis `Commission`. Le taux étant configurable, il change ; le relire aujourd'hui pour expliquer une écriture d'il y a trois mois réécrirait le passé. Un journal comptable ne se relit pas à la lumière des réglages du jour.
+
+Changer de taux **crée une ligne** dans `Commission` et désactive la précédente, sans jamais la réécrire : on peut savoir quel taux était en vigueur à quelle date.
+
+### Arrondi
+
+`Math.floor`. Le franc CFA n'a pas de subdivision en circulation. Arrondir vers le bas plutôt qu'au plus proche est délibéré : en cas de doute, le franc reste chez le vendeur, et **KOLI ne prélève jamais plus que le taux annoncé**. Cela comble l'écart « aucune politique d'arrondi n'est définie pour la future commission » relevé au §9.
+
+### Ce que voit chaque rôle
+
+| Écran | Contenu |
+|---|---|
+| `/vendeur/transactions` | Son journal, filtrable par nature et par référence, avec le total par nature calculé **en base sur tout le filtre** — jamais sur la page affichée, sinon le total change en tournant la page |
+| `/vendeur/solde` | Solde **net** de commission, avec la retenue expliquée à côté : un solde amputé sans un mot ressemble à une erreur |
+| `/admin/transactions` | Le registre complet, tous vendeurs confondus |
+| `/admin/commissions` | Réglage du taux (§41), historique des taux, derniers prélèvements |
+
+Le cloisonnement repose entièrement sur la présence de `sellerId` dans `chargerJournal` : la page vendeur et la page admin appellent la **même** fonction. Si ce filtre se perdait, un commerçant lirait le chiffre d'affaires de ses concurrents sans qu'aucune erreur ne s'affiche. C'est ce que verrouille `lib/__tests__/journal.test.ts`, dont le contrôle a été falsifié avant d'être retenu.
+
+### Avertissement sur les totaux
+
+`PAYMENT` et `FUNDS_SECURED` décrivent le même argent vu de deux côtés : l'encaissement, puis la part réservée au vendeur. Les additionner le compterait deux fois. Les écrans affichent donc **une ligne par nature, jamais de somme générale**, et le journal admin le dit explicitement.
+
+### Schéma
+
+`Transaction` reçoit `rate Float?` (nul hors lignes `COMMISSION`) et ses deux premiers index : `@@index([orderId])`, `@@index([type, createdAt])`. Cela comble partiellement l'écart « aucun index sur les colonnes de jointure » du §9 — les autres tables restent à traiter.
+
+### Écueils rencontrés
+
+- **Prisma stocke les `DateTime` SQLite en TEXTE ISO-8601**, pas en entier. Le nettoyage du script de vérification écrivait `Date.now()` : SQLite classant tout entier avant tout texte, ces lignes se retrouvaient systématiquement en fin de tri décroissant. `tauxCommissionActif()` ordonnant par `createdAt desc`, la ligne réactivée pouvait ne pas être celle retenue. Défaut du script, pas de l'application — mais du genre à fausser silencieusement les exécutions suivantes.
+- **`check-responsive.mjs` n'ouvrait pas les pages des phases 7, 21 et 22.** Un contrôle qui ne visite jamais une page ne dit rien d'elle. Une fois la liste complétée, il a immédiatement trouvé une cible tactile de 31px sur `/admin/remboursements`.

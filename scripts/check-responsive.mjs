@@ -56,6 +56,8 @@ const PAGES_PRIVEES = [
   { chemin: "/vendeur/commandes/nouvelle", nom: "vendeur-nouvelle", compte: "vendeur" },
   { chemin: "/vendeur/produits", nom: "vendeur-catalogue", compte: "vendeur" },
   { chemin: "/vendeur/produits/nouveau", nom: "vendeur-produit-nouveau", compte: "vendeur" },
+  { chemin: "/vendeur/clients", nom: "vendeur-clients", compte: "vendeur" },
+  { chemin: "/vendeur/transactions", nom: "vendeur-transactions", compte: "vendeur" },
   { chemin: "/vendeur/solde", nom: "vendeur-solde", compte: "vendeur" },
   { chemin: "/vendeur/profil", nom: "vendeur-profil", compte: "vendeur" },
   { chemin: "/livreur/dashboard", nom: "livreur-dashboard", compte: "livreur" },
@@ -65,6 +67,10 @@ const PAGES_PRIVEES = [
   { chemin: "/admin/dashboard", nom: "admin-dashboard", compte: "admin" },
   { chemin: "/admin/utilisateurs", nom: "admin-utilisateurs", compte: "admin" },
   { chemin: "/admin/vendeurs", nom: "admin-vendeurs", compte: "admin" },
+  { chemin: "/admin/litiges", nom: "admin-litiges", compte: "admin" },
+  { chemin: "/admin/remboursements", nom: "admin-remboursements", compte: "admin" },
+  { chemin: "/admin/transactions", nom: "admin-transactions", compte: "admin" },
+  { chemin: "/admin/commissions", nom: "admin-commissions", compte: "admin" },
   { chemin: "/admin/profil", nom: "admin-profil", compte: "admin" },
 ];
 

@@ -19,6 +19,9 @@ const prismaMock = {
   fund: { updateMany: vi.fn() },
   refund: { create: vi.fn() },
   transaction: { create: vi.fn() },
+  // La liberation des fonds preleve desormais la commission (§41) : le client
+  // transactionnel doit donc savoir lire le taux actif.
+  commission: { findFirst: vi.fn() },
   user: { findMany: vi.fn() },
   $transaction: vi.fn(),
 };
@@ -307,6 +310,50 @@ describe("arbitrage", () => {
     // Un filtre par sellerId viderait tout le sequestre du vendeur.
     expect(ou).toEqual({ orderId: "o1", released: false });
     expect(prismaMock.refund.create).not.toHaveBeenCalled();
+  });
+
+  it("en faveur du vendeur : preleve aussi la commission (§41)", async () => {
+    // Il existe DEUX chemins de liberation : la confirmation du client, et
+    // l'arbitrage. En oublier un ne casserait rien de visible — la plateforme
+    // cesserait simplement de se remunerer sur les commandes arbitrees, qui
+    // sont justement celles qui lui ont coute le plus de travail.
+    getCurrentUserMock.mockResolvedValue(ADMIN);
+    prismaMock.order.findUnique.mockResolvedValue(EN_LITIGE);
+    prismaMock.fund.updateMany.mockResolvedValue({ count: 1 });
+    prismaMock.commission.findFirst.mockResolvedValue({ ratePercent: 5 });
+
+    await trancherLitigeAction("KOLI-ABCDEFGH", formulaire(DECISION));
+
+    const ecritures = prismaMock.transaction.create.mock.calls.map(
+      (c) => c[0].data
+    );
+    expect(ecritures).toContainEqual(
+      expect.objectContaining({ type: "FUNDS_RELEASED", amount: 18500 })
+    );
+    // 5 % de 18 500 = 925, en debit.
+    expect(ecritures).toContainEqual(
+      expect.objectContaining({ type: "COMMISSION", amount: -925, rate: 5 })
+    );
+  });
+
+  it("en faveur du client : aucune commission, rien n'a ete verse", async () => {
+    // Le coeur du choix de conception : prelever au paiement obligerait a
+    // rendre la commission ici. Prelever a la liberation fait disparaitre le
+    // probleme — une commande remboursee ne coute rien au vendeur.
+    getCurrentUserMock.mockResolvedValue(ADMIN);
+    prismaMock.order.findUnique.mockResolvedValue(EN_LITIGE);
+    prismaMock.refund.create.mockResolvedValue({});
+    prismaMock.commission.findFirst.mockResolvedValue({ ratePercent: 5 });
+
+    await trancherLitigeAction(
+      "KOLI-ABCDEFGH",
+      formulaire({ ...DECISION, decision: "CUSTOMER_WINS" })
+    );
+
+    const types = prismaMock.transaction.create.mock.calls.map(
+      (c) => c[0].data.type
+    );
+    expect(types).not.toContain("COMMISSION");
   });
 
   it("en faveur du client : inscrit la creance, ne libere rien", async () => {

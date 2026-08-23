@@ -223,28 +223,47 @@ export default async function AdminDashboardPage() {
 
           <Section titre="Commission KOLI" sousTitre="§41 — taux configurable">
             {s.commission.tauxActif === null ? (
-              <p className="text-sm text-danger font-medium">
-                Aucun taux actif configuré.
-              </p>
+              <>
+                <p className="text-sm text-danger font-medium">
+                  Aucun taux actif : rien n&apos;est prélevé.
+                </p>
+                <Link
+                  href="/admin/commissions"
+                  className="inline-flex items-center justify-center min-h-[44px] px-4 mt-3 rounded-xl bg-brand hover:bg-brand-strong text-white text-xs font-bold"
+                >
+                  Configurer la commission
+                </Link>
+              </>
             ) : (
               <>
                 <div className="flex items-baseline gap-2">
                   <span className="text-3xl font-bold">
                     {s.commission.tauxActif} %
                   </span>
-                  <span className="text-xs text-ink-muted">taux actif</span>
+                  <span className="text-xs text-ink-muted">taux en vigueur</span>
                 </div>
                 <p className="text-sm font-semibold mt-2">
-                  {formatCFA(s.commission.projectionSurFondsLiberes)}
+                  {formatCFA(s.commission.prelevee)}
                 </p>
-                {/* Honnêteté du chiffre : aucune commission n'est prélevée
-                    aujourd'hui. Présenter cette projection comme un revenu
-                    acquis fausserait la lecture du tableau de bord. */}
+                {/* Ce chiffre est désormais lu au journal, et non plus projeté.
+                    La distinction compte : la version précédente annonçait une
+                    recette que la plateforme n'avait jamais encaissée. */}
                 <p className="text-xs text-ink-muted mt-3">
-                  Projection sur les fonds déjà libérés.{" "}
-                  <strong>Aucun prélèvement n&apos;est effectué</strong> : le
-                  calcul réel arrive en phase 19.
+                  Réellement prélevé sur{" "}
+                  {pluriel(
+                    s.commission.nombrePrelevements,
+                    "libération",
+                    "libérations"
+                  )}
+                  , au moment du versement au vendeur.
                 </p>
+                <Link
+                  href="/admin/commissions"
+                  className="inline-flex items-center gap-1 min-h-[44px] mt-1 text-xs font-semibold text-brand hover:underline"
+                >
+                  Régler le taux
+                  <Icone nom="fleche-droite" className="w-3.5 h-3.5" />
+                </Link>
               </>
             )}
           </Section>

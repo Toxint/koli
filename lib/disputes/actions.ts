@@ -15,6 +15,7 @@ import {
 } from "@/lib/orders/statusMachine";
 import { roleDansLitige } from "@/lib/disputes/acces";
 import { litigeEstClos } from "@/lib/disputes/libelles";
+import { preleverCommission } from "@/lib/finance/commission";
 
 export type ResultatLitige =
   | { success: true; message: string }
@@ -347,6 +348,16 @@ export async function trancherLitigeAction(
           type: "FUNDS_RELEASED",
           amount: commande.fund!.amount,
         },
+      });
+
+      // §41 : une libération obtenue par décision d'arbitrage reste une
+      // libération. La commission s'y applique exactement comme sur une
+      // confirmation de réception ordinaire — l'oublier ici ferait travailler
+      // la plateforme gratuitement sur les commandes les plus coûteuses à
+      // traiter, celles qui ont demandé un arbitrage.
+      await preleverCommission(tx, {
+        orderId: commande.id,
+        assiette: commande.fund!.amount,
       });
     } else {
       // Le remboursement lui-même relève de la phase 22 : on inscrit la

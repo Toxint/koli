@@ -311,6 +311,18 @@ model Transaction {
   type      TransactionType
   amount    Int             // signé : + crédit / - débit
   createdAt DateTime        @default(now())
+
+  // Taux appliqué, figé au moment de l'écriture (§41). Ne concerne que les
+  // lignes COMMISSION ; ailleurs il reste nul.
+  //
+  // Il est stocké et non relu depuis `Commission` : le taux est configurable,
+  // donc il change. Le relire aujourd'hui pour expliquer une écriture d'il y a
+  // trois mois réécrirait le passé — un journal comptable ne se relit pas à la
+  // lumière des réglages du jour.
+  rate      Float?
+
+  @@index([orderId])
+  @@index([type, createdAt])
 }
 
 model Fund {

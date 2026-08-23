@@ -20,6 +20,9 @@ const prismaMock = {
   fund: { update: vi.fn(), updateMany: vi.fn() },
   payment: { updateMany: vi.fn() },
   transaction: { create: vi.fn() },
+  // La liberation des fonds preleve desormais la commission (§41) : le client
+  // transactionnel doit donc savoir lire le taux actif.
+  commission: { findFirst: vi.fn() },
   orderStatusHistory: { create: vi.fn() },
   deliveryProof: { create: vi.fn() },
   $transaction: vi.fn(),
@@ -432,6 +435,8 @@ describe("confirmReceptionAction — autorisation", () => {
     const tx = {
       fund: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
       transaction: { create: vi.fn(), createMany: vi.fn() },
+      // La liberation preleve la commission (§41) dans la MEME transaction.
+      commission: { findFirst: vi.fn().mockResolvedValue({ ratePercent: 5 }) },
       order: { update: vi.fn() },
       orderStatusHistory: { create: vi.fn() },
     };
@@ -520,6 +525,8 @@ describe("confirmReceptionAction", () => {
     const tx = {
       fund: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
       transaction: { create: vi.fn(), createMany: vi.fn() },
+      // La liberation preleve la commission (§41) dans la MEME transaction.
+      commission: { findFirst: vi.fn().mockResolvedValue({ ratePercent: 5 }) },
       order: { update: vi.fn() },
       orderStatusHistory: { create: vi.fn() },
     };
@@ -535,5 +542,72 @@ describe("confirmReceptionAction", () => {
         where: { orderId: "o1", secured: true, released: false },
       })
     );
+  });
+
+  it("preleve la commission DANS la transaction de liberation (§41)", async () => {
+    prismaMock.order.findUnique.mockResolvedValue({
+      id: "o1",
+      reference: "KOLI-ABCDEFGH",
+      sellerId: "s1",
+      customerId: "c1",
+      status: "DELIVERED",
+      fund: { amount: 20000, released: false, secured: true },
+    });
+
+    const tx = {
+      fund: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+      transaction: { create: vi.fn(), createMany: vi.fn() },
+      commission: { findFirst: vi.fn().mockResolvedValue({ ratePercent: 5 }) },
+      order: { update: vi.fn() },
+      orderStatusHistory: { create: vi.fn() },
+    };
+    prismaMock.$transaction.mockImplementation(
+      async (cb: (t: typeof tx) => unknown) => cb(tx)
+    );
+
+    await confirmReceptionAction("KOLI-ABCDEFGH");
+
+    const ecritures = tx.transaction.create.mock.calls.map((c) => c[0].data);
+
+    // La liberation, puis la commission : les deux dans la meme transaction.
+    // Prelevee en dehors, une panne laisserait le vendeur paye sans que KOLI
+    // ait retenu quoi que ce soit — un manque a gagner totalement invisible.
+    expect(ecritures).toContainEqual(
+      expect.objectContaining({ type: "FUNDS_RELEASED", amount: 20000 })
+    );
+    expect(ecritures).toContainEqual(
+      expect.objectContaining({ type: "COMMISSION", amount: -1000, rate: 5 })
+    );
+  });
+
+  it("libere sans commission quand aucun taux n'est actif", async () => {
+    prismaMock.order.findUnique.mockResolvedValue({
+      id: "o1",
+      reference: "KOLI-ABCDEFGH",
+      sellerId: "s1",
+      customerId: "c1",
+      status: "DELIVERED",
+      fund: { amount: 20000, released: false, secured: true },
+    });
+
+    const tx = {
+      fund: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
+      transaction: { create: vi.fn(), createMany: vi.fn() },
+      commission: { findFirst: vi.fn().mockResolvedValue(null) },
+      order: { update: vi.fn() },
+      orderStatusHistory: { create: vi.fn() },
+    };
+    prismaMock.$transaction.mockImplementation(
+      async (cb: (t: typeof tx) => unknown) => cb(tx)
+    );
+
+    const res = await confirmReceptionAction("KOLI-ABCDEFGH");
+
+    // Sans taux configure, la liberation doit aboutir quand meme : le vendeur
+    // ne doit pas etre bloque parce que l'administration n'a rien parametre.
+    expect(res.success).toBe(true);
+    const types = tx.transaction.create.mock.calls.map((c) => c[0].data.type);
+    expect(types).toContain("FUNDS_RELEASED");
+    expect(types).not.toContain("COMMISSION");
   });
 });

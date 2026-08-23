@@ -1,0 +1,530 @@
+/**
+ * Phase 19 — Journal financier (§39-40) et commission KOLI (§41).
+ *
+ * Ce que ce test protège vraiment :
+ *
+ *  1. La commission est **prélevée**, pas seulement projetée. Le tableau de
+ *     bord annonçait jusqu'ici une recette que la plateforme n'avait jamais
+ *     encaissée.
+ *  2. Elle est prélevée **à la libération**, jamais au paiement : une commande
+ *     encore sous séquestre ne doit générer aucune ligne de commission.
+ *  3. Le taux est **configurable** (§41) et **figé sur chaque écriture** :
+ *     changer le taux ne réécrit aucune commission passée.
+ *  4. Le solde du vendeur est **net**, et l'écran le dit.
+ *  5. Un vendeur ne voit **que** son journal.
+ *
+ * Usage :
+ *   BASE_URL=http://127.0.0.1:3000 node scripts/test-transactions.mjs
+ */
+
+import { chromium } from "playwright";
+import Database from "better-sqlite3";
+
+const BASE = process.env.BASE_URL ?? "http://localhost:3000";
+const MDP = "Password123!";
+
+// Accès direct à la base, comme les autres scripts de vérification : on lit ce
+// que l'application a RÉELLEMENT écrit, pas ce qu'elle affiche. Un écran peut
+// mentir sans que la base change, et l'inverse est tout aussi possible.
+const db = new Database("prisma/dev.db");
+const un = (sql, ...args) => db.prepare(sql).get(...args);
+const tous = (sql, ...args) => db.prepare(sql).all(...args);
+const ecrire = (sql, ...args) => db.prepare(sql).run(...args);
+
+// `rowid` en second critère : deux lignes créées dans la même milliseconde
+// rendraient l'ordre indéterminé, et le test deviendrait capricieux.
+const tauxActif = () =>
+  un(
+    "SELECT id, ratePercent FROM Commission WHERE isActive = 1 ORDER BY createdAt DESC, rowid DESC LIMIT 1"
+  );
+const ecrituresDe = (orderId) =>
+  tous(
+    'SELECT id, type, amount, rate FROM "Transaction" WHERE orderId = ?',
+    orderId
+  );
+
+console.log(`\n=== TRANSACTIONS & COMMISSION depuis ${BASE} ===\n`);
+
+const navigateur = await chromium.launch();
+let echecs = 0;
+const verifier = (ok, libelle, detail = "") => {
+  if (ok) console.log(`  ✓ ${libelle}`);
+  else {
+    echecs++;
+    console.log(`  ✗ ${libelle}${detail ? ` — ${detail}` : ""}`);
+  }
+};
+
+const connecter = async (page, identifiant) => {
+  await page.goto(`${BASE}/connexion`, { waitUntil: "networkidle" });
+  await page.locator("#identifier").fill(identifiant);
+  await page.locator("#password").fill(MDP);
+  await page
+    .getByRole("button", { name: /^Se connecter$/ })
+    .filter({ visible: true })
+    .first()
+    .click();
+  await page
+    .waitForURL((u) => !u.pathname.startsWith("/connexion"), { timeout: 25000 })
+    .catch(() => {});
+  await page.waitForTimeout(600);
+};
+
+const bouton = (page, libelle) =>
+  page.getByRole("button", { name: libelle }).filter({ visible: true }).first();
+
+const texte = (page) => page.evaluate(() => document.body.innerText);
+
+/** Même séparateur de milliers que `formatCFA` : espace fine insécable. */
+const enFCFA = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, " ");
+
+try {
+  // ═══════════ 1. Le taux est configurable depuis la console (§41)
+  const ctxAdmin = await navigateur.newContext({
+    viewport: { width: 1280, height: 900 },
+  });
+  const admin = await ctxAdmin.newPage();
+  await connecter(admin, "admin@koli.ci");
+
+  await admin.goto(`${BASE}/admin/commissions`, { waitUntil: "networkidle" });
+  verifier(
+    /Commission KOLI/i.test(await texte(admin)),
+    "la page de configuration de la commission existe"
+  );
+
+  const champ = admin.locator("#taux");
+  verifier((await champ.count()) > 0, "le taux se règle depuis un champ");
+
+  await champ.fill("10");
+  await admin.waitForTimeout(400);
+  verifier(
+    /KOLI retiendrait/i.test(await texte(admin)),
+    "un aperçu chiffre ce que le taux donnerait"
+  );
+
+  const avantEnregistrement = tous("SELECT id FROM Commission").length;
+
+  await bouton(admin, /Enregistrer le taux/i).click();
+  await admin.waitForTimeout(1800);
+
+  verifier(
+    tauxActif()?.ratePercent === 10,
+    "le nouveau taux est enregistré",
+    String(tauxActif()?.ratePercent)
+  );
+
+  const actives = un(
+    "SELECT COUNT(*) AS n FROM Commission WHERE isActive = 1"
+  ).n;
+  verifier(
+    actives === 1,
+    "un seul taux reste actif : l'ancien est désactivé, pas écrasé",
+    `${actives} ligne(s) active(s)`
+  );
+
+  const historique = tous("SELECT id FROM Commission").length;
+  verifier(
+    historique === avantEnregistrement + 1,
+    "l'ancien taux subsiste dans l'historique",
+    `${avantEnregistrement} → ${historique} ligne(s)`
+  );
+
+  // Saisies refusées : une commission absurde coûterait cher à réparer.
+  for (const [valeur, pourquoi] of [
+    ["-5", "un taux négatif"],
+    ["80", "un taux supérieur à 50 %"],
+    ["abc", "une saisie non numérique"],
+  ]) {
+    await champ.fill(valeur);
+    await bouton(admin, /Enregistrer le taux/i).click();
+    await admin.waitForTimeout(900);
+    verifier(
+      tauxActif()?.ratePercent === 10,
+      `${pourquoi} est refusé`,
+      `taux devenu ${tauxActif()?.ratePercent}`
+    );
+  }
+
+  // La virgule décimale française doit passer : c'est ce que propose le
+  // clavier d'un téléphone.
+  await champ.fill("4,5");
+  await bouton(admin, /Enregistrer le taux/i).click();
+  await admin.waitForTimeout(1800);
+  verifier(
+    tauxActif()?.ratePercent === 4.5,
+    "la virgule décimale est acceptée (4,5 %)",
+    String(tauxActif()?.ratePercent)
+  );
+
+  // ═══════════ 2. Une commande payée mais NON libérée ne coûte rien
+  const ctxVendeur = await navigateur.newContext({
+    viewport: { width: 1280, height: 900 },
+  });
+  const vendeur = await ctxVendeur.newPage();
+  await connecter(vendeur, "vendeur@koli.ci");
+
+  // Le produit vient du catalogue réel, et son prix est lu en base : le
+  // montant attendu de la commission est ainsi calculé indépendamment de
+  // l'application, au lieu d'être supposé.
+  const produit = un(
+    `SELECT p.id, p.name, p.price
+       FROM Product p
+       JOIN SellerProfile s ON s.id = p.sellerId
+       JOIN User u ON u.id = s.userId
+      WHERE u.email = 'vendeur@koli.ci'
+        AND p.status = 'ACTIVE' AND p.quantity > 0
+      ORDER BY p.price DESC
+      LIMIT 1`
+  );
+  verifier(produit != null, "un produit du catalogue est disponible");
+  if (!produit) throw new Error("Catalogue vide : la suite est sans objet.");
+
+  await vendeur.goto(`${BASE}/vendeur/commandes/nouvelle`, {
+    waitUntil: "networkidle",
+  });
+
+  const continuer = async () => {
+    await bouton(vendeur, /Continuer/i).click();
+    await vendeur.waitForTimeout(700);
+  };
+
+  await vendeur.locator("#productId").selectOption(produit.id);
+  await vendeur.locator("#quantity").fill("1");
+  await continuer();
+
+  await vendeur.locator("#buyerName").fill("Awa Koné");
+  await vendeur.locator("#buyerPhone").fill("+2250505050505");
+  await vendeur.locator("#buyerCity").fill("Abidjan");
+  await vendeur.locator("#buyerAddress").fill("Cocody 2 Plateaux");
+  await continuer();
+
+  await vendeur.locator("#deliveryFee").fill("1500");
+  await continuer();
+
+  await bouton(vendeur, /Créer la commande/i).click();
+  await vendeur.waitForTimeout(4500);
+
+  const commande = un(
+    `SELECT o.id, o.reference, o.sellerId, o.status
+       FROM "Order" o
+      WHERE o.buyerName = 'Awa Koné'
+      ORDER BY o.createdAt DESC, o.rowid DESC
+      LIMIT 1`
+  );
+  verifier(
+    commande != null && commande.status === "PAYMENT_PENDING",
+    "commande de test créée",
+    commande ? commande.status : "aucune"
+  );
+
+  if (!commande) throw new Error("Aucune commande : la suite est sans objet.");
+
+  const reference = commande.reference;
+  // Assiette de la commission : le prix des articles, hors frais de livraison.
+  const assiette = produit.price;
+  const commissionAttendue = Math.floor((assiette * 4.5) / 100);
+
+  // Paiement.
+  const ctxClient = await navigateur.newContext({
+    viewport: { width: 390, height: 844 },
+  });
+  const client = await ctxClient.newPage();
+  await connecter(client, "client@koli.ci");
+  await client.goto(`${BASE}/pay/${reference}`, { waitUntil: "networkidle" });
+  await bouton(client, /Simuler un paiement/i).click();
+  await client.waitForTimeout(3000);
+
+  const apresPaiement = ecrituresDe(commande.id);
+  verifier(
+    apresPaiement.some((t) => t.type === "PAYMENT") &&
+      apresPaiement.some((t) => t.type === "FUNDS_SECURED"),
+    "le paiement inscrit PAYMENT et FUNDS_SECURED au journal (§40)",
+    apresPaiement.map((t) => t.type).join(", ")
+  );
+  verifier(
+    !apresPaiement.some((t) => t.type === "COMMISSION"),
+    "AUCUNE commission au paiement : l'argent n'a pas encore été versé",
+    apresPaiement.map((t) => t.type).join(", ")
+  );
+
+  // ═══════════ 3. Livraison puis confirmation : la commission tombe
+  // L'OTP est rattaché à la LIVRAISON, pas à la commande (§27) : il faut
+  // passer par Delivery. `consumedAt IS NULL` = code non encore utilisé.
+  const otp = un(
+    `SELECT o.code
+       FROM OtpCode o
+       JOIN Delivery d ON d.id = o.deliveryId
+      WHERE d.orderId = ? AND o.consumedAt IS NULL
+      ORDER BY o.createdAt DESC
+      LIMIT 1`,
+    commande.id
+  );
+  const livreur1 = un("SELECT id FROM DriverProfile LIMIT 1");
+
+  ecrire(
+    "UPDATE Delivery SET driverId = ?, status = 'ASSIGNED' WHERE orderId = ?",
+    livreur1.id,
+    commande.id
+  );
+
+  const ctxLivreur = await navigateur.newContext({
+    viewport: { width: 390, height: 844 },
+  });
+  const livreur = await ctxLivreur.newPage();
+  await connecter(livreur, "livreur@koli.ci");
+  await livreur.goto(`${BASE}/livreur/dashboard`, { waitUntil: "networkidle" });
+
+  const valider = bouton(livreur, /Valider la remise|Valider|Confirmer/i);
+  if (await valider.count()) {
+    await valider.click();
+    await livreur.waitForTimeout(800);
+    const champOtp = livreur.locator('input[name="otp"], #otp').first();
+    if ((await champOtp.count()) && otp) {
+      await champOtp.fill(otp.code);
+      await bouton(livreur, /Valider/i).click();
+      await livreur.waitForTimeout(2500);
+    }
+  }
+
+  // Filet : le sujet de CE test est la commission, pas le parcours livreur —
+  // déjà couvert par verif:parcours. Si la remise n'a pas abouti, on pose
+  // l'état pour que la vérification du prélèvement reste possible, et on le
+  // dit explicitement plutôt que de laisser croire à un parcours complet.
+  const avantConfirmation = un(
+    'SELECT status FROM "Order" WHERE id = ?',
+    commande.id
+  );
+  if (avantConfirmation.status !== "DELIVERED") {
+    ecrire(
+      "UPDATE \"Order\" SET status = 'DELIVERED' WHERE id = ?",
+      commande.id
+    );
+    console.log(
+      `    (état DELIVERED posé directement — le parcours livreur s'est arrêté à ${avantConfirmation.status})`
+    );
+  }
+
+  await client.goto(`${BASE}/pay/${reference}`, { waitUntil: "networkidle" });
+  const confirmer = bouton(client, /reçu ma commande|Confirmer la réception/i);
+  verifier(
+    (await confirmer.count()) > 0,
+    "le client est invité à confirmer la réception"
+  );
+  if (await confirmer.count()) {
+    await confirmer.click();
+    await client.waitForTimeout(3000);
+  }
+
+  const apresLiberation = ecrituresDe(commande.id);
+  const ligneCommission = apresLiberation.find((t) => t.type === "COMMISSION");
+
+  verifier(
+    apresLiberation.some((t) => t.type === "FUNDS_RELEASED"),
+    "les fonds sont libérés",
+    apresLiberation.map((t) => t.type).join(", ")
+  );
+  verifier(
+    ligneCommission != null,
+    "une commission est PRÉLEVÉE à la libération (§41)"
+  );
+  verifier(
+    ligneCommission?.amount === -commissionAttendue,
+    `la commission est un débit de ${commissionAttendue} FCFA (4,5 % de ${assiette})`,
+    String(ligneCommission?.amount)
+  );
+  verifier(
+    ligneCommission?.rate === 4.5,
+    "le taux appliqué est figé sur l'écriture",
+    String(ligneCommission?.rate)
+  );
+
+  // ═══════════ 4. Changer le taux ne réécrit pas le passé
+  if (ligneCommission) {
+    await admin.goto(`${BASE}/admin/commissions`, { waitUntil: "networkidle" });
+    await admin.locator("#taux").fill("12");
+    await bouton(admin, /Enregistrer le taux/i).click();
+    await admin.waitForTimeout(1800);
+
+    verifier(
+      tauxActif()?.ratePercent === 12,
+      "le taux a bien changé pour l'avenir"
+    );
+
+    const inchangee = un(
+      'SELECT amount, rate FROM "Transaction" WHERE id = ?',
+      ligneCommission.id
+    );
+    verifier(
+      inchangee.amount === -commissionAttendue && inchangee.rate === 4.5,
+      "changer le taux ne réécrit AUCUNE commission déjà prélevée",
+      `${inchangee.amount} FCFA à ${inchangee.rate} %`
+    );
+  }
+
+  // ═══════════ 5. Le solde du vendeur est net, et l'écran le dit
+  await vendeur.goto(`${BASE}/vendeur/solde`, { waitUntil: "networkidle" });
+  const pageSolde = await texte(vendeur);
+  verifier(
+    /commission KOLI/i.test(pageSolde),
+    "la page Solde explique la retenue plutôt que d'amputer sans un mot"
+  );
+
+  const libere = un(
+    "SELECT COALESCE(SUM(amount), 0) AS s FROM Fund WHERE sellerId = ? AND released = 1",
+    commande.sellerId
+  ).s;
+  const retenu = un(
+    `SELECT COALESCE(SUM(t.amount), 0) AS s
+       FROM "Transaction" t
+       JOIN "Order" o ON o.id = t.orderId
+      WHERE t.type = 'COMMISSION' AND o.sellerId = ?`,
+    commande.sellerId
+  ).s;
+  const attendu = libere - Math.abs(retenu);
+
+  verifier(
+    pageSolde.includes(enFCFA(attendu)),
+    "le solde affiché est net de commission",
+    `attendu ${enFCFA(attendu)} (libéré ${libere}, retenu ${Math.abs(retenu)})`
+  );
+
+  // ═══════════ 6. Le journal est lisible, et cloisonné
+  await vendeur.goto(`${BASE}/vendeur/transactions`, {
+    waitUntil: "networkidle",
+  });
+  const journalVendeur = await texte(vendeur);
+  verifier(
+    journalVendeur.includes(reference),
+    "le journal du vendeur montre ses écritures (§40)"
+  );
+  verifier(
+    /Commission KOLI/i.test(journalVendeur),
+    "la commission y figure explicitement"
+  );
+  // Les montants portent une espace fine insécable (U+202F) comme séparateur
+  // de milliers : sans normalisation, « 1 125 » ne correspond jamais à
+  // « 1 125 » et le test échouerait pour une raison typographique.
+  const normaliser = (t) => t.replace(/\s+/g, " ");
+  const montantsSignes =
+    normaliser(journalVendeur).match(/[−+] [\d ]+FCFA/g) ?? [];
+  verifier(
+    montantsSignes.includes(`− ${normaliser(enFCFA(commissionAttendue))} FCFA`),
+    "elle est présentée comme un débit, signe compris",
+    montantsSignes.join(" | ") || "aucun montant signé"
+  );
+
+  const concurrent = un(
+    `SELECT o.reference
+       FROM "Order" o
+      WHERE o.sellerId <> ?
+      LIMIT 1`,
+    commande.sellerId
+  );
+  // Un contrôle qui disparaît en silence se lit comme une réussite : si le jeu
+  // de données ne contient qu'un vendeur, on le dit plutôt que de se taire.
+  if (concurrent) {
+    verifier(
+      !journalVendeur.includes(concurrent.reference),
+      "un vendeur ne voit PAS les écritures d'un concurrent",
+      concurrent.reference
+    );
+  } else {
+    console.log(
+      "  ! cloisonnement entre vendeurs NON vérifié : un seul vendeur a des commandes"
+    );
+  }
+
+  // Le filtre par nature doit vraiment filtrer en base.
+  await vendeur.goto(`${BASE}/vendeur/transactions?type=COMMISSION`, {
+    waitUntil: "networkidle",
+  });
+  // On lit la LISTE, pas la page : le menu de filtrage énumère toutes les
+  // natures dans ses options, et un contrôle sur `body.innerText` croirait
+  // voir des écritures qui n'y sont pas.
+  const naturesAffichees = await vendeur
+    .locator("ul[data-journal] li")
+    .evaluateAll((els) => els.map((e) => e.innerText.split("\n")[0].trim()));
+  verifier(
+    naturesAffichees.length > 0 &&
+      naturesAffichees.every((n) => /Commission KOLI/i.test(n)),
+    "le filtre par nature écarte réellement les autres écritures",
+    naturesAffichees.join(" | ") || "liste vide"
+  );
+
+  // Un type fabriqué ne doit pas faire tomber la page.
+  const forge = await vendeur.goto(
+    `${BASE}/vendeur/transactions?type=NIMPORTE_QUOI`,
+    { waitUntil: "networkidle" }
+  );
+  verifier(
+    forge.status() === 200,
+    "un type d'écriture inventé dans l'URL est ignoré, pas fatal",
+    String(forge.status())
+  );
+
+  // ═══════════ 7. Le tableau de bord admin cesse de projeter
+  await admin.goto(`${BASE}/admin/dashboard`, { waitUntil: "networkidle" });
+  const tableauAdmin = await texte(admin);
+  verifier(
+    !/Projection sur les fonds/i.test(tableauAdmin),
+    "le tableau de bord n'annonce plus une projection"
+  );
+  verifier(
+    !/Aucun prélèvement n'est effectué/i.test(tableauAdmin),
+    "il n'affirme plus qu'aucun prélèvement n'a lieu"
+  );
+  verifier(
+    /Réellement prélevé/i.test(tableauAdmin),
+    "il annonce ce qui a réellement été prélevé"
+  );
+
+  await admin.goto(`${BASE}/admin/transactions`, { waitUntil: "networkidle" });
+  const journalAdmin = await texte(admin);
+  verifier(
+    journalAdmin.includes(reference),
+    "le journal global existe et contient la commande"
+  );
+  verifier(
+    /ne s'additionnent pas/i.test(journalAdmin),
+    "il avertit que les totaux ne s'additionnent pas entre eux"
+  );
+
+  // ═══════════ 8. Un vendeur n'entre pas dans la console
+  await vendeur.goto(`${BASE}/admin/commissions`, { waitUntil: "networkidle" });
+  verifier(
+    !new URL(vendeur.url()).pathname.startsWith("/admin"),
+    "un vendeur ne peut pas régler la commission",
+    new URL(vendeur.url()).pathname
+  );
+} finally {
+  // Le taux est remis à 5 % : ce test le modifie, et un test qui laisse
+  // l'application dans un autre état pollue les suivants.
+  //
+  // Les lignes créées par les exécutions précédentes sont SUPPRIMÉES plutôt
+  // qu'empilées : sans cela, l'historique des taux se remplissait d'une
+  // vingtaine de lignes fantômes à chaque passage.
+  ecrire("DELETE FROM Commission WHERE id LIKE 'cm-verif-%'");
+  ecrire("UPDATE Commission SET isActive = 0 WHERE isActive = 1");
+
+  // ⚠ Prisma stocke les DateTime SQLite en TEXTE ISO-8601, pas en entier.
+  // Une première version écrivait `Date.now()` : SQLite classant tout entier
+  // avant tout texte, ces lignes se retrouvaient systématiquement en fin de
+  // tri décroissant. `tauxCommissionActif()` ordonne justement par
+  // `createdAt desc` — la ligne réactivée ici aurait donc pu ne pas être celle
+  // retenue. Le format doit être identique à celui qu'écrit l'application.
+  ecrire(
+    "INSERT INTO Commission (id, ratePercent, isActive, createdAt) VALUES (?, 5, 1, ?)",
+    `cm-verif-${Date.now()}`,
+    new Date().toISOString().replace("Z", "+00:00")
+  );
+  db.close();
+  await navigateur.close();
+}
+
+console.log("");
+console.log(
+  echecs === 0
+    ? "La commission est prélevée, configurable, figée sur ses écritures, et le journal est lisible."
+    : `${echecs} probleme(s).`
+);
+process.exit(echecs > 0 ? 1 : 0);

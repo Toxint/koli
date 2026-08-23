@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db/prisma";
 import { DashboardNav } from "@/components/ui/DashboardNav";
 import { NAV_VENDEUR } from "@/lib/navigation";
 import { formatCFA } from "@/lib/format";
+import { chargerSoldeVendeur } from "@/lib/finance/solde";
 import { libelleStatut, classesBadgeStatut } from "@/lib/orders/statusLabels";
 import Link from "next/link";
 import { Icone } from "@/components/ui/Icone";
@@ -37,18 +38,14 @@ export default async function SellerDashboardPage() {
     where: { sellerId: sellerProfileId },
   });
 
-  // Calculate funds (Test mode)
-  const funds = await prisma.fund.findMany({
-    where: { sellerId: sellerProfileId },
-  });
-
-  const securedAmount = funds
-    .filter((f) => f.secured && !f.released)
-    .reduce((acc, f) => acc + f.amount, 0);
-
-  const releasedAmount = funds
-    .filter((f) => f.released)
-    .reduce((acc, f) => acc + f.amount, 0);
+  // Solde (§42) : meme module que la page Solde. Le calcul etait auparavant
+  // duplique ici, et chargeait TOUTES les lignes de sequestre du vendeur en
+  // memoire pour n en faire qu une somme (§46, §70). Il ignorait surtout la
+  // commission, si bien que les deux ecrans annonceraient desormais deux
+  // soldes differents.
+  const solde = await chargerSoldeVendeur(sellerProfileId);
+  const securedAmount = solde.fondsSecurises;
+  const releasedAmount = solde.soldeDisponible;
 
   return (
     <div className="min-h-screen bg-cream text-ink lg:pl-[var(--largeur-menu)]">
@@ -107,7 +104,9 @@ export default async function SellerDashboardPage() {
               {formatCFA(releasedAmount)}
             </div>
             <p className="text-[11px] text-ink-muted mt-1">
-              Libéré après confirmation de réception par le client
+              {solde.commissionRetenue > 0
+                ? `Net de ${formatCFA(solde.commissionRetenue)} de commission KOLI`
+                : "Libéré après confirmation de réception par le client"}
             </p>
           </div>
 

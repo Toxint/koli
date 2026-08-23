@@ -20,7 +20,7 @@
     "verif:etapes": "node scripts/test-commande-etapes.mjs",
     "verif:admin": "node scripts/test-admin.mjs",
     "verif:google": "node scripts/test-google.mjs",
-    "verif:tout": "npm run typecheck && npm run lint && npm test && npm run verif:responsive && npm run verif:liens && npm run verif:connexion && npm run verif:deconnexion && npm run verif:menu && npm run verif:session && npm run verif:motdepasse && npm run verif:inscription && npm run verif:catalogue && npm run verif:clients && npm run verif:etapes && npm run verif:litiges && npm run verif:admin && npm run verif:google && npm run verif:parcours",
+    "verif:tout": "npm run typecheck && npm run lint && npm test && npm run verif:responsive && npm run verif:liens && npm run verif:connexion && npm run verif:deconnexion && npm run verif:menu && npm run verif:session && npm run verif:motdepasse && npm run verif:inscription && npm run verif:catalogue && npm run verif:clients && npm run verif:etapes && npm run verif:litiges && npm run verif:transactions && npm run verif:admin && npm run verif:google && npm run verif:parcours",
     "faux-google": "node scripts/faux-google.mjs",
     "verif:google-complet": "node scripts/test-google-bout-en-bout.mjs",
     "google:verifier": "node scripts/verifier-google.mjs",
@@ -29,7 +29,8 @@
     "verif:litiges": "node scripts/test-litiges.mjs",
     "verif:remboursements": "node scripts/test-litiges.mjs",
     "verif:clients": "node scripts/test-clients-vendeur.mjs",
-    "verif:menu": "node scripts/test-menu-lateral.mjs"
+    "verif:menu": "node scripts/test-menu-lateral.mjs",
+    "verif:transactions": "node scripts/test-transactions.mjs"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^7.9.1",
