@@ -26,7 +26,8 @@
     "google:verifier": "node scripts/verifier-google.mjs",
     "verif:motdepasse": "node scripts/test-mot-de-passe-oublie.mjs",
     "verif:deconnexion": "node scripts/test-deconnexion.mjs",
-    "verif:litiges": "node scripts/test-litiges.mjs"
+    "verif:litiges": "node scripts/test-litiges.mjs",
+    "verif:remboursements": "node scripts/test-litiges.mjs"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^7.9.1",

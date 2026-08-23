@@ -42,5 +42,6 @@ export const NAV_ADMIN: NavItem[] = [
   { label: "Utilisateurs", href: "/admin/utilisateurs", icone: "utilisateurs" },
   { label: "Vendeurs", href: "/admin/vendeurs", icone: "vendeurs" },
   { label: "Litiges", href: "/admin/litiges", icone: "bouclier" },
+  { label: "Remboursements", href: "/admin/remboursements", icone: "argent" },
   { label: "Profil", href: "/admin/profil", icone: "profil" },
 ];

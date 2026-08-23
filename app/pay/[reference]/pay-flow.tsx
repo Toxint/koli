@@ -88,7 +88,10 @@ export function PayFlow({
   // Un litige ouvert n'est ni un paiement a faire, ni une reception a
   // confirmer : sans ce cas, la commande retombait sur l'ecran de paiement et
   // reproposait « Simuler un paiement » a un client qui conteste.
-  const enLitige = status === "DISPUTE_OPEN" || status === "REFUND_PENDING";
+  const enLitige =
+    status === "DISPUTE_OPEN" ||
+    status === "REFUND_PENDING" ||
+    status === "REFUNDED";
 
   const estPaye =
     status === "FUNDS_SECURED" ||
@@ -98,7 +101,8 @@ export function PayFlow({
     status === "COMPLETED";
 
   if (enLitige) {
-    const rembourse = status === "REFUND_PENDING";
+    const rembourse = status === "REFUND_PENDING" || status === "REFUNDED";
+    const rembourseTraite = status === "REFUNDED";
 
     return (
       <div className="max-w-md mx-auto py-12 px-4 text-center space-y-4">
@@ -107,12 +111,18 @@ export function PayFlow({
         </div>
 
         <h1 className="text-2xl font-semibold">
-          {rembourse ? "Remboursement en cours" : "Litige en cours d'examen"}
+          {rembourseTraite
+            ? "Commande remboursée"
+            : rembourse
+              ? "Remboursement en cours"
+              : "Litige en cours d'examen"}
         </h1>
         <p className="text-sm text-ink-muted">
-          {rembourse
-            ? "KOLI a tranché en faveur du client. Le remboursement est enclenché."
-            : "Les fonds restent bloqués : le vendeur ne sera pas payé tant que KOLI n'a pas tranché (§33)."}
+          {rembourseTraite
+            ? "Le remboursement a été traité. Aucun mouvement réel n'a lieu en mode test."
+            : rembourse
+              ? "KOLI a tranché en faveur du client. Le remboursement est enclenché."
+              : "Les fonds restent bloqués : le vendeur ne sera pas payé tant que KOLI n'a pas tranché (§33)."}
         </p>
 
         <div className="bg-white border border-hairline p-4 rounded-xl text-left text-xs space-y-2">

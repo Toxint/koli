@@ -44,6 +44,16 @@ const connecter = async (page, identifiant) => {
     .catch(() => {});
 };
 
+/** Stock du produit de demonstration, lu en base. */
+function stockRobeWax() {
+  const db = new Database("prisma/dev.db", { readonly: true });
+  const r = db
+    .prepare("SELECT quantity FROM Product WHERE name LIKE ?")
+    .get("Robe Wax%");
+  db.close();
+  return r?.quantity ?? null;
+}
+
 /** Lit l'etat des fonds directement en base : c'est la seule verite. */
 function fonds(reference) {
   const db = new Database("prisma/dev.db", { readonly: true });
@@ -264,6 +274,79 @@ if (!reference) {
   verifier(
     /Tranché en faveur du client/i.test(apresDecision),
     "l'issue est affichee aux parties"
+  );
+
+  // ═══════════════ 8. Phase 22 — le remboursement est traite
+  const stockAvant = stockRobeWax();
+
+  await admin.goto(`${BASE}/admin/remboursements`, { waitUntil: "networkidle" });
+  const listeRemb = await admin.evaluate(() => document.body.innerText);
+  verifier(
+    listeRemb.includes(reference),
+    "le remboursement apparait dans la console d'administration"
+  );
+
+  await bouton(admin, /^Rembourser$/).click();
+  await admin.waitForTimeout(600);
+  verifier(
+    (await bouton(admin, /Confirmer le remboursement/i).count()) > 0,
+    "rembourser demande confirmation (§58)"
+  );
+  verifier(
+    fonds(reference)?.status === "REFUND_PENDING",
+    "rien n'est parti tant que la confirmation n'est pas donnee"
+  );
+
+  // On ne coche PAS la restitution de stock : le colis n'a jamais ete recu,
+  // mais rien ne dit qu'il soit revenu chez le vendeur.
+  await bouton(admin, /Confirmer le remboursement/i).click();
+  await admin.waitForTimeout(4000);
+
+  const apresRemb = fonds(reference);
+  verifier(
+    apresRemb?.status === "REFUNDED",
+    "la commande passe en remboursee",
+    apresRemb?.status
+  );
+  verifier(
+    apresRemb?.released === 1,
+    "le sequestre est solde : ce n'est plus un engagement de la plateforme"
+  );
+  verifier(
+    stockRobeWax() === stockAvant,
+    "le stock n'est PAS remis d'office",
+    `avant ${stockAvant}, apres ${stockRobeWax()}`
+  );
+
+  // Le journal (§40) porte le mouvement, en negatif.
+  {
+    const db = new Database("prisma/dev.db", { readonly: true });
+    const t = db
+      .prepare(
+        "SELECT t.type, t.amount FROM 'Transaction' t JOIN 'Order' o ON o.id = t.orderId WHERE o.reference = ? AND t.type = 'REFUND'"
+      )
+      .get(reference);
+    db.close();
+    verifier(
+      t?.amount === -20500,
+      "le journal inscrit le remboursement en negatif : l'argent sort",
+      String(t?.amount)
+    );
+  }
+
+  // ═══════════════ 9. §30 — on ne rembourse pas deux fois
+  await admin.reload({ waitUntil: "networkidle" });
+  verifier(
+    (await bouton(admin, /^Rembourser$/).count()) === 0,
+    "un remboursement traite ne se rejoue pas (§30)"
+  );
+
+  // ═══════════════ 10. Le client voit l'issue
+  await client.goto(`${BASE}/pay/${reference}`, { waitUntil: "networkidle" });
+  const vueClient = await client.evaluate(() => document.body.innerText);
+  verifier(
+    /rembours/i.test(vueClient) && !/Simuler un paiement/i.test(vueClient),
+    "le client voit sa commande remboursee, sans ecran de paiement"
   );
 
   await ctxAdmin.close();

@@ -1170,3 +1170,38 @@ Les identifiants ont été fournis par le porteur du projet et enregistrés dans
 **Un défaut du contrôleur corrigé au passage** : `scripts/verifier-google.mjs` affichait « valide » puis sortait en **code 127**. `process.exit()` coupait la connexion HTTP en cours de fermeture et Node terminait sur une assertion libuv. Un script qui annonce un succès puis renvoie un code d'erreur est pire qu'inutile : il casse tout enchaînement qui s'y fie. Corrigé par `process.exitCode`.
 
 **Limite inchangée** : Google refuse les adresses IP privées. La connexion Google fonctionne sur `localhost` et `127.0.0.1`, pas depuis un téléphone en wifi tant qu'il n'y a pas de nom de domaine en HTTPS.
+
+---
+
+## 8 septdecies. Phase 22 — Remboursements simulés (23/08/2026)
+
+Un litige tranché en faveur du client inscrivait une créance `Refund`, et **rien ne la traitait** : l'argent restait indéfiniment séquestré, ni versé au vendeur, ni rendu au client.
+
+### La règle cardinale est le §30
+
+> « Le système doit empêcher : deux validations, deux libérations, **deux remboursements**, deux confirmations de paiement. »
+
+D'où l'écriture conditionnelle sur `status: PENDING` dans `lib/refunds/actions.ts` : un second appel ne trouve plus rien à mettre à jour et s'arrête sans rien écrire. Un remboursement déjà traité renvoie **succès** et non erreur — l'état voulu est atteint, ce n'est pas une faute de le redemander.
+
+### Ce que le traitement fait
+
+| Écriture | Pourquoi |
+|---|---|
+| `Refund.status → COMPLETED` | conditionnée sur `PENDING` : c'est le verrou du §30 |
+| `Order.status → REFUNDED` | fin de parcours |
+| `Transaction{REFUND, −montant}` | §40 — **négatif** : l'argent sort, à l'inverse d'un encaissement |
+| `Fund.released = true` | le séquestre s'éteint : l'argent ne va pas au vendeur, mais cesse d'être compté comme engagement de la plateforme |
+
+### Le stock n'est pas restitué automatiquement
+
+C'est un **choix laissé à l'administration**, case décochée par défaut, avec le motif du litige affiché à côté.
+
+Un colis jamais reçu peut être encore chez le vendeur ; un article abîmé ou parti chez le mauvais destinataire ne revient pas vendable. Automatiser dans un sens ou dans l'autre se trompe la moitié du temps.
+
+Le défaut penche du côté le moins coûteux : **remettre à tort crée du stock fantôme**, donc de la survente, donc une commande qu'un autre client ne pourra pas être livrée. Ne pas remettre laisse un compteur à corriger au catalogue — un désagrément, pas une panne.
+
+### Défaut corrigé au passage
+
+`REFUND_PENDING`, `REFUNDED` et `DISPUTE_OPEN` n'étaient dans aucune branche de `pay-flow.tsx` : la page retombait sur l'écran de paiement et **reproposait « Simuler un paiement »** à un client qui venait de contester, ou qu'on venait de rembourser. Les trois états ont désormais leur écran.
+
+C'est la même classe de défaut que la page blanche du §8 undecies : un état non prévu ne produit pas une erreur visible, il produit un écran qui ment.
