@@ -1119,3 +1119,54 @@ Le détail technique part maintenant au **journal du serveur** ; l'écran dit si
 `test-session-orpheline.mjs` rejouait **le seed entier** pour faire disparaître son compte — ce qui effaçait aussi les comptes qu'un autre test était en train d'utiliser. Il échouait donc de façon intermittente, et faisait échouer les autres, pour des raisons étrangères à ce qu'ils vérifient. Il n'efface plus que **son propre compte**.
 
 Même famille de correction que le cas « compte suspendu » du test Google : un test ne doit dépendre que de ce qu'il vérifie.
+
+---
+
+## 8 vicies. Phase 21 — Litiges (23/08/2026)
+
+Jusqu'ici, **le client n'avait aucun recours**. Le bouton « Signaler un problème » existait mais était inerte : le seul geste possible sur la page de suivi était de confirmer la réception — c'est-à-dire de verser l'argent au vendeur. Quelqu'un qui reçoit un colis vide, ou qui ne reçoit jamais rien, n'avait littéralement rien à faire.
+
+C'est pourtant la promesse même de KOLI (§82, priorité n°3), et le §33 pose une règle d'argent qui n'était appliquée nulle part faute de litige possible.
+
+### Trois règles gouvernent `lib/disputes/actions.ts`
+
+1. **Seul le client ouvre un litige.** Laisser le vendeur le faire lui donnerait un moyen commode de bloquer un versement qu'il doit.
+2. **Les fonds ne bougent pas tant que le litige est ouvert** (§33). `DISPUTE_OPEN` n'a que deux sorties dans la machine à états, toutes deux réservées à l'administration.
+3. **Seule l'administration tranche.** Ni le client ni le vendeur ne décident de l'issue de leur propre différend.
+
+### Le §31 exigeait d'élargir la machine à états
+
+Le litige n'était ouvrable qu'à partir de `DELIVERED`. Or le **tout premier motif du §31 est « produit non reçu »** : un client dont le colis n'arrive jamais restait bloqué avant `DELIVERED`, sans recours, pendant que KOLI détenait son argent — et le vendeur non plus n'avait pas d'issue.
+
+`DISPUTE_OPEN` est désormais atteignable depuis tous les états où **les fonds sont séquestrés** : `FUNDS_SECURED`, `SELLER_ACCEPTED`, `PACKAGE_PREPARING`, `READY_FOR_PICKUP`, `PICKED_UP`, `IN_TRANSIT`, `ARRIVED`, `DELIVERED`, `DELIVERY_FAILED`, `RETURN_REQUESTED`.
+
+### L'arbitrage déplace l'argent, et le dit avant le clic
+
+| Décision | Commande | Argent |
+|---|---|---|
+| `SELLER_WINS` | `FUNDS_RELEASED` | les fonds partent au vendeur (articles, hors livraison) |
+| `CUSTOMER_WINS` | `REFUND_PENDING` | une créance `Refund` est inscrite : articles **+ livraison**, le client a réglé les deux |
+
+L'écran d'arbitrage **annonce le montant et son destinataire avant qu'on clique** : c'est le seul endroit de KOLI où une personne décide seule du sort d'un montant séquestré. La motivation est obligatoire — les deux parties la lisent dans le fil.
+
+La libération reste **restreinte à la commande** (`orderId`), jamais au vendeur : un filtre par `sellerId` viderait tout son séquestre d'un coup. Même erreur qu'au tout premier audit, même garde-fou.
+
+### Accès : le litige n'est pas le lien de paiement
+
+`/pay/<référence>` s'ouvre sur simple possession de la référence — c'est voulu, l'achat en mode invité l'exige. `/litige/<référence>` **non** : il contient le détail du différend et les coordonnées de l'acheteur. Seules les trois parties y accèdent (`lib/disputes/acces.ts`), et une référence inconnue comme une référence interdite renvoient le **même** 404 — les distinguer permettrait de deviner quelles commandes existent.
+
+### Un état qui retombait au mauvais endroit
+
+`DISPUTE_OPEN` n'était pas prévu dans `pay-flow.tsx` : la commande retombait sur l'écran de paiement et **reproposait « Simuler un paiement » à un client qui conteste**. Un écran dédié affiche désormais l'état du litige et renvoie vers son fil.
+
+### Ce que le §31 laisse en attente
+
+Photos et vidéos sont prévues par le cahier des charges ; tant que l'espace de stockage n'est pas configuré, l'interface **le dit** plutôt que d'afficher un champ inerte — l'erreur exacte que ce chantier vient de corriger sur « Signaler un problème ».
+
+## 8 semel et vicies. Connexion Google activée (23/08/2026)
+
+Les identifiants ont été fournis par le porteur du projet et enregistrés dans `.env` (ignoré par git, vérifié avant écriture). Contrôlés auprès de Google : identifiant reconnu, adresse de rappel déclarée. Vérifié en navigateur — Google affiche « Sign in to continue to **koli** », sans page d'erreur, et les cookies `state`, vérifieur et `nonce` sont posés en httpOnly avant le départ.
+
+**Un défaut du contrôleur corrigé au passage** : `scripts/verifier-google.mjs` affichait « valide » puis sortait en **code 127**. `process.exit()` coupait la connexion HTTP en cours de fermeture et Node terminait sur une assertion libuv. Un script qui annonce un succès puis renvoie un code d'erreur est pire qu'inutile : il casse tout enchaînement qui s'y fie. Corrigé par `process.exitCode`.
+
+**Limite inchangée** : Google refuse les adresses IP privées. La connexion Google fonctionne sur `localhost` et `127.0.0.1`, pas depuis un téléphone en wifi tant qu'il n'y a pas de nom de domaine en HTTPS.

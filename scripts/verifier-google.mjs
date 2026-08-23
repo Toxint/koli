@@ -49,6 +49,7 @@ if (!id && !secret) {
   console.log("         http://127.0.0.1:3000/api/auth/google/callback");
   console.log("    4. Coller GOOGLE_CLIENT_ID et GOOGLE_CLIENT_SECRET dans .env\n");
   console.log("  Puis relancer : node scripts/verifier-google.mjs");
+  process.exitCode = 1;
   process.exit(1);
 }
 
@@ -98,6 +99,12 @@ const params = new URLSearchParams({
 try {
   const reponse = await fetch(`${AUTORISATION}?${params}`, {
     redirect: "manual",
+    // `Connection: close` : sans cela, la connexion persistante restait
+    // ouverte et Node sortait sur une assertion libuv (Windows) apres avoir
+    // pourtant affiche « valide ». Un script qui annonce un succes puis
+    // renvoie un code d'erreur est pire qu'inutile — il casse tout
+    // enchainement qui s'y fie.
+    headers: { Connection: "close" },
   });
   const destination = reponse.headers.get("location") ?? "";
 
@@ -146,4 +153,7 @@ if (echecs === 0) {
 } else {
   console.log(`  ${echecs} probleme(s) a corriger dans .env.`);
 }
-process.exit(echecs > 0 ? 1 : 0);
+// `exitCode` plutot que `process.exit()` : la sortie forcee coupait la
+// connexion HTTP en cours de fermeture et Node terminait sur une assertion
+// libuv, avec un code 127 apres avoir pourtant affiche « valide ».
+process.exitCode = echecs > 0 ? 1 : 0;

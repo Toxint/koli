@@ -41,5 +41,6 @@ export const NAV_ADMIN: NavItem[] = [
   { label: "Vue d'ensemble", href: "/admin/dashboard", icone: "tableau" },
   { label: "Utilisateurs", href: "/admin/utilisateurs", icone: "utilisateurs" },
   { label: "Vendeurs", href: "/admin/vendeurs", icone: "vendeurs" },
+  { label: "Litiges", href: "/admin/litiges", icone: "bouclier" },
   { label: "Profil", href: "/admin/profil", icone: "profil" },
 ];

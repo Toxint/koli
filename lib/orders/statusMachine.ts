@@ -27,13 +27,34 @@ export const ORDER_STATUS_TRANSITIONS: Readonly<
     OrderStatus.CANCELLED,
   ],
   PAYMENT_CONFIRMED: [OrderStatus.FUNDS_SECURED],
-  FUNDS_SECURED: [OrderStatus.SELLER_ACCEPTED, OrderStatus.CANCELLED],
-  SELLER_ACCEPTED: [OrderStatus.PACKAGE_PREPARING],
-  PACKAGE_PREPARING: [OrderStatus.READY_FOR_PICKUP],
-  READY_FOR_PICKUP: [OrderStatus.PICKED_UP],
-  PICKED_UP: [OrderStatus.IN_TRANSIT],
-  IN_TRANSIT: [OrderStatus.ARRIVED, OrderStatus.DELIVERY_FAILED],
-  ARRIVED: [OrderStatus.DELIVERED, OrderStatus.DELIVERY_FAILED],
+
+  // --- Litige possible des que l'argent est sequestre ---
+  //
+  // Le litige n'etait ouvrable qu'a partir de DELIVERED. Or le tout premier
+  // motif du §31 est « produit non recu » : un client dont le colis n'arrive
+  // jamais reste bloque avant DELIVERED, sans aucun recours, pendant que KOLI
+  // detient son argent. Ni lui ni le vendeur ne pouvaient en sortir.
+  //
+  // Des lors que les fonds sont sequestres, l'acheteur doit pouvoir contester.
+  FUNDS_SECURED: [
+    OrderStatus.SELLER_ACCEPTED,
+    OrderStatus.CANCELLED,
+    OrderStatus.DISPUTE_OPEN,
+  ],
+  SELLER_ACCEPTED: [OrderStatus.PACKAGE_PREPARING, OrderStatus.DISPUTE_OPEN],
+  PACKAGE_PREPARING: [OrderStatus.READY_FOR_PICKUP, OrderStatus.DISPUTE_OPEN],
+  READY_FOR_PICKUP: [OrderStatus.PICKED_UP, OrderStatus.DISPUTE_OPEN],
+  PICKED_UP: [OrderStatus.IN_TRANSIT, OrderStatus.DISPUTE_OPEN],
+  IN_TRANSIT: [
+    OrderStatus.ARRIVED,
+    OrderStatus.DELIVERY_FAILED,
+    OrderStatus.DISPUTE_OPEN,
+  ],
+  ARRIVED: [
+    OrderStatus.DELIVERED,
+    OrderStatus.DELIVERY_FAILED,
+    OrderStatus.DISPUTE_OPEN,
+  ],
   DELIVERED: [
     OrderStatus.CUSTOMER_CONFIRMED,
     OrderStatus.DISPUTE_OPEN,

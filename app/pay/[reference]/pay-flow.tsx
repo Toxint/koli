@@ -6,6 +6,7 @@ import { formatCFA } from "@/lib/format";
 import { simulatePaymentAction } from "@/lib/payments/actions";
 import { confirmReceptionAction } from "@/lib/orders/actions";
 import { Icone } from "@/components/ui/Icone";
+import { FormulaireLitige } from "@/components/domain/FormulaireLitige";
 
 interface PayFlowProps {
   order: {
@@ -84,12 +85,58 @@ export function PayFlow({
     }
   };
 
+  // Un litige ouvert n'est ni un paiement a faire, ni une reception a
+  // confirmer : sans ce cas, la commande retombait sur l'ecran de paiement et
+  // reproposait « Simuler un paiement » a un client qui conteste.
+  const enLitige = status === "DISPUTE_OPEN" || status === "REFUND_PENDING";
+
   const estPaye =
     status === "FUNDS_SECURED" ||
     status === "CUSTOMER_CONFIRMED" ||
     status === "DELIVERED" ||
     status === "FUNDS_RELEASED" ||
     status === "COMPLETED";
+
+  if (enLitige) {
+    const rembourse = status === "REFUND_PENDING";
+
+    return (
+      <div className="max-w-md mx-auto py-12 px-4 text-center space-y-4">
+        <div className="w-16 h-16 rounded-full bg-test-mode-surface text-test-mode flex items-center justify-center mx-auto">
+          <Icone nom={rembourse ? "argent" : "bouclier"} className="w-8 h-8" />
+        </div>
+
+        <h1 className="text-2xl font-semibold">
+          {rembourse ? "Remboursement en cours" : "Litige en cours d'examen"}
+        </h1>
+        <p className="text-sm text-ink-muted">
+          {rembourse
+            ? "KOLI a tranché en faveur du client. Le remboursement est enclenché."
+            : "Les fonds restent bloqués : le vendeur ne sera pas payé tant que KOLI n'a pas tranché (§33)."}
+        </p>
+
+        <div className="bg-white border border-hairline p-4 rounded-xl text-left text-xs space-y-2">
+          <div className="flex justify-between font-medium">
+            <span className="text-ink-muted">Référence :</span>
+            <span className="font-mono font-bold text-brand">
+              {order.reference}
+            </span>
+          </div>
+          <div className="flex justify-between font-medium">
+            <span className="text-ink-muted">Montant concerné :</span>
+            <span className="font-bold">{formatCFA(grandTotal)}</span>
+          </div>
+        </div>
+
+        <Link
+          href={`/litige/${order.reference}`}
+          className="inline-flex items-center justify-center w-full min-h-[48px] px-4 rounded-2xl bg-brand hover:bg-brand-strong text-white font-semibold text-sm"
+        >
+          Suivre le litige
+        </Link>
+      </div>
+    );
+  }
 
   if (estPaye) {
     // §29 : une fois le colis remis, le client doit confirmer la réception.
@@ -180,14 +227,18 @@ export function PayFlow({
               {loading ? "Traitement en cours…" : "Oui, j'ai reçu ma commande"}
             </button>
 
-            <button
-              type="button"
-              disabled
-              title="La gestion des litiges arrive dans une prochaine étape."
-              className="w-full min-h-[48px] py-3 px-4 rounded-xl border border-hairline dark:border-slate-700 text-ink-muted font-semibold text-xs disabled:opacity-60 cursor-not-allowed"
-            >
-              Signaler un problème (bientôt disponible)
-            </button>
+          </div>
+        )}
+
+        {/* §31 : ce bouton etait inerte. Le client n'avait donc qu'un seul
+            geste possible — confirmer la reception, ce qui verse l'argent au
+            vendeur. Celui qui recoit un colis vide, ou qui ne recoit jamais
+            rien, n'avait litteralement aucun recours.
+            Propose des que les fonds sont sequestres, et pas seulement apres
+            livraison : le tout premier motif du §31 est « produit non recu ». */}
+        {estLeClient && !estTermine && (
+          <div className="pt-2">
+            <FormulaireLitige reference={order.reference} />
           </div>
         )}
 
