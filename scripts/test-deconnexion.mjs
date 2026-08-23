@@ -54,6 +54,28 @@ const connecter = async (page, identifiant) => {
 const bouton = (page, libelle) =>
   page.getByRole("button", { name: libelle }).filter({ visible: true }).first();
 
+/**
+ * Attend que la déconnexion apparaisse, au lieu de dormir un temps fixe.
+ *
+ * En mode développement, une route visitée pour la première fois est compilée
+ * à la demande : elle peut mettre plusieurs secondes. Une attente figée de
+ * 1,2 s suffisait sur `localhost` — déjà chaud — et échouait depuis l'adresse
+ * Wi-Fi, où le test tombait sur la compilation à froid. Il annonçait alors une
+ * déconnexion manquante qui était bel et bien là : un échec étranger à ce
+ * qu'il vérifie, le pire défaut qu'un test puisse avoir.
+ */
+const attendreDeconnexion = async (page) => {
+  try {
+    await bouton(page, /^Déconnexion$/).waitFor({
+      state: "visible",
+      timeout: 20000,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 // ═══════════ 1. Un clic ne deconnecte pas : il demande confirmation
 {
   const ctx = await navigateur.newContext({
@@ -145,9 +167,8 @@ const bouton = (page, libelle) =>
   await page.goto(`${BASE}/vendeur/commandes/nouvelle`, {
     waitUntil: "domcontentloaded",
   });
-  await page.waitForTimeout(1200);
   verifier(
-    (await bouton(page, /^Déconnexion$/).count()) > 0,
+    await attendreDeconnexion(page),
     "l'assistant de commande offre la deconnexion"
   );
 
@@ -157,13 +178,16 @@ const bouton = (page, libelle) =>
     .getByRole("link", { name: /Reçu/i })
     .filter({ visible: true })
     .first();
-  if (await recu.count()) {
+
+  // Le controle etait auparavant enferme dans un `if` : sans recu affiche, il
+  // disparaissait sans un mot, et son silence se lisait comme une reussite.
+  // Le jeu de donnees comporte des commandes reglees, donc au moins un recu.
+  if ((await recu.count()) === 0) {
+    verifier(false, "un recu est disponible pour poursuivre la verification");
+  } else {
     await recu.click();
-    await page.waitForTimeout(2000);
-    verifier(
-      (await bouton(page, /^Déconnexion$/).count()) > 0,
-      "le recu offre la deconnexion"
-    );
+    await page.waitForLoadState("domcontentloaded");
+    verifier(await attendreDeconnexion(page), "le recu offre la deconnexion");
   }
 
   await ctx.close();
