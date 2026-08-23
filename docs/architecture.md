@@ -1205,3 +1205,31 @@ Le défaut penche du côté le moins coûteux : **remettre à tort crée du stoc
 `REFUND_PENDING`, `REFUNDED` et `DISPUTE_OPEN` n'étaient dans aucune branche de `pay-flow.tsx` : la page retombait sur l'écran de paiement et **reproposait « Simuler un paiement »** à un client qui venait de contester, ou qu'on venait de rembourser. Les trois états ont désormais leur écran.
 
 C'est la même classe de défaut que la page blanche du §8 undecies : un état non prévu ne produit pas une erreur visible, il produit un écran qui ment.
+
+---
+
+## 8 octodecies. Phase 7 — Clients du vendeur (23/08/2026)
+
+Le §10 place « Clients » au menu vendeur ; la page n'existait pas. C'était le dernier trou dans la première moitié de l'ordre du §78.
+
+### Un client est un acheteur, pas un compte
+
+C'est la décision structurante de cette phase. Le regroupement se fait par **numéro de téléphone**, et non par `customerId`.
+
+Grouper par compte aurait laissé de côté **tous les achats en mode invité** — c'est-à-dire une grande partie du public visé, qui commande via un lien WhatsApp sans jamais s'inscrire. Le téléphone est déjà la clé retenue partout ailleurs : c'est lui qui rattache une commande invité à un compte créé plus tard (`createOrderAction`), et lui que le livreur confronte au destinataire.
+
+Le nom d'un même acheteur peut varier d'une commande à l'autre — orthographe, surnom. On retient celui de la **commande la plus récente**.
+
+### Le montant affiché est ce qui a été réglé
+
+`Total réglé` lit `Payment.amount` des paiements **aboutis**, pas la somme des commandes créées. Une commande générée puis jamais payée ne fait dépenser personne ; l'afficher comme dépense gonflerait la valeur apparente de chaque client et fausserait la lecture que le vendeur en fait.
+
+L'interface le dit sous le chiffre — « paiements aboutis » — plutôt que de laisser deviner.
+
+### Limite assumée
+
+Le décompte total charge une ligne par client (et non par commande) pour paginer. C'est acceptable à l'échelle du MVP ; à remplacer par un `COUNT(DISTINCT)` si un vendeur dépasse quelques milliers d'acheteurs.
+
+### Flakiness de test corrigée au passage
+
+Le test échouait au démarrage à froid du serveur : il cliquait « Se connecter » avant l'hydratation de React, si bien que le formulaire — géré en JavaScript — ne réagissait pas. `domcontentloaded` remplacé par `networkidle`. Le test échouait donc pour une raison étrangère à ce qu'il vérifie, ce qui est le pire défaut qu'un test puisse avoir.

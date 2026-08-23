@@ -23,6 +23,7 @@ export const NAV_VENDEUR: NavItem[] = [
     icone: "nouveau",
   },
   { label: "Catalogue", href: "/vendeur/produits", icone: "catalogue" },
+  { label: "Clients", href: "/vendeur/clients", icone: "utilisateurs" },
   { label: "Solde", href: "/vendeur/solde", icone: "solde" },
   { label: "Profil", href: "/vendeur/profil", icone: "profil" },
 ];
