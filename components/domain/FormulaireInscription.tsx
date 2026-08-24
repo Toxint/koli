@@ -12,8 +12,10 @@ type RoleType = "SELLER" | "DRIVER" | "CLIENT";
 
 export function FormulaireInscription({
   googleConfigure,
+  motifGoogle,
 }: {
   googleConfigure: boolean;
+  motifGoogle?: "configuration" | "adresse";
 }) {
   const router = useRouter();
   const [role, setRole] = useState<RoleType>("SELLER");
@@ -319,7 +321,8 @@ export function FormulaireInscription({
           </form>
 
           <div className="mt-6">
-            <BoutonGoogle configure={googleConfigure} libelle="S'inscrire avec Google" />
+            <BoutonGoogle configure={googleConfigure}
+              motif={motifGoogle} libelle="S'inscrire avec Google" />
           </div>
 
           <div className="mt-6 text-center">

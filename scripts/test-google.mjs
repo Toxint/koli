@@ -34,6 +34,17 @@ const CONFIGURE = (sonde.headers.get("location") ?? "").startsWith(
   "https://accounts.google.com"
 );
 
+/**
+ * L'origine visitee est-elle acceptable comme point de retour ?
+ *
+ * Seules `localhost` et `127.0.0.1` le sont en developpement — l'en-tete
+ * `Host` vient du client, le suivre aveuglement laisserait un attaquant faire
+ * produire a KOLI une adresse de rappel vers son propre domaine.
+ */
+const ORIGINE_ELIGIBLE = ["localhost", "127.0.0.1"].includes(
+  new URL(BASE).hostname
+);
+
 console.log(`\n=== CONNEXION GOOGLE depuis ${BASE} ===`);
 console.log(
   CONFIGURE
@@ -81,12 +92,33 @@ for (const chemin of ["/connexion", "/inscription"]) {
   // Le message s'adresse a un commercant, pas a un developpeur : le detail
   // technique est parti au journal du serveur.
   const mention = /Bientôt disponible/i.test(texte);
-  verifier(
-    CONFIGURE ? !mention : mention,
-    CONFIGURE
-      ? `${chemin} : aucune mention d'indisponibilite`
-      : `${chemin} : l'indisponibilite est annoncee sobrement`
-  );
+  const mentionAdresse = /Indisponible depuis cette adresse/i.test(texte);
+
+  if (!CONFIGURE) {
+    verifier(mention, `${chemin} : l'indisponibilite est annoncee sobrement`);
+  } else if (ORIGINE_ELIGIBLE) {
+    verifier(
+      !mention && !mentionAdresse,
+      `${chemin} : aucune mention d'indisponibilite`
+    );
+  } else {
+    // Adresse reseau privee — le cas du telephone sur le meme Wi-Fi.
+    //
+    // Google refuse une IP privee comme point de retour, et notre liste
+    // blanche fait retomber le rappel sur l'origine configuree, c'est-a-dire
+    // « localhost » : depuis un telephone, cela designe le telephone lui-meme.
+    // Le bouton menait donc a une impasse sur l'appareil principal du public
+    // vise, sans un mot d'explication.
+    verifier(
+      mentionAdresse,
+      `${chemin} : depuis une adresse reseau privee, l'impasse est annoncee`,
+      texte.match(/Indisponible[^\n]*/)?.[0] ?? "aucune mention"
+    );
+    verifier(
+      !mention,
+      `${chemin} : on ne dit pas « bientot disponible » pour un motif d'adresse`
+    );
+  }
 }
 
 // ------------------------------------------------- 2. Depart de la poignee
@@ -125,12 +157,37 @@ for (const chemin of ["/connexion", "/inscription"]) {
     // NEXT_PUBLIC_APP_URL en dur, un visiteur de 127.0.0.1 etait renvoye sur
     // localhost : deux sites distincts pour le navigateur, donc les cookies de
     // la poignee de main ne revenaient pas et la connexion echouait toujours.
-    verifier(
-      url.searchParams.get("redirect_uri") ===
-        `${BASE}/api/auth/google/callback`,
-      "l'adresse de rappel reste sur l'origine visitee",
-      url.searchParams.get("redirect_uri") ?? ""
+    //
+    // Mais l'origine visitee n'est PAS acceptee sur parole : `Host` vient du
+    // client, et le suivre aveuglement laisserait un attaquant faire produire
+    // a KOLI une adresse de rappel vers son propre domaine. Une liste blanche
+    // filtre — localhost, 127.0.0.1, l'origine configuree — et tout le reste
+    // retombe sur la configuration.
+    //
+    // Le controle exigeait auparavant l'origine visitee dans TOUS les cas : il
+    // echouait donc depuis l'adresse Wi-Fi sur un comportement volontaire et
+    // correct. Ce qu'il faut verifier, c'est que l'adresse de rappel est l'une
+    // des deux valeurs legitimes, jamais une troisieme.
+    const rappel = url.searchParams.get("redirect_uri") ?? "";
+    const origineVisitee = new URL(BASE).origin;
+    const surListeBlanche = ["localhost", "127.0.0.1"].includes(
+      new URL(BASE).hostname
     );
+
+    if (surListeBlanche) {
+      verifier(
+        rappel === `${origineVisitee}/api/auth/google/callback`,
+        "l'adresse de rappel reste sur l'origine visitee",
+        rappel
+      );
+    } else {
+      verifier(
+        rappel.endsWith("/api/auth/google/callback") &&
+          !rappel.startsWith(origineVisitee),
+        "une origine hors liste blanche retombe sur la configuration, jamais sur l'hote annonce",
+        rappel
+      );
+    }
 
     const cookies = await ctx.cookies();
     for (const nom of [

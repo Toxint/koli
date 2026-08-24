@@ -1,7 +1,12 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/actions";
 import { espaceParDefaut } from "@/lib/auth/dashboards";
-import { googleEstConfigure } from "@/lib/auth/google";
+import {
+  googleEstConfigure,
+  googleUtilisableDepuis,
+  origineDepuisEnTetes,
+} from "@/lib/auth/google";
+import { headers } from "next/headers";
 import { FormulaireInscription } from "@/components/domain/FormulaireInscription";
 
 /** Voir /connexion : la configuration Google se lit a la demande, pas au build. */
@@ -16,5 +21,14 @@ export default async function PageInscription() {
     redirect(espaceParDefaut(utilisateur.role));
   }
 
-  return <FormulaireInscription googleConfigure={googleEstConfigure()} />;
+  // Google ne peut pas aboutir depuis une adresse reseau privee : le dire
+  // plutot que d'afficher un bouton qui mene a une impasse (voir
+  // `googleUtilisableDepuis`).
+  const googleUtilisable = googleUtilisableDepuis(
+    origineDepuisEnTetes(await headers())
+  );
+  const motifGoogle = googleEstConfigure() ? "adresse" : "configuration";
+
+  return <FormulaireInscription googleConfigure={googleUtilisable}
+        motifGoogle={motifGoogle} />;
 }

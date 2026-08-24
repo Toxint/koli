@@ -107,6 +107,49 @@ export function adresseDeRappel(origineVisitee: string | null = null): string {
 }
 
 /**
+ * La connexion Google peut-elle aboutir depuis CETTE adresse ?
+ *
+ * Non quand l'origine visitée n'est pas sur la liste blanche — typiquement une
+ * adresse réseau privée du genre `http://192.168.1.20:3000`, celle par
+ * laquelle on ouvre KOLI depuis un téléphone du même Wi-Fi. Deux raisons
+ * indépendantes s'y opposent : Google refuse les adresses IP privées comme
+ * adresse de rappel, et notre propre liste blanche fait retomber le rappel sur
+ * l'origine configurée — donc sur `localhost`, qui, depuis un téléphone,
+ * désigne le téléphone lui-même.
+ *
+ * Sans ce contrôle, le bouton était affiché et cliquable sur l'appareil
+ * principal du public visé, pour ne mener qu'à une impasse. Mieux vaut dire
+ * pourquoi que laisser essayer.
+ */
+/**
+ * Origine annoncée par le navigateur, reconstruite depuis les en-têtes.
+ *
+ * Utile aux composants serveur, qui disposent de `headers()` mais pas de
+ * l'objet requête. La valeur reste **non vérifiée** : c'est
+ * `googleUtilisableDepuis` / `origineDeRappel` qui la confrontent à la liste
+ * blanche.
+ */
+export function origineDepuisEnTetes(en: {
+  get(nom: string): string | null;
+}): string | null {
+  const hote = en.get("x-forwarded-host") ?? en.get("host");
+  if (!hote) return null;
+  const protocole = en.get("x-forwarded-proto") ?? "http";
+  return `${protocole}://${hote}`;
+}
+
+export function googleUtilisableDepuis(origineVisitee: string | null): boolean {
+  if (!googleEstConfigure()) return false;
+  if (!origineVisitee) return true;
+
+  try {
+    return origineDeRappel(origineVisitee) === new URL(origineVisitee).origin;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Origine réellement demandée par le navigateur.
  *
  * `nextUrl.origin` ne convient pas : il reflète l'adresse d'écoute du serveur,

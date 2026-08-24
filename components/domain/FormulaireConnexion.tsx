@@ -11,8 +11,10 @@ import { Icone } from "@/components/ui/Icone";
 
 export function FormulaireConnexion({
   googleConfigure,
+  motifGoogle,
 }: {
   googleConfigure: boolean;
+  motifGoogle?: "configuration" | "adresse";
 }) {
   const router = useRouter();
   const [identifier, setIdentifier] = useState("");
@@ -165,7 +167,8 @@ export function FormulaireConnexion({
           </form>
 
           <div className="mt-6">
-            <BoutonGoogle configure={googleConfigure} libelle="Se connecter avec Google" />
+            <BoutonGoogle configure={googleConfigure}
+              motif={motifGoogle} libelle="Se connecter avec Google" />
           </div>
 
           {/* Quick Demo Login Shortcut Section */}

@@ -409,6 +409,126 @@ try {
     verifier(motif.test(textePiece), `le §38 exige « ${nom} » : present`);
   }
 
+  // ═══════════ 6 bis. Telecharger et partager le recu
+  //
+  // Le besoin : un client n'arrive pas a ouvrir son recu, il faut pouvoir le
+  // lui renvoyer par WhatsApp ou par SMS depuis le telephone qu'on a en main.
+  {
+    const boutonTelecharger = vendeur
+      .getByRole("button", { name: /^Télécharger$/ })
+      .filter({ visible: true });
+    const boutonPartager = vendeur
+      .getByRole("button", { name: /^Partager$/ })
+      .filter({ visible: true });
+
+    verifier(
+      (await boutonTelecharger.count()) > 0,
+      "un bouton « Télécharger » figure sur le recu"
+    );
+    verifier(
+      (await boutonPartager.count()) > 0,
+      "un bouton « Partager » figure sur le recu"
+    );
+
+    await boutonPartager.first().click();
+    await vendeur.waitForTimeout(400);
+
+    const whatsapp = await vendeur
+      .locator("a[href^='https://wa.me']")
+      .first()
+      .getAttribute("href");
+    verifier(whatsapp !== null, "un envoi par WhatsApp est propose");
+
+    const sms = await vendeur
+      .locator("a[href^='sms:']")
+      .first()
+      .getAttribute("href");
+    verifier(sms !== null, "un envoi par SMS est propose");
+
+    // LE point critique : le message doit porter l'origine REELLEMENT visitee.
+    // Une adresse en dur renverrait un destinataire de 192.168.x.x vers
+    // « localhost », c'est-a-dire vers son propre telephone — le lien partage
+    // serait alors systematiquement mort.
+    const origine = new URL(BASE).origin;
+    const messageWhatsapp = decodeURIComponent(whatsapp ?? "");
+    // Le detail montre le lien REELLEMENT produit : sans lui, l'echec se lit
+    // « ...Chic », ce qui n'apprend rien sur ce qui a ete partage.
+    //
+    // On lit le corps du message, pas l'adresse entiere : celle-ci commence
+    // par « https://wa.me/?text=... », si bien que chercher la premiere URL y
+    // trouvait wa.me au lieu du lien du recu.
+    const corps = messageWhatsapp.slice(messageWhatsapp.indexOf("?text=") + 6);
+    const lienDansMessage =
+      corps.match(/https?:\/\/\S+/)?.[0] ?? "aucun lien";
+    verifier(
+      lienDansMessage.startsWith(`${origine}/facture/`),
+      "le lien partage porte l'origine reellement visitee",
+      `partage : ${lienDansMessage} — attendu sur ${origine}`
+    );
+    verifier(
+      messageWhatsapp.includes(reference),
+      "le message cite la reference de la commande"
+    );
+    verifier(
+      decodeURIComponent(sms ?? "").includes(`${origine}/facture/`),
+      "le SMS porte le meme lien"
+    );
+
+    // Le lien reste visible et selectionnable : hors contexte securise, la
+    // copie automatique echoue, et l'utilisateur ne doit pas etre bloque.
+    const champ = vendeur.locator("input[readonly]").first();
+    verifier(
+      (await champ.count()) > 0 &&
+        (await champ.inputValue()).startsWith(origine),
+      "le lien reste affiche et selectionnable a la main"
+    );
+
+    // Ces commandes ne doivent pas partir a l'impression.
+    const masque = await vendeur.evaluate(() => {
+      const b = [...document.querySelectorAll("button")].find(
+        (e) => e.textContent.trim() === "Télécharger"
+      );
+      return b?.closest(".imprimer-masquer") !== null;
+    });
+    verifier(masque, "les boutons sont exclus de l'impression du recu");
+  }
+
+  // ═══════════ 6 ter. Le schema `sms:` differe entre iOS et Android
+  //
+  // iOS attend `&body=`, Android `?body=`. Se tromper ouvre l'application de
+  // messagerie avec un message VIDE — une panne silencieuse, invisible en
+  // developpement puisque le lien s'ouvre quand meme.
+  for (const [systeme, ua, motif] of [
+    [
+      "Android",
+      "Mozilla/5.0 (Linux; Android 13; SM-A125F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Mobile Safari/537.36",
+      "sms:?body=",
+    ],
+    [
+      "iPhone",
+      "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+      "sms:&body=",
+    ],
+  ]) {
+    const ctx = await navigateur.newContext({
+      viewport: { width: 390, height: 844 },
+      userAgent: ua,
+    });
+    const p = await ctx.newPage();
+    await p.goto(`${BASE}/facture/${reference}`, { waitUntil: "networkidle" });
+    await p.getByRole("button", { name: /^Partager$/ }).click();
+    await p.waitForTimeout(400);
+
+    const href =
+      (await p.locator("a[href^='sms:']").first().getAttribute("href")) ?? "";
+    verifier(
+      href.startsWith(motif),
+      `le lien SMS utilise le bon schema sur ${systeme}`,
+      href.slice(0, 12)
+    );
+    await ctx.close();
+  }
+
   // ═══════════ 7. Une reference inexistante ne revele rien
   const introuvable = await vendeur.goto(`${BASE}/facture/KOLI-ZZZZZZZZ`, {
     waitUntil: "networkidle",

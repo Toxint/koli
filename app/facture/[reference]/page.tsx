@@ -4,6 +4,7 @@ import { formatCFA } from "@/lib/format";
 import { libelleStatut } from "@/lib/orders/statusLabels";
 import { getCurrentUser } from "@/lib/auth/actions";
 import { BarreCompte } from "@/components/ui/BarreCompte";
+import { PartagerFacture } from "@/components/domain/PartagerFacture";
 
 const DATE_FR = new Intl.DateTimeFormat("fr-FR", {
   dateStyle: "long",
@@ -46,6 +47,10 @@ function Bloc({
  * Pas de génération de PDF : l'impression du navigateur suffit et fonctionne
  * partout, y compris sur un téléphone d'entrée de gamme. Une feuille de style
  * d'impression retire le décor et l'en-tête.
+ *
+ * Le bloc « Télécharger / Partager » est un composant client : il lui faut
+ * l'adresse réellement visitée et les capacités du navigateur, deux choses
+ * qu'un rendu serveur ne connaît pas.
  */
 export default async function PageFacture({
   params,
@@ -213,10 +218,14 @@ export default async function PageFacture({
           </p>
         </article>
 
-        <p className="text-center text-xs text-ink-muted imprimer-masquer">
-          Utilisez l&apos;impression de votre navigateur pour enregistrer ce
-          reçu en PDF.
-        </p>
+        {/* Sous la pièce et non au-dessus : on lit d'abord le reçu, on décide
+            ensuite d'en faire quelque chose. */}
+        <PartagerFacture
+          numero={facture.numero}
+          reference={facture.referenceCommande}
+          total={facture.total}
+          vendeur={facture.vendeur}
+        />
       </div>
     </main>
   );

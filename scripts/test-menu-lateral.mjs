@@ -160,8 +160,18 @@ for (const hauteur of [560, 640, 720, 900]) {
   );
 
   // ═══════════ 4. Deploiement
+  //
+  // On ATTEND le bouton au lieu de le compter aussitot apres la navigation :
+  // la page precedente a ete ouverte en `domcontentloaded`, et le menu est un
+  // composant client. Compter avant l'hydratation faisait echouer le test une
+  // fois sur plusieurs, sur un bouton pourtant bien present — un echec
+  // etranger a ce que le test verifie.
   const deployer = page.getByRole("button", { name: /Déployer le menu/i }).first();
-  verifier((await deployer.count()) > 0, "un bouton de deploiement est propose");
+  const deploiementPropose = await deployer
+    .waitFor({ state: "visible", timeout: 15000 })
+    .then(() => true)
+    .catch(() => false);
+  verifier(deploiementPropose, "un bouton de deploiement est propose");
   await deployer.click();
   await page.waitForTimeout(700);
 

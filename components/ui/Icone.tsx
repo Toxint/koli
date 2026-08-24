@@ -42,6 +42,9 @@ export type NomIcone =
   | "document"
   | "journal"
   | "pourcentage"
+  | "telechargement"
+  | "partage"
+  | "message"
   // États
   | "valide"
   | "alerte"
@@ -101,6 +104,13 @@ const CHEMINS: Record<NomIcone, string> = {
     "M4 5.5A1.5 1.5 0 015.5 4H10a2 2 0 012 2v13a2 2 0 00-2-2H5.5A1.5 1.5 0 014 15.5v-10zM20 5.5A1.5 1.5 0 0018.5 4H14a2 2 0 00-2 2v13a2 2 0 012-2h4.5a1.5 1.5 0 001.5-1.5v-10z",
   pourcentage:
     "M6.5 6.5h.01M17.5 17.5h.01M18.5 5.5l-13 13M8.5 6.5a2 2 0 11-4 0 2 2 0 014 0zM19.5 17.5a2 2 0 11-4 0 2 2 0 014 0z",
+  // Flèche vers un plateau : le geste « enregistrer sur mon appareil ».
+  telechargement: "M12 3.5v11m0 0l-4-4m4 4l4-4M4.5 16v2.5A2 2 0 006.5 20.5h11a2 2 0 002-2V16",
+  // Trois nœuds reliés, la convention du partage.
+  partage:
+    "M8.7 13.1l6.6 3.8M15.3 7.1l-6.6 3.8M18 7a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM6 14.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM18 22a2.5 2.5 0 100-5 2.5 2.5 0 000 5z",
+  message:
+    "M20 12a8 8 0 01-8 8H4.5l2-3.2A8 8 0 1120 12zM9 11.5h.01M12 11.5h.01M15 11.5h.01",
 
   // ── États ─────────────────────────────────────────────
   valide: "M12 21a9 9 0 100-18 9 9 0 000 18zM8.5 12.2l2.4 2.4 4.6-4.9",

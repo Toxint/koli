@@ -19,6 +19,8 @@ const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const MDP = "Password123!";
 const marque = Date.now().toString().slice(-6);
 const PRODUIT = `Pagne test ${marque}`;
+/** Cree a stock nul par le test lui-meme, pour eprouver la rupture. */
+const PRODUIT_EPUISE = `Sandale epuisee ${marque}`;
 const PRIX = 7500;
 
 console.log(`\n=== CATALOGUE PRODUITS depuis ${BASE} ===\n`);
@@ -77,12 +79,36 @@ verifier(
   /Robe Wax|Sac en Cuir/i.test(texte),
   "les produits de demonstration sont listes"
 );
+// -------------------------------------------------------- 2. Creation produit
+//
+// Deux produits : celui du parcours, et un a stock NUL pour eprouver la
+// rupture.
+//
+// Ce second produit etait auparavant celui du jeu de donnees initial
+// (« Sandales cuir tressé », cree a zero). Mais un vendeur peut le
+// reapprovisionner depuis l'application — c'est meme le geste normal —, et le
+// test se mettait alors a echouer sur une rupture qui n'existait plus, sans
+// que rien ne soit casse. Un test doit etablir lui-meme ce qu'il verifie.
+await page.goto(`${BASE}/vendeur/produits/nouveau`, {
+  waitUntil: "networkidle",
+});
+await page.locator("#name").fill(PRODUIT_EPUISE);
+await page.locator("#price").fill("12000");
+await page.locator("#quantity").fill("0");
+await page.locator("#category").selectOption("Mode et vêtements");
+await bouton(page, /Ajouter au catalogue/i).click();
+await page.waitForTimeout(3500);
+
+texte = await page.evaluate(() => document.body.innerText);
+verifier(
+  texte.includes(PRODUIT_EPUISE),
+  "un produit peut etre cree a stock nul"
+);
 verifier(
   /rupture/i.test(texte),
   "un produit a stock nul est signale en rupture"
 );
 
-// -------------------------------------------------------- 2. Creation produit
 await page.goto(`${BASE}/vendeur/produits/nouveau`, {
   waitUntil: "networkidle",
 });
@@ -151,15 +177,22 @@ verifier(
 );
 
 // Un produit en rupture ne doit pas etre selectionnable.
+//
+// Le controle etait enferme dans un `if` : sans option en rupture il
+// disparaissait sans un mot, et son silence se lisait comme une reussite. Le
+// test creant desormais lui-meme un produit a stock nul, l'option DOIT etre la.
 const optionRupture = page.locator("#productId option", {
-  hasText: /rupture/i,
+  hasText: PRODUIT_EPUISE,
 });
-if (await optionRupture.count()) {
-  verifier(
-    await optionRupture.first().evaluate((el) => el.disabled),
-    "un produit en rupture n'est pas selectionnable"
-  );
-}
+verifier(
+  (await optionRupture.count()) > 0,
+  "le produit epuise figure bien dans la liste deroulante"
+);
+verifier(
+  (await optionRupture.count()) > 0 &&
+    (await optionRupture.first().evaluate((el) => el.disabled)),
+  "un produit en rupture n'est pas selectionnable"
+);
 
 // -------------------------------------- 5. Commande, puis decompte au paiement
 // Le formulaire suit desormais les cinq etapes du §18 : produit, client,

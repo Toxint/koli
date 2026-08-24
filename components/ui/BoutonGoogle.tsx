@@ -13,9 +13,17 @@
  */
 export function BoutonGoogle({
   configure,
+  motif,
   libelle = "Continuer avec Google",
 }: {
   configure: boolean;
+  /**
+   * Pourquoi c'est indisponible — « configuration » (identifiants absents) ou
+   * « adresse » (origine réseau privée, d'où Google ne peut pas revenir). Les
+   * deux appellent des phrases différentes : l'une annonce une fonction à
+   * venir, l'autre une fonction qui marche mais pas depuis ici.
+   */
+  motif?: "configuration" | "adresse";
   libelle?: string;
 }) {
   return (
@@ -59,7 +67,17 @@ export function BoutonGoogle({
 
       {!configure && (
         <p className="text-xs text-test-mode text-center">
-          Bientôt disponible.
+          {motif === "adresse" ? (
+            /* Cas de l'adresse réseau privée : on nomme la vraie raison et on
+               indique quoi faire. « Bientôt disponible » y serait faux — la
+               fonction marche, c'est cette adresse qui ne convient pas. */
+            <>
+              Indisponible depuis cette adresse réseau. Connectez-vous avec
+              votre identifiant et votre mot de passe.
+            </>
+          ) : (
+            <>Bientôt disponible.</>
+          )}
         </p>
       )}
     </div>

@@ -2,7 +2,12 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/actions";
 import { espaceParDefaut } from "@/lib/auth/dashboards";
-import { googleEstConfigure } from "@/lib/auth/google";
+import {
+  googleEstConfigure,
+  googleUtilisableDepuis,
+  origineDepuisEnTetes,
+} from "@/lib/auth/google";
+import { headers } from "next/headers";
 import { FormulaireConnexion } from "@/components/domain/FormulaireConnexion";
 
 /**
@@ -29,11 +34,20 @@ export default async function PageConnexion() {
     redirect(espaceParDefaut(utilisateur.role));
   }
 
+  // Google ne peut pas aboutir depuis une adresse reseau privee : le dire
+  // plutot que d'afficher un bouton qui mene a une impasse (voir
+  // `googleUtilisableDepuis`).
+  const googleUtilisable = googleUtilisableDepuis(
+    origineDepuisEnTetes(await headers())
+  );
+  const motifGoogle = googleEstConfigure() ? "adresse" : "configuration";
+
   return (
     // `Suspense` est requis : `useSearchParams` suspend le rendu, et Next
     // refuse de prerendre une page qui l'utilise sans limite de suspension.
     <Suspense fallback={null}>
-      <FormulaireConnexion googleConfigure={googleEstConfigure()} />
+      <FormulaireConnexion googleConfigure={googleUtilisable}
+        motifGoogle={motifGoogle} />
     </Suspense>
   );
 }
