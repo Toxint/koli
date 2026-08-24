@@ -21,6 +21,10 @@ const prismaMock = {
   commission: { findFirst: vi.fn() },
   transaction: { aggregate: vi.fn() },
   orderStatusHistory: { findMany: vi.fn() },
+  $transaction: vi.fn(),
+  // Le journal d'audit (§48) est ecrit dans la MEME transaction que l'acte :
+  // le faux client doit donc le connaitre, sinon l'acte echoue.
+  auditLog: { create: vi.fn() },
 };
 
 const getCurrentUserMock = vi.fn();
@@ -98,14 +102,57 @@ describe("definirVerificationVendeurAction", () => {
       verificationStatus: "PENDING",
       user: { name: "Awa" },
     });
-    prismaMock.sellerProfile.update.mockResolvedValue({});
+
+    const tx = {
+      sellerProfile: { update: vi.fn() },
+      auditLog: { create: vi.fn() },
+    };
+    prismaMock.$transaction.mockImplementation(
+      async (cb: (t: typeof tx) => unknown) => cb(tx)
+    );
 
     const res = await definirVerificationVendeurAction("s1", "VERIFIED");
 
     expect(res.success).toBe(true);
-    expect(
-      prismaMock.sellerProfile.update.mock.calls[0][0].data.verificationStatus
-    ).toBe("VERIFIED");
+    expect(tx.sellerProfile.update.mock.calls[0][0].data.verificationStatus).toBe(
+      "VERIFIED"
+    );
+  });
+
+  it("consigne la decision au journal, dans la MEME transaction (§48)", async () => {
+    // Rejeter un vendeur ferme son activite sur KOLI. Sans trace, la decision
+    // n'est rattachable a personne. La consignation partage la transaction de
+    // l'acte : l'une ne peut pas aboutir sans l'autre.
+    prismaMock.sellerProfile.findUnique.mockResolvedValue({
+      id: "s1",
+      businessName: "Boutique Chic",
+      verificationStatus: "PENDING",
+      user: { name: "Awa" },
+    });
+
+    const tx = {
+      sellerProfile: { update: vi.fn() },
+      auditLog: { create: vi.fn() },
+    };
+    prismaMock.$transaction.mockImplementation(
+      async (cb: (t: typeof tx) => unknown) => cb(tx)
+    );
+
+    await definirVerificationVendeurAction("s1", "REJECTED");
+
+    const trace = tx.auditLog.create.mock.calls[0][0].data;
+    expect(trace.action).toBe("SELLER_VERIFICATION_SET");
+    expect(trace.entityId).toBe("s1");
+    // Le nom est recopie : il survit a la suppression du compte administrateur.
+    expect(trace.actorName).toBeTruthy();
+
+    // Sans le « avant », la ligne n'apprend rien. Et en francais : le journal
+    // se lit, il ne se dechiffre pas — « REJECTED → VERIFIED » obligerait le
+    // lecteur a traduire.
+    const details = JSON.parse(trace.metadata);
+    expect(details.avant).toBe("en attente");
+    expect(details.apres).toBe("rejeté");
+    expect(details.vendeur).toBe("Boutique Chic");
   });
 });
 

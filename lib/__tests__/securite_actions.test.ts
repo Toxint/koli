@@ -24,6 +24,7 @@ const prismaMock = {
   // transactionnel doit donc savoir lire le taux actif.
   commission: { findFirst: vi.fn() },
   orderStatusHistory: { create: vi.fn() },
+  auditLog: { create: vi.fn() },
   deliveryProof: { create: vi.fn() },
   $transaction: vi.fn(),
 };
@@ -347,6 +348,7 @@ describe("assignDriverAction", () => {
       delivery: { update: vi.fn() },
       order: { update: vi.fn() },
       orderStatusHistory: { create: vi.fn() },
+      auditLog: { create: vi.fn() },
     };
     prismaMock.$transaction.mockImplementation(
       async (cb: (t: typeof tx) => unknown) => cb(tx)
@@ -439,6 +441,7 @@ describe("confirmReceptionAction — autorisation", () => {
       commission: { findFirst: vi.fn().mockResolvedValue({ ratePercent: 5 }) },
       order: { update: vi.fn() },
       orderStatusHistory: { create: vi.fn() },
+      auditLog: { create: vi.fn() },
     };
     prismaMock.$transaction.mockImplementation(
       async (cb: (t: typeof tx) => unknown) => cb(tx)
@@ -529,6 +532,7 @@ describe("confirmReceptionAction", () => {
       commission: { findFirst: vi.fn().mockResolvedValue({ ratePercent: 5 }) },
       order: { update: vi.fn() },
       orderStatusHistory: { create: vi.fn() },
+      auditLog: { create: vi.fn() },
     };
     prismaMock.$transaction.mockImplementation(async (cb: (t: typeof tx) => unknown) => cb(tx));
 
@@ -560,6 +564,7 @@ describe("confirmReceptionAction", () => {
       commission: { findFirst: vi.fn().mockResolvedValue({ ratePercent: 5 }) },
       order: { update: vi.fn() },
       orderStatusHistory: { create: vi.fn() },
+      auditLog: { create: vi.fn() },
     };
     prismaMock.$transaction.mockImplementation(
       async (cb: (t: typeof tx) => unknown) => cb(tx)
@@ -578,6 +583,15 @@ describe("confirmReceptionAction", () => {
     expect(ecritures).toContainEqual(
       expect.objectContaining({ type: "COMMISSION", amount: -1000, rate: 5 })
     );
+
+    // §48 en donne l'exemple meme : « ACTION: FUNDS_RELEASE_TEST ».
+    // L'acteur est le CLIENT, pas un administrateur : c'est sa confirmation de
+    // reception qui declenche le versement au vendeur.
+    const trace = tx.auditLog.create.mock.calls[0][0].data;
+    expect(trace.action).toBe("FUNDS_RELEASE_TEST");
+    // La reference lisible, pas l'identifiant technique (§48).
+    expect(trace.entityId).toBe("KOLI-ABCDEFGH");
+    expect(trace.actorRole).toBe("CLIENT");
   });
 
   it("libere sans commission quand aucun taux n'est actif", async () => {
@@ -596,6 +610,7 @@ describe("confirmReceptionAction", () => {
       commission: { findFirst: vi.fn().mockResolvedValue(null) },
       order: { update: vi.fn() },
       orderStatusHistory: { create: vi.fn() },
+      auditLog: { create: vi.fn() },
     };
     prismaMock.$transaction.mockImplementation(
       async (cb: (t: typeof tx) => unknown) => cb(tx)

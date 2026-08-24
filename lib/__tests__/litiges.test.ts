@@ -23,6 +23,9 @@ const prismaMock = {
   // transactionnel doit donc savoir lire le taux actif.
   commission: { findFirst: vi.fn() },
   user: { findMany: vi.fn() },
+  // Le journal d'audit (§48) est ecrit dans la MEME transaction que l'acte :
+  // le faux client doit donc le connaitre, sinon l'acte echoue.
+  auditLog: { create: vi.fn() },
   $transaction: vi.fn(),
 };
 

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { OrderStatus, RefundStatus } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
+import { ACTIONS_AUDIT, consigner } from "@/lib/audit/journal";
 import { getCurrentUser } from "@/lib/auth/actions";
 import {
   assertTransition,
@@ -159,6 +160,20 @@ export async function traiterRemboursementAction(
           });
         }
       }
+
+      // §48 : un remboursement déplace de l'argent. `OrderStatusHistory`
+      // enregistre bien le changement d'état, mais c'est le journal d'audit
+      // qui rassemble les actes d'autorité en un seul endroit consultable.
+      await consigner(tx, {
+        acteur: { id: admin.id, name: admin.name, role: admin.role },
+        action: ACTIONS_AUDIT.REFUND_PROCESSED,
+        entite: "Order",
+        entiteId: commande.reference,
+        details: {
+          montant: `${montant} FCFA`,
+          stockRestitue: validation.data.restituerStock ? "oui" : "non",
+        },
+      });
     });
   } catch (erreur) {
     if (erreur instanceof Error && erreur.message === "DEJA_TRAITE") {

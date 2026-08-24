@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { UserStatus } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/prisma";
+import { ACTIONS_AUDIT, consigner } from "@/lib/audit/journal";
 
 export type AdminResult =
   | { success: true; message: string }
@@ -45,16 +46,32 @@ export async function basculerStatutCompteAction(
       ? UserStatus.SUSPENDED
       : UserStatus.ACTIVE;
 
-  await prisma.user.update({
-    where: { id: cible.id },
-    data: {
-      status: nouveau,
-      // Une reactivation remet le compteur de tentatives a zero : sinon un
-      // compte reactive resterait bloque par un verrouillage anterieur.
-      ...(nouveau === UserStatus.ACTIVE
-        ? { failedLoginAttempts: 0, lockedUntil: null }
-        : {}),
-    },
+  await prisma.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id: cible.id },
+      data: {
+        status: nouveau,
+        // Une reactivation remet le compteur de tentatives a zero : sinon un
+        // compte reactive resterait bloque par un verrouillage anterieur.
+        ...(nouveau === UserStatus.ACTIVE
+          ? { failedLoginAttempts: 0, lockedUntil: null }
+          : {}),
+      },
+    });
+
+    // §48 : suspendre un compte prive quelqu'un de son outil de travail. Qui
+    // l'a decide, et quand, doit rester etabli.
+    await consigner(tx, {
+      acteur: { id: admin.id, name: admin.name, role: admin.role },
+      action: ACTIONS_AUDIT.ACCOUNT_STATUS_SET,
+      entite: "User",
+      entiteId: cible.id,
+      details: {
+        compte: cible.name,
+        avant: cible.status === UserStatus.ACTIVE ? "actif" : "suspendu",
+        apres: nouveau === UserStatus.ACTIVE ? "actif" : "suspendu",
+      },
+    });
   });
 
   revalidatePath("/admin/utilisateurs");

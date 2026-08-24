@@ -136,9 +136,21 @@ verifier(
   new URL(page.url()).pathname === "/admin/vendeurs",
   "la page des vendeurs est accessible"
 );
+
+// On CHERCHE le vendeur au lieu de le supposer sur la premiere page.
+//
+// La liste est paginee a 20 et triee du plus recent au plus ancien. Chaque
+// passage de la suite cree des vendeurs de test ; passe le vingtieme, le
+// vendeur de demonstration — le plus ancien — est repousse en page 2, et le
+// controle echouait sur une pagination qui fonctionne parfaitement.
+await page.goto(`${BASE}/admin/vendeurs?q=Boutique+Chic`, {
+  waitUntil: "networkidle",
+});
+texte = await page.evaluate(() => document.body.innerText);
+
 verifier(
   /Boutique Chic/.test(texte),
-  "le vendeur de demonstration est liste"
+  "le vendeur de demonstration se retrouve par la recherche"
 );
 for (const [motif, nom] of [
   [/vérification|vérifié|en attente/i, "statut de vérification"],

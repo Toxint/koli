@@ -16,6 +16,7 @@ import {
 import { roleDansLitige } from "@/lib/disputes/acces";
 import { litigeEstClos } from "@/lib/disputes/libelles";
 import { preleverCommission } from "@/lib/finance/commission";
+import { ACTIONS_AUDIT, consigner } from "@/lib/audit/journal";
 
 export type ResultatLitige =
   | { success: true; message: string }
@@ -377,6 +378,27 @@ export async function trancherLitigeAction(
         disputeId: commande.dispute!.id,
         authorUserId: utilisateur.id,
         body: motivation.data,
+      },
+    });
+
+    // §48 : trancher un litige donne raison à l'une des deux parties et
+    // déplace l'argent en conséquence. Le fil du litige le montre aux
+    // intéressés ; le journal le rassemble avec les autres actes d'autorité.
+    await consigner(tx, {
+      acteur: {
+        id: utilisateur.id,
+        name: utilisateur.name,
+        role: utilisateur.role,
+      },
+      action: ACTIONS_AUDIT.DISPUTE_RESOLVED,
+      entite: "Order",
+      entiteId: commande.reference,
+      details: {
+        issue:
+          decision === DisputeStatus.SELLER_WINS
+            ? "vendeur"
+            : "client",
+        motivation: motivation.data.slice(0, 200),
       },
     });
   });

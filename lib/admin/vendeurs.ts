@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { SellerVerificationStatus } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/prisma";
+import { ACTIONS_AUDIT, consigner } from "@/lib/audit/journal";
+import { LIBELLE_VERIFICATION } from "@/lib/admin/libelles";
 
 export type VerificationResult =
   | { success: true; statut: SellerVerificationStatus; message: string }
@@ -64,12 +66,31 @@ export async function definirVerificationVendeurAction(
     };
   }
 
-  await prisma.sellerProfile.update({
-    where: { id: vendeur.id },
-    data: { verificationStatus: nouveau },
+  const nom = vendeur.businessName || vendeur.user.name;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.sellerProfile.update({
+      where: { id: vendeur.id },
+      data: { verificationStatus: nouveau },
+    });
+
+    // §48 : rejeter un vendeur ferme son activité sur KOLI. La décision doit
+    // pouvoir être rattachée à quelqu'un.
+    await consigner(tx, {
+      acteur: { id: admin.id, name: admin.name, role: admin.role },
+      action: ACTIONS_AUDIT.SELLER_VERIFICATION_SET,
+      entite: "SellerProfile",
+      entiteId: vendeur.id,
+      details: {
+        vendeur: nom,
+        // En français : le journal se lit, il n'est pas déchiffré. Une ligne
+        // « REJECTED → VERIFIED » oblige le lecteur à traduire.
+        avant: LIBELLE_VERIFICATION[vendeur.verificationStatus],
+        apres: LIBELLE_VERIFICATION[nouveau],
+      },
+    });
   });
 
-  const nom = vendeur.businessName || vendeur.user.name;
   const libelles: Record<SellerVerificationStatus, string> = {
     VERIFIED: `${nom} est désormais vérifié.`,
     PENDING: `${nom} est repassé en attente de vérification.`,

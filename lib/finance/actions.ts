@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { prisma } from "@/lib/db/prisma";
 import { getCurrentUser } from "@/lib/auth/actions";
+import { ACTIONS_AUDIT, consigner } from "@/lib/audit/journal";
 
 export type ResultatCommission =
   | { success: true; message: string }
@@ -80,8 +81,26 @@ export async function definirTauxCommissionAction(
       data: { isActive: false },
     });
 
-    await tx.commission.create({
+    const nouvelle = await tx.commission.create({
       data: { ratePercent: taux, isActive: true },
+    });
+
+    // §48 : ce geste change la recette de la plateforme. Il ne laissait
+    // jusqu'ici aucune trace de son auteur — dans la même transaction, pour
+    // qu'un taux ne puisse pas changer sans que le journal le sache.
+    await consigner(tx, {
+      acteur: {
+        id: utilisateur.id,
+        name: utilisateur.name,
+        role: utilisateur.role,
+      },
+      action: ACTIONS_AUDIT.COMMISSION_RATE_SET,
+      entite: "Commission",
+      entiteId: nouvelle.id,
+      details: {
+        avant: actif ? `${actif.ratePercent} %` : "aucune commission",
+        apres: `${taux} %`,
+      },
     });
   });
 
@@ -112,9 +131,38 @@ export async function suspendreCommissionAction(): Promise<ResultatCommission> {
     };
   }
 
-  const arret = await prisma.commission.updateMany({
-    where: { isActive: true },
-    data: { isActive: false },
+  const arret = await prisma.$transaction(async (tx) => {
+    const actif = await tx.commission.findFirst({
+      where: { isActive: true },
+      orderBy: { createdAt: "desc" },
+      select: { ratePercent: true },
+    });
+
+    const resultat = await tx.commission.updateMany({
+      where: { isActive: true },
+      data: { isActive: false },
+    });
+
+    // Rien à consigner s'il n'y avait rien à suspendre : le journal
+    // n'enregistre que des événements, pas des gestes sans effet.
+    if (resultat.count > 0) {
+      await consigner(tx, {
+        acteur: {
+          id: utilisateur.id,
+          name: utilisateur.name,
+          role: utilisateur.role,
+        },
+        action: ACTIONS_AUDIT.COMMISSION_SUSPENDED,
+        entite: "Commission",
+        entiteId: "active",
+        details: {
+          avant: actif ? `${actif.ratePercent} %` : "—",
+          apres: "suspendue",
+        },
+      });
+    }
+
+    return resultat;
   });
 
   revalidatePath("/admin/commissions");

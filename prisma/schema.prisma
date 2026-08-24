@@ -451,7 +451,21 @@ model AuditLog {
   entityType  String
   entityId    String
   metadata    String?  // JSON sérialisé
+
+  // Copie du nom et du rôle de l'acteur au moment des faits.
+  //
+  // `actorUserId` est en `SetNull` : supprimer un compte ne doit pas effacer
+  // ce qu'il a fait. Mais le lien se perd alors, et la ligne devient anonyme —
+  // un journal qui ne peut plus nommer l'auteur d'une décision ne remplit plus
+  // sa fonction. Ces deux champs, eux, survivent à la suppression du compte.
+  actorName   String?
+  actorRole   String?
+
   createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([entityType, entityId])
+  @@index([action])
 }
 
 model KycDocument {

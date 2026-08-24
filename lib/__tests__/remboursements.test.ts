@@ -9,6 +9,9 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * la restitution de stock, qui n'est PAS automatique.
  */
 const prismaMock = {
+  // Le journal d'audit (§48) est ecrit dans la MEME transaction que l'acte :
+  // le faux client doit donc le connaitre, sinon l'acte echoue.
+  auditLog: { create: vi.fn() },
   order: { findUnique: vi.fn(), update: vi.fn() },
   refund: { updateMany: vi.fn() },
   fund: { updateMany: vi.fn() },
