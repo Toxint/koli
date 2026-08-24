@@ -50,6 +50,8 @@ export const ACTIONS_AUDIT = {
   REFUND_PROCESSED: "REFUND_PROCESSED",
   /** Fonds libérés au vendeur, en mode test (§29, §48). */
   FUNDS_RELEASE_TEST: "FUNDS_RELEASE_TEST",
+  /** Pièce justificative acceptée ou refusée (§37). */
+  KYC_DOCUMENT_REVIEWED: "KYC_DOCUMENT_REVIEWED",
 } as const;
 
 export type ActionAudit =
@@ -113,6 +115,7 @@ export const LIBELLES_ACTION: Record<string, string> = {
   DISPUTE_RESOLVED: "Litige tranché",
   REFUND_PROCESSED: "Remboursement traité",
   FUNDS_RELEASE_TEST: "Fonds libérés (test)",
+  KYC_DOCUMENT_REVIEWED: "Pièce justificative examinée",
 };
 
 export function libelleAction(action: string): string {

@@ -50,6 +50,22 @@ const nextConfig: NextConfig = {
    * Sans effet sur la production, qui ne passe pas par le serveur de dev.
    */
   allowedDevOrigins: originesDeveloppement(),
+
+  experimental: {
+    /**
+     * Taille maximale du corps d'une action serveur.
+     *
+     * Par défaut **1 Mo** — largement dépassé par la photo d'une carte
+     * d'identité prise avec un téléphone récent (§37). Au-delà, Next rejette
+     * la requête avant même d'entrer dans l'action : le contrôle de taille
+     * écrit dans `lib/kyc/actions.ts` n'est jamais atteint, et l'utilisateur
+     * ne voit qu'un échec sans explication.
+     *
+     * Fixé un peu au-dessus de la limite métier (5 Mo), pour que ce soit
+     * TOUJOURS notre message qui s'affiche, jamais l'erreur du serveur.
+     */
+    serverActions: { bodySizeLimit: "6mb" },
+  },
 };
 
 export default nextConfig;

@@ -223,7 +223,11 @@ let reference;
   }
 
   // Marquer comme lu.
-  const marquer = bouton(page, /Marquer comme lu/i);
+  // Expression ANCREE : sans le '^', /Marquer comme lu/ correspond aussi a
+  // « Tout marquer comme lu », qui figure plus haut dans la page. Le test
+  // cliquait donc le mauvais bouton, et passait tant qu'il ne restait qu'un
+  // seul non-lu — par pure coincidence arithmetique.
+  const marquer = bouton(page, /^Marquer comme lu$/);
   verifier((await marquer.count()) > 0, "une notification peut etre marquee lue");
 
   if (await marquer.count()) {

@@ -27,6 +27,7 @@ export const NAV_VENDEUR: NavItem[] = [
   { label: "Factures", href: "/vendeur/factures", icone: "recu" },
   { label: "Transactions", href: "/vendeur/transactions", icone: "journal" },
   { label: "Solde", href: "/vendeur/solde", icone: "solde" },
+  { label: "Vérification", href: "/vendeur/verification", icone: "bouclier" },
   { label: "Profil", href: "/vendeur/profil", icone: "profil" },
 ];
 
@@ -91,6 +92,7 @@ export const NAV_ADMIN: NavItem[] = [
   { label: "Vue d'ensemble", href: "/admin/dashboard", icone: "tableau" },
   { label: "Utilisateurs", href: "/admin/utilisateurs", icone: "utilisateurs" },
   { label: "Vendeurs", href: "/admin/vendeurs", icone: "vendeurs" },
+  { label: "Vérifications", href: "/admin/verifications", icone: "cadenas" },
   { label: "Litiges", href: "/admin/litiges", icone: "bouclier" },
   { label: "Remboursements", href: "/admin/remboursements", icone: "argent" },
   { label: "Journal", href: "/admin/journal", icone: "document" },

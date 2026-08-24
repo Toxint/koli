@@ -165,6 +165,7 @@ model User {
   driverProfile   DriverProfile?
   notifications   Notification[]
   auditLogs       AuditLog[]       @relation("AuditActor")
+  kycRevues       KycDocument[]    @relation("KycReviewer")
 }
 
 model SellerProfile {
@@ -174,6 +175,18 @@ model SellerProfile {
   businessName           String?
   verificationStatus     SellerVerificationStatus @default(PENDING)
   commissionRateOverride Float?
+
+  // §37 : « Prevoir : identite, telephone, documents, statut. »
+  //
+  // Le nom LEGAL, tel qu il figure sur la piece — souvent different de
+  // l enseigne commerciale. Sans lui, l administration compare le document a
+  // un nom de boutique, ce qui ne prouve rien.
+  //
+  // Le telephone n est pas redouble ici : il vit deja sur le compte, et une
+  // seconde copie divergerait a la premiere mise a jour.
+  legalName              String?
+  kycSubmittedAt         DateTime?
+
   createdAt              DateTime                 @default(now())
 
   products Product[]
@@ -475,13 +488,40 @@ model AuditLog {
 }
 
 model KycDocument {
-  id        String        @id @default(cuid())
-  sellerId  String
-  seller    SellerProfile @relation(fields: [sellerId], references: [id], onDelete: Cascade)
-  type      String
-  fileUrl   String
-  status    KycStatus     @default(PENDING)
-  createdAt DateTime      @default(now())
+  id       String        @id @default(cuid())
+  sellerId String
+  seller   SellerProfile @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  type     String
+
+  /**
+   * Emplacement du fichier dans le magasin, JAMAIS une adresse publique.
+   *
+   * Une pièce d'identité déposée sous `/public` serait lisible par quiconque
+   * devine son nom — et rien n'avertirait. Le fichier est écrit hors de
+   * l'arborescence servie, et seul `/api/kyc/<id>` le restitue, après contrôle
+   * du demandeur.
+   */
+  fileUrl  String
+
+  /** Nom d'origine, pour l'affichage seulement — jamais pour écrire sur disque. */
+  originalName String?
+  /** Type déterminé par LECTURE du fichier, pas d'après ce que le client annonce. */
+  mimeType     String?
+  sizeBytes    Int?
+
+  status KycStatus @default(PENDING)
+
+  // Qui a décidé, quand, et pourquoi en cas de refus. Un rejet sans motif
+  // laisse le vendeur sans rien à corriger.
+  reviewedAt      DateTime?
+  reviewedById    String?
+  reviewedBy      User?     @relation("KycReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  rejectionReason String?
+
+  createdAt DateTime @default(now())
+
+  @@index([sellerId, status])
+  @@index([status, createdAt])
 }
 
 model Setting {
