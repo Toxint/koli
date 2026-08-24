@@ -48,6 +48,31 @@ const compterPour = (email, type) =>
     type
   )[0].n;
 
+
+const nonLuesVendeur = () =>
+  lire(
+    `SELECT COUNT(*) n FROM Notification n JOIN User u ON u.id = n.userId
+      WHERE u.email = ? AND n.readAt IS NULL`,
+    "vendeur@koli.ci"
+  )[0].n;
+
+/**
+ * Attend que la BASE reflete le geste, pas que le DOM bouge.
+ *
+ * Attendre la disparition du bouton semblait plus fin qu'un delai fixe, mais
+ * `detached` se resout des que React remplace le noeud — c'est-a-dire au
+ * DEBUT du rafraichissement, pas a la fin de l'ecriture. Le test lisait donc
+ * la base trop tot et voyait « 1 → 1 » sur un marquage pourtant reussi.
+ */
+const attendreQue = async (mesure, attendu, limiteMs = 20000) => {
+  const fin = Date.now() + limiteMs;
+  while (Date.now() < fin) {
+    if (attendu(mesure())) return true;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+  return false;
+};
+
 const navigateur = await chromium.launch();
 
 const bouton = (p, libelle) =>
@@ -135,13 +160,31 @@ let reference;
       .catch(() => {});
     await ctxClient.close();
 
+    // On ATTEND que l'ecriture soit visible en base, au lieu de la lire une
+    // fois et d'esperer. Le rendu de la page confirmant le paiement peut
+    // preceder de quelques dizaines de millisecondes la visibilite de la
+    // transaction pour une AUTRE connexion SQLite — celle du test.
+    //
+    // La valeur testee est capturee UNE SEULE FOIS : la version precedente
+    // relisait la base pour composer le message d'echec, et pouvait donc
+    // afficher un compte different de celui qui venait d'echouer — « 29 → 30 »
+    // sur un controle qui attendait exactement 30.
+    const vendeurPrevenu = await attendreQue(
+      () => compterPour("vendeur@koli.ci", "FUNDS_SECURED"),
+      (n) => n === avantVendeur + 1
+    );
     verifier(
-      compterPour("vendeur@koli.ci", "FUNDS_SECURED") === avantVendeur + 1,
+      vendeurPrevenu,
       "le paiement previent le VENDEUR : il n'avait aucun moyen de l'apprendre",
       `${avantVendeur} → ${compterPour("vendeur@koli.ci", "FUNDS_SECURED")}`
     );
+
+    const clientPrevenu = await attendreQue(
+      () => compterPour("client@koli.ci", "PAYMENT_CONFIRMED"),
+      (n) => n === avantClient + 1
+    );
     verifier(
-      compterPour("client@koli.ci", "PAYMENT_CONFIRMED") === avantClient + 1,
+      clientPrevenu,
       "le client est prevenu que son paiement est securise",
       `${avantClient} → ${compterPour("client@koli.ci", "PAYMENT_CONFIRMED")}`
     );
@@ -228,27 +271,17 @@ let reference;
   // cliquait donc le mauvais bouton, et passait tant qu'il ne restait qu'un
   // seul non-lu — par pure coincidence arithmetique.
   const marquer = bouton(page, /^Marquer comme lu$/);
+  const avant = nonLuesVendeur();
+
+  // La precondition est ELLE-MEME verifiee : sans non-lue, le controle suivant
+  // n'aurait rien a eprouver et disparaitrait en silence.
+  verifier(avant > 0, "le vendeur a bien des notifications non lues a marquer", String(avant));
   verifier((await marquer.count()) > 0, "une notification peut etre marquee lue");
 
-  if (await marquer.count()) {
-    const avant = lire(
-      `SELECT COUNT(*) n FROM Notification n JOIN User u ON u.id = n.userId
-        WHERE u.email = ? AND n.readAt IS NULL`,
-      "vendeur@koli.ci"
-    )[0].n;
-
+  if (avant > 0 && (await marquer.count()) > 0) {
     await marquer.click();
-    // Le bouton disparait une fois la notification lue : c'est le signal que
-    // le serveur a repondu, plus fiable qu'un delai.
-    await marquer.waitFor({ state: "detached", timeout: 20000 }).catch(() => {});
-
-    const apres = lire(
-      `SELECT COUNT(*) n FROM Notification n JOIN User u ON u.id = n.userId
-        WHERE u.email = ? AND n.readAt IS NULL`,
-      "vendeur@koli.ci"
-    )[0].n;
-
-    verifier(apres === avant - 1, "le marquage est enregistre", `${avant} → ${apres}`);
+    const baisse = await attendreQue(nonLuesVendeur, (n) => n === avant - 1);
+    verifier(baisse, "le marquage est enregistre", `${avant} → ${nonLuesVendeur()}`);
   }
 
   // Filtre « non lues ».
@@ -269,11 +302,7 @@ let reference;
   // comme une reussite. On verifie donc explicitement l'un ou l'autre cas.
   await page.goto(`${BASE}/notifications`, { waitUntil: "networkidle" });
 
-  const restantesAvant = lire(
-    `SELECT COUNT(*) n FROM Notification n JOIN User u ON u.id = n.userId
-      WHERE u.email = ? AND n.readAt IS NULL`,
-    "vendeur@koli.ci"
-  )[0].n;
+  const restantesAvant = nonLuesVendeur();
 
   const tout = bouton(page, /Tout marquer comme lu/i);
   const proposeTout = (await tout.count()) > 0;
@@ -286,16 +315,11 @@ let reference;
 
   if (proposeTout) {
     await tout.click();
-    await tout.waitFor({ state: "detached", timeout: 20000 }).catch(() => {});
-    const restantes = lire(
-      `SELECT COUNT(*) n FROM Notification n JOIN User u ON u.id = n.userId
-        WHERE u.email = ? AND n.readAt IS NULL`,
-      "vendeur@koli.ci"
-    )[0].n;
+    const vide = await attendreQue(nonLuesVendeur, (n) => n === 0);
     verifier(
-      restantes === 0,
+      vide,
       "« tout marquer comme lu » vide bien le compteur",
-      `${restantes} restante(s)`
+      `${nonLuesVendeur()} restante(s)`
     );
   }
 

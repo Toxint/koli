@@ -699,18 +699,19 @@ L'enum `DeliveryStatus` gagne l'état **`UNASSIGNED`** qui lui manquait : une li
 
 ### Manques connus, à traiter dans leur phase
 
-- **Navigation (§10)** — il n'existe aucune sidebar ni menu mobile. La navigation se réduit à un en-tête avec logo, badge de rôle et déconnexion. À construire quand il y aura des pages à desservir (Phase 5 revisitée).
+- ~~Navigation (§10)~~ — **fait**. Barre latérale repliable à partir de 1024px, tiroir glissant en dessous, cloche de notifications et déconnexion avec confirmation. Le compteur de non-lues passe par `MenuEspace`, un composant serveur : recopié sur chaque page, une page finissait par l'oublier et affichait une pastille vide en permanence.
 - **Jalons du livreur (§26)** — les étapes intermédiaires (colis récupéré, en transit, arrivé) n'ont pas d'interface. La validation OTP franchit le chemin d'un bloc, chaque saut restant une transition légale et journalisée. À remplacer par de vraies actions en Phase 15, avec un état « non assignée » à ajouter à l'enum `DeliveryStatus`.
 - ~~Assignation du livreur (§26)~~ — **fait** le 20/08/2026, voir §8 quater.
 - **Tableaux sur mobile (§8)** — défilement horizontal au lieu d'une conversion en cartes (Phase 28).
 - **Breakpoint tablette** — seuls `sm:` et `lg:` sont utilisés ; `md:` (768px, §7) est inexploité (Phase 28).
 - **`/pay/<référence>` inexistante** renvoie une page « Commande introuvable » avec un statut HTTP 200 plutôt qu'un 404.
 - **Convention Next.js** — Next 16 signale que `middleware.ts` est déprécié au profit de `proxy.ts`. Migration à planifier.
-- **Migrations Prisma** — la base est construite via `db push`, sans dossier `prisma/migrations/`. À mettre en place avant tout déploiement partagé.
+- ~~Migrations Prisma~~ — **fait le 24/08/2026**. La base existante a été prise pour référence (`prisma/migrations/0_init`, produite par lecture de la base elle-même et non du schéma, puis marquée appliquée). `db push` ne doit plus être utilisé : `npm run db:migrer` en développement, `npm run db:deployer` en production. Vérifié en reconstruisant une base vierge depuis les seules migrations — structure identique, aucun écart.
+- ~~Clé étrangère manquante~~ — **fait le 24/08/2026**. `Fund.sellerId`, `OrderStatusHistory.actorUserId` et `DisputeMessage.authorUserId` n’étaient que des chaînes. `npm run verif:schema` vérifie désormais que toute colonne en `<chose>Id` porte une vraie clé, que SQLite les fait respecter, et qu’aucune ligne orpheline ne subsiste.
 
 ### Vérifications en place
 
-`npm run typecheck` · `npm run lint` · `npm test` (64 tests) · `npm run build` — tous propres. Les tests couvrent la machine à états, la génération des références, le catalogue produits, et les garde-fous de sécurité des actions serveur (autorisation, propriété, idempotence, plafond de tentatives OTP, portée de la libération d'escrow).
+`npm run typecheck` · `npm run lint` · `npm test` (239 tests) · `npm run build` — tous propres. Les tests couvrent la machine à états, la génération des références, le catalogue produits, et les garde-fous de sécurité des actions serveur (autorisation, propriété, idempotence, plafond de tentatives OTP, portée de la libération d'escrow).
 
 `npm run verif:tout` enchaîne en plus les vérifications en navigateur réel : responsive (§74), liens cliquables, connexion, inscription, catalogue et parcours complet à quatre rôles.
 

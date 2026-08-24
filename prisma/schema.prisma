@@ -166,6 +166,8 @@ model User {
   notifications   Notification[]
   auditLogs       AuditLog[]       @relation("AuditActor")
   kycRevues       KycDocument[]    @relation("KycReviewer")
+  historiques     OrderStatusHistory[] @relation("HistoriqueActeur")
+  messagesLitige  DisputeMessage[]     @relation("MessageAuteur")
 }
 
 model SellerProfile {
@@ -192,6 +194,7 @@ model SellerProfile {
   products Product[]
   orders   Order[]
   kyc      KycDocument[]
+  funds    Fund[]
 }
 
 model CustomerProfile {
@@ -299,8 +302,23 @@ model OrderStatusHistory {
   order       Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
   fromStatus  OrderStatus?
   toStatus    OrderStatus
+  /**
+   * Qui a provoque le changement d etat.
+   *
+   * `SetNull` et non `Cascade` : supprimer un compte ne doit pas effacer
+   * l historique d une commande. La ligne reste, elle perd seulement son
+   * auteur — un trou dans l attribution vaut mieux qu un trou dans le
+   * deroule des faits.
+   *
+   * Nul aussi quand l acte n a pas d auteur humain : un paiement aboutit sans
+   * que personne ne clique cote KOLI.
+   */
   actorUserId String?
+  actor       User?        @relation("HistoriqueActeur", fields: [actorUserId], references: [id], onDelete: SetNull)
+
   createdAt   DateTime     @default(now())
+
+  @@index([orderId, createdAt])
 }
 
 // ── Paiement / argent (mode test) ──────────────────────
@@ -339,15 +357,36 @@ model Transaction {
 }
 
 model Fund {
-  id         String    @id @default(cuid())
-  orderId    String    @unique
-  order      Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  sellerId   String
+  id      String @id @default(cuid())
+  orderId String @unique
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  /**
+   * Vendeur bénéficiaire.
+   *
+   * C'était le SEUL lien du schéma sans clé étrangère : `sellerId` n'était
+   * qu'une chaîne. Rien n'empêchait donc d'y écrire un identifiant qui
+   * n'existe pas — et le séquestre correspondant serait devenu invisible dans
+   * le solde du vendeur, sans qu'aucune erreur ne le signale. Sur un registre
+   * qui dit combien la plateforme doit à qui, c'est le genre d'écart qu'on ne
+   * découvre qu'au moment de payer.
+   *
+   * `Cascade` par cohérence avec `Order.sellerId`, déjà en cascade : supprimer
+   * un vendeur supprime déjà ses commandes, donc ses fonds par `orderId`. Un
+   * autre choix ici produirait deux comportements contradictoires selon le
+   * chemin de suppression.
+   */
+  sellerId String
+  seller   SellerProfile @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
   amount     Int
   secured    Boolean   @default(false)
   released   Boolean   @default(false)
   securedAt  DateTime?
   releasedAt DateTime?
+
+  // Le solde vendeur agrège sur ces trois colonnes à chaque affichage.
+  @@index([sellerId, secured, released])
 }
 
 model Refund {
@@ -437,10 +476,21 @@ model DisputeMessage {
   id            String   @id @default(cuid())
   disputeId     String
   dispute       Dispute  @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+  /**
+   * Auteur du message — client, vendeur ou administration.
+   *
+   * `Cascade` : les messages d un compte supprime partent avec lui. Un fil de
+   * litige n a pas vocation a conserver les propos de quelqu un qui n existe
+   * plus, et la decision, elle, reste au journal d audit.
+   */
   authorUserId  String
+  author        User     @relation("MessageAuteur", fields: [authorUserId], references: [id], onDelete: Cascade)
+
   body          String?
   attachmentUrl String?
   createdAt     DateTime @default(now())
+
+  @@index([disputeId, createdAt])
 }
 
 // ── Notifications / audit / conformité ─────────────────
