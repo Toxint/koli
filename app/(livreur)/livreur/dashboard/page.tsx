@@ -1,8 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/prisma";
-import { DashboardNav } from "@/components/ui/DashboardNav";
-import { NAV_LIVREUR } from "@/lib/navigation";
+import { MenuEspace } from "@/components/ui/MenuEspace";
 import { ValidateOtpModal } from "@/components/driver/ValidateOtpModal";
 import { pluriel } from "@/lib/format";
 import { Icone } from "@/components/ui/Icone";
@@ -33,13 +32,7 @@ export default async function DriverDashboardPage() {
 
   return (
     <div className="min-h-screen bg-cream text-ink lg:pl-[var(--largeur-menu)]">
-      <DashboardNav
-        userName={user.name}
-        roleName="Livreur"
-        roleBadgeColor="bg-brand-soft text-brand dark:bg-amber-950/80 dark:text-amber-300 border border-brand-border dark:border-amber-700"
-        homeHref="/livreur/dashboard"
-        navItems={NAV_LIVREUR}
-      />
+      <MenuEspace user={user} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-fade-in">
         {/* Or Doré Banner */}

@@ -3,8 +3,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/prisma";
-import { DashboardNav } from "@/components/ui/DashboardNav";
-import { NAV_ADMIN } from "@/lib/navigation";
+import { MenuEspace } from "@/components/ui/MenuEspace";
 import { ReglageCommission } from "@/components/domain/ReglageCommission";
 import { formatCFA, pluriel } from "@/lib/format";
 import { Icone } from "@/components/ui/Icone";
@@ -56,12 +55,7 @@ export default async function CommissionsAdminPage() {
 
   return (
     <div className="min-h-screen bg-cream text-ink lg:pl-[var(--largeur-menu)]">
-      <DashboardNav
-        userName={user.name}
-        roleName="Administrateur"
-        homeHref="/admin/dashboard"
-        navItems={NAV_ADMIN}
-      />
+      <MenuEspace user={user} />
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         <div>

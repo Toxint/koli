@@ -2,8 +2,7 @@ import { redirect, notFound } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/prisma";
-import { DashboardNav } from "@/components/ui/DashboardNav";
-import { NAV_VENDEUR } from "@/lib/navigation";
+import { MenuEspace } from "@/components/ui/MenuEspace";
 import { FormulaireProduit } from "@/components/domain/FormulaireProduit";
 
 export default async function ModifierProduitPage({
@@ -29,12 +28,7 @@ export default async function ModifierProduitPage({
 
   return (
     <div className="min-h-screen bg-cream text-ink lg:pl-[var(--largeur-menu)]">
-      <DashboardNav
-        userName={user.sellerProfile.businessName || user.name}
-        roleName="Vendeur"
-        homeHref="/vendeur/dashboard"
-        navItems={NAV_VENDEUR}
-      />
+      <MenuEspace user={user} nomAffiche={user.sellerProfile.businessName || user.name} />
 
       <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         <div>

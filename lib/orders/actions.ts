@@ -11,6 +11,7 @@ import { generateOrderReference } from "@/lib/orders/reference";
 import { deviseDuPays } from "@/data/markets";
 import { preleverCommission } from "@/lib/finance/commission";
 import { ACTIONS_AUDIT, consigner } from "@/lib/audit/journal";
+import { partiesDeLaCommande, notifier } from "@/lib/notifications/envoi";
 
 const orderSchema = z.object({
   buyerName: z.string().min(2, "Le nom du client est requis"),
@@ -411,6 +412,18 @@ export async function confirmReceptionAction(
         entite: "Order",
         entiteId: order.reference,
         details: { montant: `${releasedAmount} FCFA` },
+      });
+
+      // §44 : le vendeur apprend qu'il est regle. C'est l'aboutissement de
+      // toute la promesse KOLI — il n'en etait prevenu par rien.
+      const parties = await partiesDeLaCommande(tx, order.id);
+
+      await notifier(tx, {
+        type: "FUNDS_RELEASED",
+        entite: "Order",
+        entiteId: order.reference,
+        destinataires: [parties.vendeur],
+        exclure: user.id,
       });
 
       await tx.order.update({

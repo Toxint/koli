@@ -1,8 +1,7 @@
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth/actions";
-import { DashboardNav } from "@/components/ui/DashboardNav";
-import { NAV_ADMIN } from "@/lib/navigation";
+import { MenuEspace } from "@/components/ui/MenuEspace";
 import { formatCFA, pluriel } from "@/lib/format";
 import { libelleStatut, classesBadgeStatut } from "@/lib/orders/statusLabels";
 import { Icone } from "@/components/ui/Icone";
@@ -93,13 +92,7 @@ export default async function AdminDashboardPage() {
 
   return (
     <div className="min-h-screen bg-cream text-ink lg:pl-[var(--largeur-menu)]">
-      <DashboardNav
-        userName={user.name}
-        roleName="Admin"
-        roleBadgeColor="bg-brand-soft text-brand border border-brand-border"
-        homeHref="/admin/dashboard"
-        navItems={NAV_ADMIN}
-      />
+      <MenuEspace user={user} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         <div className="bg-brand rounded-2xl p-6 sm:p-8 text-white shadow-lg shadow-brand/20 border border-brand-border">

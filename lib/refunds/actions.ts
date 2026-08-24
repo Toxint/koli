@@ -6,6 +6,7 @@ import { OrderStatus, RefundStatus } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { ACTIONS_AUDIT, consigner } from "@/lib/audit/journal";
 import { getCurrentUser } from "@/lib/auth/actions";
+import { partiesDeLaCommande, notifier } from "@/lib/notifications/envoi";
 import {
   assertTransition,
   InvalidOrderTransitionError,
@@ -173,6 +174,18 @@ export async function traiterRemboursementAction(
           montant: `${montant} FCFA`,
           stockRestitue: validation.data.restituerStock ? "oui" : "non",
         },
+      });
+
+      // §44 : le client attendait son argent. Les deux parties apprennent que
+      // le dossier est clos.
+      const parties = await partiesDeLaCommande(tx, commande.id);
+
+      await notifier(tx, {
+        type: "REFUND",
+        entite: "Order",
+        entiteId: commande.reference,
+        destinataires: [parties.client, parties.vendeur],
+        exclure: admin.id,
       });
     });
   } catch (erreur) {

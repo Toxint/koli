@@ -22,7 +22,10 @@ const prismaMock = {
   // La liberation des fonds preleve desormais la commission (§41) : le client
   // transactionnel doit donc savoir lire le taux actif.
   commission: { findFirst: vi.fn() },
-  user: { findMany: vi.fn() },
+  // La transaction notifie les parties (§44) : le mock doit savoir retrouver
+  // les comptes concernes et ecrire les notifications.
+  user: { findMany: vi.fn().mockResolvedValue([]), findFirst: vi.fn().mockResolvedValue(null) },
+  notification: { createMany: vi.fn() },
   // Le journal d'audit (§48) est ecrit dans la MEME transaction que l'acte :
   // le faux client doit donc le connaitre, sinon l'acte echoue.
   auditLog: { create: vi.fn() },

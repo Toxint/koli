@@ -45,6 +45,7 @@ export type NomIcone =
   | "telechargement"
   | "partage"
   | "message"
+  | "cloche"
   // États
   | "valide"
   | "alerte"
@@ -111,6 +112,9 @@ const CHEMINS: Record<NomIcone, string> = {
     "M8.7 13.1l6.6 3.8M15.3 7.1l-6.6 3.8M18 7a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM6 14.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5zM18 22a2.5 2.5 0 100-5 2.5 2.5 0 000 5z",
   message:
     "M20 12a8 8 0 01-8 8H4.5l2-3.2A8 8 0 1120 12zM9 11.5h.01M12 11.5h.01M15 11.5h.01",
+  // Cloche : la convention universelle des notifications.
+  cloche:
+    "M18 8.5a6 6 0 10-12 0c0 5-2 6.5-2 6.5h16s-2-1.5-2-6.5zM13.7 19a2 2 0 01-3.4 0",
 
   // ── États ─────────────────────────────────────────────
   valide: "M12 21a9 9 0 100-18 9 9 0 000 18zM8.5 12.2l2.4 2.4 4.6-4.9",

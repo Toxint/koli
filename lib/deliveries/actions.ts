@@ -5,6 +5,7 @@ import { OrderStatus } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/prisma";
 import { findTransitionPath } from "@/lib/orders/statusMachine";
+import { partiesDeLaCommande, notifier } from "@/lib/notifications/envoi";
 
 export type ValidateOtpResponse = {
   success: boolean;
@@ -192,6 +193,19 @@ export async function validateDeliveryOtpAction(
           from = to;
         }
       }
+
+      // §44 : la remise est le moment ou le client doit agir — c'est sa
+      // confirmation qui declenche le versement au vendeur (§29). Sans avis,
+      // rien ne le lui rappelle et la commande reste en suspens.
+      const parties = await partiesDeLaCommande(tx, delivery.orderId);
+
+      await notifier(tx, {
+        type: "DELIVERED",
+        entite: "Order",
+        entiteId: delivery.order.reference,
+        destinataires: [parties.client, parties.vendeur],
+        exclure: user.id,
+      });
     });
 
     revalidatePath("/livreur/dashboard");

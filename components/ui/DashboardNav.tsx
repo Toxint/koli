@@ -22,6 +22,14 @@ interface DashboardNavProps {
   homeHref: string;
   /** Uniquement des routes existantes — un lien mort est pire que pas de lien. */
   navItems?: NavItem[];
+  /**
+   * Compteur de notifications non lues (§45).
+   *
+   * Calculé par la page — un composant client ne peut pas interroger la base,
+   * et le compteur doit être juste au premier rendu : affiché à zéro puis
+   * corrigé après coup, il ferait manquer ce qui vient d'arriver.
+   */
+  notificationsNonLues?: number;
 }
 
 /** Doit rester identique à la valeur lue par le script anti-scintillement. */
@@ -72,6 +80,7 @@ export function DashboardNav({
   roleName,
   homeHref,
   navItems = [],
+  notificationsNonLues = 0,
 }: DashboardNavProps) {
   const [tiroirOuvert, setTiroirOuvert] = useState(false);
   const chemin = usePathname();
@@ -268,6 +277,56 @@ export function DashboardNav({
       </nav>
 
       <div className="space-y-2 shrink-0">
+        {/* Notifications (§45) — au-dessus du bloc du bas, donc visible depuis
+            toutes les pages de l'espace sans avoir à défiler la liste des
+            rubriques. */}
+        <Link
+          href="/notifications"
+          onClick={() => setTiroirOuvert(false)}
+          aria-current={chemin === "/notifications" ? "page" : undefined}
+          title={
+            compact
+              ? notificationsNonLues > 0
+                ? `Notifications — ${notificationsNonLues} non lue(s)`
+                : "Notifications"
+              : undefined
+          }
+          className={`relative flex items-center gap-3 rounded-2xl min-h-[46px] text-sm font-semibold transition-colors ${
+            compact ? "justify-center px-2" : "px-3"
+          } ${
+            chemin === "/notifications"
+              ? "bg-white text-brand-strong shadow-sm"
+              : "text-white/75 hover:bg-white/10 hover:text-white"
+          }`}
+        >
+          <Icone nom="cloche" className="w-5 h-5 shrink-0" />
+
+          {compact ? (
+            <span className="sr-only">
+              Notifications
+              {notificationsNonLues > 0
+                ? ` — ${notificationsNonLues} non lue(s)`
+                : ""}
+            </span>
+          ) : (
+            <span className="truncate">Notifications</span>
+          )}
+
+          {notificationsNonLues > 0 && (
+            /* Pastille : en mode replié elle se pose sur l'icône, sinon elle
+               s'aligne à droite. Le nombre est plafonné à « 9+ » — au-delà,
+               le chiffre exact n'aide plus et déborde de la pastille. */
+            <span
+              aria-hidden="true"
+              className={`min-w-[20px] h-5 px-1.5 rounded-full bg-gold text-menu-deep text-[11px] font-bold flex items-center justify-center ${
+                compact ? "absolute top-1 right-1" : "ml-auto"
+              }`}
+            >
+              {notificationsNonLues > 9 ? "9+" : notificationsNonLues}
+            </span>
+          )}
+        </Link>
+
         {/* §75 : l'indicateur de mode test reste visible à toutes les tailles. */}
         <div
           title={compact ? "Mode test — aucun paiement réel" : undefined}
@@ -342,9 +401,34 @@ export function DashboardNav({
             </span>
           </Link>
 
-          <span className="shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/10 text-gold text-[11px] font-semibold border border-gold/30 whitespace-nowrap">
-            <Icone nom="eclair" className="w-3.5 h-3.5" /> Test
-          </span>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {/* La cloche aussi dans l'en-tête : sur téléphone la barre latérale
+                est cachée, et il faudrait sinon ouvrir le tiroir pour découvrir
+                qu'une commande a été payée. */}
+            <Link
+              href="/notifications"
+              aria-label={
+                notificationsNonLues > 0
+                  ? `Notifications — ${notificationsNonLues} non lue(s)`
+                  : "Notifications"
+              }
+              className="relative min-h-[44px] min-w-[44px] flex items-center justify-center rounded-xl bg-white/10 text-white"
+            >
+              <Icone nom="cloche" className="w-5 h-5" />
+              {notificationsNonLues > 0 && (
+                <span
+                  aria-hidden="true"
+                  className="absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-gold text-menu-deep text-[10px] font-bold flex items-center justify-center"
+                >
+                  {notificationsNonLues > 9 ? "9+" : notificationsNonLues}
+                </span>
+              )}
+            </Link>
+
+            <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-white/10 text-gold text-[11px] font-semibold border border-gold/30 whitespace-nowrap">
+              <Icone nom="eclair" className="w-3.5 h-3.5" /> Test
+            </span>
+          </div>
         </div>
       </header>
 

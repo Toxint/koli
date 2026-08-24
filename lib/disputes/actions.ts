@@ -17,6 +17,7 @@ import { roleDansLitige } from "@/lib/disputes/acces";
 import { litigeEstClos } from "@/lib/disputes/libelles";
 import { preleverCommission } from "@/lib/finance/commission";
 import { ACTIONS_AUDIT, consigner } from "@/lib/audit/journal";
+import { comptesAdministrateurs, partiesDeLaCommande, notifier } from "@/lib/notifications/envoi";
 
 export type ResultatLitige =
   | { success: true; message: string }
@@ -162,6 +163,20 @@ export async function ouvrirLitigeAction(
         toStatus: OrderStatus.DISPUTE_OPEN,
         actorUserId: utilisateur.id,
       },
+    });
+
+    // §44 : le vendeur mis en cause doit pouvoir repondre, et l'administration
+    // doit savoir qu'un arbitrage l'attend — des fonds sont geles tant qu'elle
+    // n'a pas tranche (§33). Personne n'en etait averti.
+    const parties = await partiesDeLaCommande(tx, commande.id);
+    const admins = await comptesAdministrateurs(tx);
+
+    await notifier(tx, {
+      type: "DISPUTE_OPEN",
+      entite: "Order",
+      entiteId: commande.reference,
+      destinataires: [parties.vendeur, ...admins],
+      exclure: utilisateur.id,
     });
   });
 

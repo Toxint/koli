@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/actions";
-import { DashboardNav } from "@/components/ui/DashboardNav";
-import { NAV_VENDEUR } from "@/lib/navigation";
+import { MenuEspace } from "@/components/ui/MenuEspace";
 import { FormulaireProfil } from "@/components/domain/FormulaireProfil";
 
 export const metadata: Metadata = { title: "Mon profil" };
@@ -15,13 +14,7 @@ export default async function ProfilPage() {
 
   return (
     <div className="min-h-screen bg-cream text-ink lg:pl-[var(--largeur-menu)]">
-      <DashboardNav
-        userName={user.name}
-        roleName="Vendeur"
-        
-        homeHref="/vendeur/dashboard"
-        navItems={NAV_VENDEUR}
-      />
+      <MenuEspace user={user} />
 
       <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         <div>

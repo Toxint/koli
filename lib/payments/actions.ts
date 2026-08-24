@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { OrderStatus, PaymentStatus } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { getPaymentProvider } from "@/lib/config/mode";
+import { partiesDeLaCommande, notifier } from "@/lib/notifications/envoi";
 import {
   formaterNumeroFacture,
   rangSuivant,
@@ -218,6 +219,27 @@ export async function simulatePaymentAction(
           data: { orderId: order.id, fromStatus: from, toStatus: to },
         });
         from = to;
+      }
+
+      // §44 : c'est LE moment le plus important a annoncer. Le vendeur n'avait
+      // aucun moyen d'apprendre qu'un client venait de payer : il devait
+      // retourner voir sa liste de commandes de lui-meme.
+      if (succeeded) {
+        const parties = await partiesDeLaCommande(tx, order.id);
+
+        await notifier(tx, {
+          type: "FUNDS_SECURED",
+          entite: "Order",
+          entiteId: order.reference,
+          destinataires: [parties.vendeur],
+        });
+
+        await notifier(tx, {
+          type: "PAYMENT_CONFIRMED",
+          entite: "Order",
+          entiteId: order.reference,
+          destinataires: [parties.client],
+        });
       }
     });
   } catch (error) {

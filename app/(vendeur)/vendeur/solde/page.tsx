@@ -2,9 +2,8 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth/actions";
-import { DashboardNav } from "@/components/ui/DashboardNav";
+import { MenuEspace } from "@/components/ui/MenuEspace";
 import { formatCFA } from "@/lib/format";
-import { NAV_VENDEUR } from "@/lib/navigation";
 import { chargerSoldeVendeur } from "@/lib/finance/solde";
 import { chargerJournal } from "@/lib/finance/journal";
 import { TableauJournal } from "@/components/domain/TableauJournal";
@@ -31,12 +30,7 @@ export default async function SoldeVendeurPage() {
 
   return (
     <div className="min-h-screen bg-cream text-ink lg:pl-[var(--largeur-menu)]">
-      <DashboardNav
-        userName={user.sellerProfile.businessName || user.name}
-        roleName="Vendeur"
-        homeHref="/vendeur/dashboard"
-        navItems={NAV_VENDEUR}
-      />
+      <MenuEspace user={user} nomAffiche={user.sellerProfile.businessName || user.name} />
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         <div>

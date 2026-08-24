@@ -441,6 +441,12 @@ model Notification {
   entityType String?
   entityId   String?
   createdAt  DateTime         @default(now())
+
+  // Le compteur de non-lues est lu à chaque affichage de page, sur toutes les
+  // pages de l'espace connecté : sans index, c'est un balayage complet de la
+  // table à chaque navigation.
+  @@index([userId, readAt])
+  @@index([userId, createdAt])
 }
 
 model AuditLog {

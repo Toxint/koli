@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/actions";
-import { DashboardNav } from "@/components/ui/DashboardNav";
+import { MenuEspace } from "@/components/ui/MenuEspace";
 import { BarreRecherche } from "@/components/ui/BarreRecherche";
 import { Pagination } from "@/components/ui/Pagination";
-import { NAV_CLIENT } from "@/lib/navigation";
 import { chargerFacturesClient } from "@/lib/invoices/liste";
 import { TableauFactures } from "@/components/domain/TableauFactures";
 import { pluriel } from "@/lib/format";
@@ -37,12 +36,7 @@ export default async function FacturesClientPage({
 
   return (
     <div className="min-h-screen bg-cream text-ink lg:pl-[var(--largeur-menu)]">
-      <DashboardNav
-        userName={user.name}
-        roleName="Client"
-        homeHref="/client/dashboard"
-        navItems={NAV_CLIENT}
-      />
+      <MenuEspace user={user} />
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         <div>

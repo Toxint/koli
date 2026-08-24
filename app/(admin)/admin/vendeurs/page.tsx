@@ -5,8 +5,7 @@ import { getCurrentUser } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/prisma";
 import { BarreRecherche } from "@/components/ui/BarreRecherche";
 import { Pagination } from "@/components/ui/Pagination";
-import { DashboardNav } from "@/components/ui/DashboardNav";
-import { NAV_ADMIN } from "@/lib/navigation";
+import { MenuEspace } from "@/components/ui/MenuEspace";
 import { formatCFA, pluriel } from "@/lib/format";
 import { VerificationVendeur } from "@/components/domain/VerificationVendeur";
 import { Icone } from "@/components/ui/Icone";
@@ -104,13 +103,7 @@ export default async function AdminVendeursPage({
 
   return (
     <div className="min-h-screen bg-cream text-ink lg:pl-[var(--largeur-menu)]">
-      <DashboardNav
-        userName={user.name}
-        roleName="Admin"
-        roleBadgeColor="bg-brand-soft text-brand border border-brand-border"
-        homeHref="/admin/dashboard"
-        navItems={NAV_ADMIN}
-      />
+      <MenuEspace user={user} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         <div>

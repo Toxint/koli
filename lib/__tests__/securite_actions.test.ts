@@ -345,8 +345,22 @@ describe("assignDriverAction", () => {
     });
 
     const tx = {
+      // Les notifications (§44) sont ecrites dans la MEME transaction que
+      // l'evenement : le faux client doit connaitre ces tables, sinon l'action
+      // echoue avant d'avoir rien fait.
+      notification: { createMany: vi.fn() },
+      user: { findFirst: vi.fn().mockResolvedValue(null), findMany: vi.fn().mockResolvedValue([]) },
+      driverProfile: { findUnique: vi.fn().mockResolvedValue({ userId: "u-livreur" }) },
       delivery: { update: vi.fn() },
-      order: { update: vi.fn() },
+      order: {
+        update: vi.fn(),
+        // Lue par `partiesDeLaCommande` pour savoir qui prevenir.
+        findUnique: vi.fn().mockResolvedValue({
+          buyerPhone: "+2250505050505",
+          seller: { userId: "u-vendeur" },
+          customer: { userId: "u-client" },
+        }),
+      },
       orderStatusHistory: { create: vi.fn() },
       auditLog: { create: vi.fn() },
     };
@@ -435,11 +449,25 @@ describe("confirmReceptionAction — autorisation", () => {
     });
 
     const tx = {
+      // Les notifications (§44) sont ecrites dans la MEME transaction que
+      // l'evenement : le faux client doit connaitre ces tables, sinon l'action
+      // echoue avant d'avoir rien fait.
+      notification: { createMany: vi.fn() },
+      user: { findFirst: vi.fn().mockResolvedValue(null), findMany: vi.fn().mockResolvedValue([]) },
+      driverProfile: { findUnique: vi.fn().mockResolvedValue({ userId: "u-livreur" }) },
       fund: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
       transaction: { create: vi.fn(), createMany: vi.fn() },
       // La liberation preleve la commission (§41) dans la MEME transaction.
       commission: { findFirst: vi.fn().mockResolvedValue({ ratePercent: 5 }) },
-      order: { update: vi.fn() },
+      order: {
+        update: vi.fn(),
+        // Lue par `partiesDeLaCommande` pour savoir qui prevenir.
+        findUnique: vi.fn().mockResolvedValue({
+          buyerPhone: "+2250505050505",
+          seller: { userId: "u-vendeur" },
+          customer: { userId: "u-client" },
+        }),
+      },
       orderStatusHistory: { create: vi.fn() },
       auditLog: { create: vi.fn() },
     };
@@ -526,11 +554,25 @@ describe("confirmReceptionAction", () => {
     });
 
     const tx = {
+      // Les notifications (§44) sont ecrites dans la MEME transaction que
+      // l'evenement : le faux client doit connaitre ces tables, sinon l'action
+      // echoue avant d'avoir rien fait.
+      notification: { createMany: vi.fn() },
+      user: { findFirst: vi.fn().mockResolvedValue(null), findMany: vi.fn().mockResolvedValue([]) },
+      driverProfile: { findUnique: vi.fn().mockResolvedValue({ userId: "u-livreur" }) },
       fund: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
       transaction: { create: vi.fn(), createMany: vi.fn() },
       // La liberation preleve la commission (§41) dans la MEME transaction.
       commission: { findFirst: vi.fn().mockResolvedValue({ ratePercent: 5 }) },
-      order: { update: vi.fn() },
+      order: {
+        update: vi.fn(),
+        // Lue par `partiesDeLaCommande` pour savoir qui prevenir.
+        findUnique: vi.fn().mockResolvedValue({
+          buyerPhone: "+2250505050505",
+          seller: { userId: "u-vendeur" },
+          customer: { userId: "u-client" },
+        }),
+      },
       orderStatusHistory: { create: vi.fn() },
       auditLog: { create: vi.fn() },
     };
@@ -559,10 +601,24 @@ describe("confirmReceptionAction", () => {
     });
 
     const tx = {
+      // Les notifications (§44) sont ecrites dans la MEME transaction que
+      // l'evenement : le faux client doit connaitre ces tables, sinon l'action
+      // echoue avant d'avoir rien fait.
+      notification: { createMany: vi.fn() },
+      user: { findFirst: vi.fn().mockResolvedValue(null), findMany: vi.fn().mockResolvedValue([]) },
+      driverProfile: { findUnique: vi.fn().mockResolvedValue({ userId: "u-livreur" }) },
       fund: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
       transaction: { create: vi.fn(), createMany: vi.fn() },
       commission: { findFirst: vi.fn().mockResolvedValue({ ratePercent: 5 }) },
-      order: { update: vi.fn() },
+      order: {
+        update: vi.fn(),
+        // Lue par `partiesDeLaCommande` pour savoir qui prevenir.
+        findUnique: vi.fn().mockResolvedValue({
+          buyerPhone: "+2250505050505",
+          seller: { userId: "u-vendeur" },
+          customer: { userId: "u-client" },
+        }),
+      },
       orderStatusHistory: { create: vi.fn() },
       auditLog: { create: vi.fn() },
     };
@@ -605,10 +661,24 @@ describe("confirmReceptionAction", () => {
     });
 
     const tx = {
+      // Les notifications (§44) sont ecrites dans la MEME transaction que
+      // l'evenement : le faux client doit connaitre ces tables, sinon l'action
+      // echoue avant d'avoir rien fait.
+      notification: { createMany: vi.fn() },
+      user: { findFirst: vi.fn().mockResolvedValue(null), findMany: vi.fn().mockResolvedValue([]) },
+      driverProfile: { findUnique: vi.fn().mockResolvedValue({ userId: "u-livreur" }) },
       fund: { updateMany: vi.fn().mockResolvedValue({ count: 1 }) },
       transaction: { create: vi.fn(), createMany: vi.fn() },
       commission: { findFirst: vi.fn().mockResolvedValue(null) },
-      order: { update: vi.fn() },
+      order: {
+        update: vi.fn(),
+        // Lue par `partiesDeLaCommande` pour savoir qui prevenir.
+        findUnique: vi.fn().mockResolvedValue({
+          buyerPhone: "+2250505050505",
+          seller: { userId: "u-vendeur" },
+          customer: { userId: "u-client" },
+        }),
+      },
       orderStatusHistory: { create: vi.fn() },
       auditLog: { create: vi.fn() },
     };

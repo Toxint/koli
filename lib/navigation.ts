@@ -41,6 +41,52 @@ export const NAV_LIVREUR: NavItem[] = [
   { label: "Profil", href: "/livreur/profil", icone: "profil" },
 ];
 
+/**
+ * Navigation, accueil et libellé d'un rôle.
+ *
+ * La page de notifications sert les quatre espaces : elle ne peut pas savoir à
+ * l'avance quel menu afficher. Ces trois fonctions évitent d'y recopier une
+ * cascade de `if` qui divergerait du reste à la première modification.
+ */
+export function navigationDuRole(role: string): NavItem[] {
+  switch (role) {
+    case "SELLER":
+      return NAV_VENDEUR;
+    case "DRIVER":
+      return NAV_LIVREUR;
+    case "ADMIN":
+      return NAV_ADMIN;
+    default:
+      return NAV_CLIENT;
+  }
+}
+
+export function accueilDuRole(role: string): string {
+  switch (role) {
+    case "SELLER":
+      return "/vendeur/dashboard";
+    case "DRIVER":
+      return "/livreur/dashboard";
+    case "ADMIN":
+      return "/admin/dashboard";
+    default:
+      return "/client/dashboard";
+  }
+}
+
+export function libelleRole(role: string): string {
+  switch (role) {
+    case "SELLER":
+      return "Vendeur";
+    case "DRIVER":
+      return "Livreur";
+    case "ADMIN":
+      return "Administrateur";
+    default:
+      return "Client";
+  }
+}
+
 export const NAV_ADMIN: NavItem[] = [
   { label: "Vue d'ensemble", href: "/admin/dashboard", icone: "tableau" },
   { label: "Utilisateurs", href: "/admin/utilisateurs", icone: "utilisateurs" },

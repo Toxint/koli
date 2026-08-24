@@ -2,10 +2,9 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import type { TransactionType } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth/actions";
-import { DashboardNav } from "@/components/ui/DashboardNav";
+import { MenuEspace } from "@/components/ui/MenuEspace";
 import { BarreRecherche } from "@/components/ui/BarreRecherche";
 import { Pagination } from "@/components/ui/Pagination";
-import { NAV_VENDEUR } from "@/lib/navigation";
 import { chargerJournal, LIBELLES_TYPE } from "@/lib/finance/journal";
 import { chargerSoldeVendeur } from "@/lib/finance/solde";
 import {
@@ -51,12 +50,7 @@ export default async function TransactionsVendeurPage({
 
   return (
     <div className="min-h-screen bg-cream text-ink lg:pl-[var(--largeur-menu)]">
-      <DashboardNav
-        userName={user.sellerProfile.businessName || user.name}
-        roleName="Vendeur"
-        homeHref="/vendeur/dashboard"
-        navItems={NAV_VENDEUR}
-      />
+      <MenuEspace user={user} nomAffiche={user.sellerProfile.businessName || user.name} />
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         <div>

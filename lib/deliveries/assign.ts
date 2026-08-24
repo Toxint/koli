@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { DeliveryStatus, OrderStatus } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/prisma";
+import { partiesDeLaCommande, notifier } from "@/lib/notifications/envoi";
 
 export type AssignDriverResult =
   | { success: true; driverName: string }
@@ -124,6 +125,23 @@ export async function assignDriverAction(
         },
       });
     }
+
+    // §44 : le client apprend que sa commande part, et le livreur qu'il a une
+    // course. Le vendeur, lui, vient de faire le geste : le prevenir de sa
+    // propre action encombrerait sa boite pour rien.
+    const parties = await partiesDeLaCommande(tx, order.id);
+    const compteLivreur = await tx.driverProfile.findUnique({
+      where: { id: driver.id },
+      select: { userId: true },
+    });
+
+    await notifier(tx, {
+      type: "ORDER_ACCEPTED",
+      entite: "Order",
+      entiteId: order.reference,
+      destinataires: [parties.client, compteLivreur?.userId],
+      exclure: user.id,
+    });
   });
 
   revalidatePath("/vendeur/commandes");

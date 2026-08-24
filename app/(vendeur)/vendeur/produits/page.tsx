@@ -5,8 +5,7 @@ import { getCurrentUser } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/prisma";
 import { BarreRecherche } from "@/components/ui/BarreRecherche";
 import { Pagination } from "@/components/ui/Pagination";
-import { DashboardNav } from "@/components/ui/DashboardNav";
-import { NAV_VENDEUR } from "@/lib/navigation";
+import { MenuEspace } from "@/components/ui/MenuEspace";
 import { formatCFA, pluriel } from "@/lib/format";
 import { BoutonStatutProduit } from "@/components/domain/BoutonStatutProduit";
 import { Icone } from "@/components/ui/Icone";
@@ -58,12 +57,7 @@ export default async function CataloguePage({
 
   return (
     <div className="min-h-screen bg-cream text-ink lg:pl-[var(--largeur-menu)]">
-      <DashboardNav
-        userName={user.sellerProfile.businessName || user.name}
-        roleName="Vendeur"
-        homeHref="/vendeur/dashboard"
-        navItems={NAV_VENDEUR}
-      />
+      <MenuEspace user={user} nomAffiche={user.sellerProfile.businessName || user.name} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
