@@ -18,6 +18,7 @@ import { execSync } from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { chargerEnv } from "./env.mjs";
 import pg from "pg";
 
 const etape = (n, titre) => console.log(`\n── ${n}. ${titre}`);
@@ -31,15 +32,14 @@ const arreter = (m, aide = "") => {
 // ═══════════ 1. Les deux adresses sont-elles la ?
 etape(1, "Configuration");
 
-// `.env` n est pas charge automatiquement dans un script Node : on le lit.
-if (fs.existsSync(".env")) {
-  for (const ligne of fs.readFileSync(".env", "utf8").split(/\r?\n/)) {
-    const m = ligne.match(/^\s*([A-Z_][A-Z0-9_]*)\s*=\s*(.*)$/);
-    if (!m) continue;
-    const valeur = m[2].trim().replace(/^["']|["']$/g, "");
-    if (!process.env[m[1]]) process.env[m[1]] = valeur;
-  }
-}
+// `.env` SEUL, jamais `.env.local`.
+//
+// Ce script prepare SUPABASE. `.env.local` designe la base de developpement
+// locale : le lire ici ferait croire au script qu il s adresse a Supabase
+// alors qu il viserait localhost — et son option `--ecraser` supprime le
+// schema public. Une confusion entre les deux bases n est pas une gene, c est
+// une destruction.
+chargerEnv(".env");
 
 const POOLER = process.env.DATABASE_URL ?? "";
 const DIRECT = process.env.DIRECT_URL ?? "";

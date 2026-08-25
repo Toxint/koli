@@ -3,6 +3,13 @@ import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
 import { generateOrderReference } from "../lib/orders/reference";
 import { formaterNumeroFacture } from "../lib/invoices/numero";
+import { chargerEnv } from "../scripts/env.mjs";
+
+// Lance directement (`npx tsx prisma/seed.ts`), ce fichier ne beneficie pas du
+// chargement que Next fait pour l application : sans cette ligne il refuse de
+// s executer en annoncant « DATABASE_URL manquant » alors que la valeur est
+// dans `.env.local`. L ordre est celui de Next : la base locale d abord.
+chargerEnv();
 
 // Connexion DIRECTE de preference : le jeu de donnees supprime et recree des
 // tables entieres, ce que le pooler en mode transaction supporte mal.

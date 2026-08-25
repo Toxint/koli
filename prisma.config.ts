@@ -1,4 +1,14 @@
 import { defineConfig } from "@prisma/config";
+import { chargerEnv } from "./scripts/env.mjs";
+
+// Prisma 7 ne charge plus `.env` de lui-même dès lors qu'un `prisma.config.ts`
+// existe. Sans cette ligne, `datasource.url` vaut la chaîne vide et
+// `migrate deploy` échoue en annonçant une URL invalide — sans mentionner que
+// le fichier n'a simplement jamais été lu.
+//
+// L'ordre est celui de Next : `.env.local` (base locale de développement) a
+// priorité sur `.env` (Supabase).
+chargerEnv();
 
 /**
  * Configuration Prisma.
