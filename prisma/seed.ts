@@ -1,11 +1,19 @@
 import { PrismaClient, UserRole, UserStatus, SellerVerificationStatus, OrderStatus, PaymentStatus, PaymentProviderType, DeliveryStatus } from "@prisma/client";
-import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
+import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
 import { generateOrderReference } from "../lib/orders/reference";
 import { formaterNumeroFacture } from "../lib/invoices/numero";
 
-const url = process.env.DATABASE_URL || "file:./prisma/dev.db";
-const adapter = new PrismaBetterSqlite3({ url });
+// Connexion DIRECTE de preference : le jeu de donnees supprime et recree des
+// tables entieres, ce que le pooler en mode transaction supporte mal.
+const url = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
+if (!url) {
+  throw new Error(
+    "DATABASE_URL manquant : le jeu de donnees initial refuse de s executer " +
+      "sans savoir SUR QUELLE BASE il ecrit."
+  );
+}
+const adapter = new PrismaPg({ connectionString: url });
 const prisma = new PrismaClient({ adapter });
 
 async function main() {

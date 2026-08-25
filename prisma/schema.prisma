@@ -3,7 +3,17 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  // Postgres, fourni par Supabase.
+  //
+  // Le passage depuis SQLite n est pas un simple changement de mot : les
+  // migrations SQLite ne s appliquent pas a Postgres (types, contraintes et
+  // syntaxe different). Elles ont donc ete regenerees a partir du modele, dans
+  // prisma/migrations-postgres/.
+  //
+  // Consequence a connaitre : les enumerations deviennent de VRAIS types
+  // Postgres. Ajouter une valeur exige desormais une migration, la ou SQLite
+  // les stockait en texte et acceptait n importe quoi.
+  provider = "postgresql"
 }
 
 // ── Enums ──────────────────────────────────────────────
