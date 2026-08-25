@@ -10,10 +10,14 @@
  * que diagnostique apres.
  *
  * Usage : node scripts/preparer-supabase.mjs
+ *         node scripts/preparer-supabase.mjs --ecraser        (base non vide)
+ *         node scripts/preparer-supabase.mjs --par-le-pooler  (port 5432 filtre)
  */
 
 import { execSync } from "node:child_process";
+import crypto from "node:crypto";
 import fs from "node:fs";
+import path from "node:path";
 import pg from "pg";
 
 const etape = (n, titre) => console.log(`\n── ${n}. ${titre}`);
@@ -63,10 +67,42 @@ if (POOLER === DIRECT) {
   );
 }
 
-if (POOLER.includes("MOTDEPASSE") || DIRECT.includes("[")) {
+// Le controle porte sur LES DEUX adresses : un mot de passe oublie dans le
+// pooler passerait inapercu jusqu a une erreur de connexion illisible.
+// Deux formes possibles : MOTDEPASSE (notre .env.example) et [YOUR-PASSWORD]
+// (ce que Supabase met dans le presse-papier).
+const restePlaceholder = /MOTDEPASSE|\[[^\]]*\]/;
+
+if (restePlaceholder.test(POOLER) || restePlaceholder.test(DIRECT)) {
   arreter(
     "Le mot de passe n a pas ete remplace dans .env.",
-    "Remplacez [MOT-DE-PASSE] par celui choisi a la creation du projet."
+    "Remplacez MOTDEPASSE (ou [YOUR-PASSWORD] si l adresse vient de Supabase)\n" +
+      "   par le mot de passe de la base, DANS LES DEUX LIGNES."
+  );
+}
+
+// Supabase refuse les connexions en clair. Sans ce controle, l echec arrive
+// deux etapes plus loin, sous une erreur reseau qui ne nomme pas la cause.
+for (const [nom, url] of [
+  ["DATABASE_URL", POOLER],
+  ["DIRECT_URL", DIRECT],
+]) {
+  if (!/[?&]sslmode=/.test(url)) {
+    arreter(
+      `${nom} n indique pas sslmode.`,
+      "Ajoutez ?sslmode=require a la fin de l adresse : Supabase refuse les\n" +
+        "   connexions non chiffrees."
+    );
+  }
+}
+
+// Les deux adresses inversees : DIRECT pointant sur le pooler, et
+// `migrate deploy` echoue sur une erreur qui ne nomme jamais le port.
+if (/:6543\//.test(DIRECT)) {
+  arreter(
+    "DIRECT_URL utilise le port 6543, celui du pooler.",
+    "Les migrations exigent la connexion directe, port 5432 : les deux lignes\n" +
+      "   sont probablement inversees."
   );
 }
 
@@ -76,7 +112,34 @@ ok(`direct  : ${DIRECT.replace(/:[^:@]+@/, ":****@").slice(0, 70)}…`);
 // ═══════════ 2. La base repond-elle ?
 etape(2, "Connexion");
 
-const client = new pg.Client({ connectionString: DIRECT });
+// Depuis pg 8.23, `sslmode=require` est interprete comme `verify-full`, soit la
+// verification complete de la chaine de certificats — que Supabase ne passe pas
+// (chaine auto-signee), et que Prisma ne demande pas. Sans cette option, ce
+// controle serait PLUS strict que l outil qu il prepare : il annoncerait
+// « connexion impossible » sur une configuration qui fonctionne. La connexion
+// reste chiffree ; c est la verification de l autorite qui est assouplie.
+const libpq = (url) =>
+  url.includes("uselibpqcompat")
+    ? url
+    : url + (url.includes("?") ? "&" : "?") + "uselibpqcompat=true";
+
+// --par-le-pooler : le port 5432 est filtre (VPN, partage de connexion mobile,
+// reseau d entreprise). On passe alors par le pooler pour TOUT, y compris le
+// schema. Voir l etape 4 pour ce que cela coute.
+const PAR_LE_POOLER = process.argv.includes("--par-le-pooler");
+const ADMIN = PAR_LE_POOLER ? POOLER : DIRECT;
+
+if (PAR_LE_POOLER) {
+  console.log("   ! --par-le-pooler : le port 5432 est contourne");
+}
+
+// Sans delai d attente, un port filtre par un VPN ne provoque aucune erreur :
+// pg attend le verdict du systeme, soit plusieurs minutes de silence. Mieux
+// vaut echouer en dix secondes avec un message que reussir a se taire.
+const client = new pg.Client({
+  connectionString: libpq(ADMIN),
+  connectionTimeoutMillis: 10_000,
+});
 
 try {
   await client.connect();
@@ -85,7 +148,9 @@ try {
 } catch (e) {
   arreter(
     `Connexion impossible : ${e.message}`,
-    "Verifiez le mot de passe, et que l adresse se termine par ?sslmode=require."
+    "Si le message parle d authentification, le mot de passe est faux.\n" +
+      "   S il parle de coupure ou d attente (ECONNRESET, timeout), c est le reseau :\n" +
+      "   un VPN ou un partage de connexion mobile bloque souvent le port 5432."
   );
 }
 
@@ -117,23 +182,90 @@ if (existantes.length > 0) {
   ok("base vide, prete a recevoir le schema");
 }
 
-await client.end();
-
 // ═══════════ 4. Migrations
 etape(4, "Migrations");
 
-try {
-  execSync("npx prisma migrate deploy", { stdio: "inherit" });
-  ok("schema applique");
-} catch {
-  arreter("Les migrations ont echoue.");
+if (!PAR_LE_POOLER) {
+  await client.end();
+  try {
+    execSync("npx prisma migrate deploy", { stdio: "inherit" });
+    ok("schema applique");
+  } catch {
+    arreter("Les migrations ont echoue.");
+  }
+} else {
+  // `prisma migrate deploy` exige la connexion directe : il prend un verrou de
+  // session, que le pooler en mode transaction ne sait pas tenir. On applique
+  // donc les fichiers nous-memes, dans l ordre, chacun d un seul envoi — donc
+  // dans une seule transaction implicite : un fichier passe entierement ou
+  // pas du tout.
+  //
+  // Ce que cela coute : Prisma ne pilote plus l operation, il en herite. Le
+  // journal `_prisma_migrations` est tenu a la main, avec la meme empreinte
+  // SHA-256 que celle qu il aurait calculee — sans quoi il declarerait la
+  // migration alteree au prochain passage.
+  await client.query(`CREATE TABLE IF NOT EXISTS "_prisma_migrations" (
+    id                  VARCHAR(36) PRIMARY KEY NOT NULL,
+    checksum            VARCHAR(64) NOT NULL,
+    finished_at         TIMESTAMPTZ,
+    migration_name      VARCHAR(255) NOT NULL,
+    logs                TEXT,
+    rolled_back_at      TIMESTAMPTZ,
+    started_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    applied_steps_count INTEGER NOT NULL DEFAULT 0
+  )`);
+
+  const racine = "prisma/migrations";
+  const dossiers = fs
+    .readdirSync(racine, { withFileTypes: true })
+    .filter((d) => d.isDirectory() && fs.existsSync(path.join(racine, d.name, "migration.sql")))
+    .map((d) => d.name)
+    .sort();
+
+  if (dossiers.length === 0) arreter("Aucune migration trouvee dans prisma/migrations.");
+
+  const { rows: deja } = await client.query(
+    `SELECT migration_name FROM "_prisma_migrations" WHERE finished_at IS NOT NULL`
+  );
+  const appliquees = new Set(deja.map((r) => r.migration_name));
+
+  for (const nom of dossiers) {
+    if (appliquees.has(nom)) {
+      ok(`${nom} — deja appliquee`);
+      continue;
+    }
+    const sql = fs.readFileSync(path.join(racine, nom, "migration.sql"), "utf8");
+    try {
+      await client.query(sql);
+    } catch (e) {
+      await client.end();
+      arreter(`${nom} a echoue : ${e.message}`);
+    }
+    await client.query(
+      `INSERT INTO "_prisma_migrations"
+         (id, checksum, migration_name, started_at, finished_at, applied_steps_count)
+       VALUES ($1, $2, $3, now(), now(), 1)`,
+      [crypto.randomUUID(), crypto.createHash("sha256").update(sql).digest("hex"), nom]
+    );
+    ok(`${nom} — appliquee`);
+  }
+
+  await client.end();
+  ok("schema applique par le pooler");
 }
 
 // ═══════════ 5. Jeu de donnees
 etape(5, "Jeu de donnees de demonstration");
 
 try {
-  execSync("npx tsx prisma/seed.ts", { stdio: "inherit" });
+  // Le jeu de donnees prefere DIRECT_URL — c est justement le port hors
+  // d atteinte ici. On lui presente le pooler sous ce nom : il n a pas a
+  // connaitre la contrainte reseau, et le mode transaction suffit a des
+  // suppressions et des insertions.
+  execSync("npx tsx prisma/seed.ts", {
+    stdio: "inherit",
+    env: PAR_LE_POOLER ? { ...process.env, DIRECT_URL: libpq(POOLER) } : process.env,
+  });
   ok("comptes et commandes de demonstration crees");
 } catch {
   arreter("Le jeu de donnees a echoue.");
@@ -142,7 +274,10 @@ try {
 // ═══════════ 6. Controle final
 etape(6, "Integrite du schema");
 
-const verif = new pg.Client({ connectionString: DIRECT });
+const verif = new pg.Client({
+  connectionString: libpq(ADMIN),
+  connectionTimeoutMillis: 10_000,
+});
 await verif.connect();
 
 const { rows: compte } = await verif.query(
