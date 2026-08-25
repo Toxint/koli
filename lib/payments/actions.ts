@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { OrderStatus, PaymentStatus } from "@prisma/client";
@@ -95,12 +96,40 @@ export async function simulatePaymentAction(
 
   // --- Verdict du fournisseur (simule, deterministe) ---
   const provider = getPaymentProvider();
+
+  /**
+   * Clef d'idempotence (§29).
+   *
+   * Les agregateurs l'exigent : sans elle, un renvoi de requete apres une
+   * coupure reseau cree un SECOND prelevement — sur l'argent reel de
+   * quelqu'un.
+   *
+   * Elle est REUTILISEE tant que le paiement est en cours : deux appuis sur le
+   * bouton doivent designer la meme transaction. Une nouvelle tentative apres
+   * echec en obtient une neuve, parce que c'est bien une nouvelle demande.
+   */
+  const cleIdempotence =
+    order.payment.idempotencyKey ?? `koli_${order.reference}_${randomUUID()}`;
+
   const intent = await provider.initiate({
     orderReference: order.reference,
     amount: order.payment.amount,
     // Devise reelle de la commande, et non "XOF" en dur : le Cameroun est en
     // zone XAF (voir data/markets.ts).
     currency: order.currency,
+    idempotencyKey: cleIdempotence,
+  });
+
+  // La reference du fournisseur est CONSERVEE. Elle etait produite puis jetee :
+  // un rappel asynchrone — le mode normal en Mobile Money — n'avait alors aucun
+  // moyen de retrouver le paiement concerne.
+  await prisma.payment.update({
+    where: { id: order.payment.id },
+    data: {
+      providerRef: intent.providerRef,
+      idempotencyKey: cleIdempotence,
+      ...(intent.expiresAt ? { expiresAt: intent.expiresAt } : {}),
+    },
   });
   const verdict = await provider.confirm(intent.providerRef, {
     simulateOutcome: parsedOutcome.data,

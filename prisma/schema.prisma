@@ -59,9 +59,29 @@ enum OrderStatus {
 }
 
 enum PaymentStatus {
+  /** Intention creee, rien n a encore ete demande au payeur. */
   PENDING
+
+  /**
+   * Le payeur doit valider sur son telephone (code USSD ou notification).
+   *
+   * Cet etat MANQUAIT, et c est le plus long de tous en Mobile Money : il dure
+   * de quelques secondes a plusieurs minutes. Sans lui, l ecran ne pouvait
+   * dire que « en attente », sans preciser que la balle est dans le camp du
+   * client — qui attendait donc que KOLI fasse quelque chose.
+   */
+  AWAITING_CUSTOMER
+
   SUCCEEDED
   FAILED
+
+  /**
+   * La fenetre de validation s est refermee sans reponse.
+   *
+   * Distinct de FAILED : rien n a ete refuse, personne n a rien decide. Le
+   * client peut simplement recommencer, et le message doit le dire.
+   */
+  EXPIRED
 }
 
 enum PaymentProviderType {
@@ -335,8 +355,51 @@ model Payment {
   status           PaymentStatus       @default(PENDING)
   amount           Int
   simulatedOutcome String?             // "SUCCESS" | "FAILURE", mode test uniquement
+
+  /**
+   * Reference de la transaction CHEZ LE FOURNISSEUR.
+   *
+   * Elle etait produite par l abstraction et jetee aussitot : rien ne la
+   * stockait. Un rappel asynchrone du prestataire — le mode normal en Mobile
+   * Money — n avait donc aucun moyen de retrouver le paiement concerne.
+   *
+   * Unique : deux paiements ne peuvent pas revendiquer la meme transaction.
+   */
+  providerRef      String?             @unique
+
+  /**
+   * Clef d idempotence envoyee AU fournisseur.
+   *
+   * Les agregateurs l exigent : sans elle, un renvoi de requete apres une
+   * coupure reseau cree un SECOND prelevement. Elle est fixee a la creation de
+   * l intention et ne change jamais, meme sur reessai.
+   */
+  idempotencyKey   String?             @unique
+
+  // Qui a paye, et depuis quel operateur. Necessaire au rapprochement et au
+  // support : « je vous ai envoye l argent » se verifie avec ces deux champs.
+  payerMsisdn      String?
+  payerOperator    String?
+
+  /** Motif d echec en clair, pour l afficher au client sans le traduire. */
+  failureReason    String?
+
+  /**
+   * Fin de la fenetre de validation. Au-dela, le paiement est EXPIRED.
+   *
+   * Sans echeance, un paiement jamais valide resterait « en attente » a vie et
+   * immobiliserait la commande.
+   */
+  expiresAt        DateTime?
+
+  /** Dernier rapprochement. Voir lib/payments/rapprochement.ts. */
+  lastCheckedAt    DateTime?
+
   createdAt        DateTime            @default(now())
   confirmedAt      DateTime?
+
+  @@index([status, expiresAt])
+  @@index([status, lastCheckedAt])
 }
 
 model Transaction {

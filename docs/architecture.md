@@ -1328,3 +1328,50 @@ Côté client, le rattachement se fait par **compte OU téléphone**. Le second 
 Il rend désormais l'article et supprime sa commande. Cette suppression emporte en cascade la facture : c'est précisément le cas que la nouvelle numérotation encaisse sans collision.
 
 `test-factures.mjs` pose ses propres fixtures en base — une facture concurrente, un achat sans compte — plutôt que de dépendre du jeu de données. Deux contrôles s'étaient d'abord annoncés « non vérifiés » faute de données ; un contrôle qui disparaît en silence se lit comme une réussite.
+
+## Phase 29 — Préparation de l'intégration financière (25/08/2026)
+
+Ce qu'il reste à faire le jour où le partenaire est choisi, et **rien de plus** :
+
+1. Écrire une classe qui implémente `PaymentProvider` — `lib/payments/`.
+2. La retourner depuis `getPaymentProvider()` dans `lib/config/mode.ts`, seul
+   endroit où le choix se fait.
+3. Renseigner les secrets dans `.env` (identifiants, `PAYMENT_WEBHOOK_SECRET`).
+4. Déclarer chez l'agrégateur l'adresse de rappel : `/api/paiements/rappel`.
+5. Programmer `rapprocherPaiements()` toutes les quelques minutes.
+
+Le reste — statuts, séquestre, commission, facture, notifications — ne bouge
+pas. C'est l'objet du §51 : la logique de KOLI ne dépend d'aucun fournisseur.
+
+### Ce que la première abstraction ne savait pas exprimer
+
+Elle supposait un aller-retour immédiat. Un paiement Mobile Money ne fonctionne
+pas ainsi, et cinq manques en découlaient :
+
+| Manque | Conséquence si on avait branché tel quel |
+|---|---|
+| Aucune référence fournisseur stockée | Un rappel n'aurait retrouvé aucun paiement |
+| Pas de clef d'idempotence | Un renvoi après coupure = **second prélèvement réel** |
+| Pas d'état « le client doit valider » | L'écran aurait dit « en attente » sans dire à qui |
+| Pas de relecture (`consulter`) | Un rappel perdu = paiement figé à vie |
+| Pas de vérification de signature | **N'importe qui aurait pu marquer une commande payée** |
+
+### La route de rappel
+
+`/api/paiements/rappel` applique six règles, chacune éprouvée par
+`npm run verif:rappel` — et falsifiée avant d'être retenue : contrôle de
+signature retiré, cinq contrôles tombent, dont « le rappel forgé est rejeté ».
+
+Le rappel **note** l'état ; il ne sécurise pas les fonds, n'émet pas de facture
+et ne prévient personne. Ces écritures restent dans `lib/payments/actions.ts`,
+en une seule transaction. Les dupliquer dans le webhook en produirait une
+seconde version, forcément divergente.
+
+### Ce qui reste ouvert, et dépend du partenaire
+
+- **Le versement au vendeur** (`transfert`) n'est pas dans l'interface :
+  certains agrégateurs le proposent, d'autres non, et les modalités changent
+  tout. À ajouter quand le partenaire sera connu.
+- **Le remboursement automatique** : même raison. Aujourd'hui `REFUND` est une
+  écriture comptable, pas un mouvement.
+- **Le séquestre réel** dépend du cadre réglementaire du partenaire (§52).
