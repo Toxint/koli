@@ -40,7 +40,8 @@
     "db:deployer": "prisma migrate deploy",
     "db:etat": "prisma migrate status",
     "verif:jalons": "node scripts/test-jalons.mjs",
-    "verif:rappel": "node scripts/test-rappel-paiement.mjs"
+    "verif:rappel": "node scripts/test-rappel-paiement.mjs",
+    "supabase:preparer": "node scripts/preparer-supabase.mjs"
   },
   "dependencies": {
     "@prisma/adapter-better-sqlite3": "^7.9.1",
