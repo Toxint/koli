@@ -18,7 +18,7 @@
  */
 
 import { chromium } from "playwright";
-import Database from "better-sqlite3";
+import { lire, lireUne, ecrire } from "./base-donnees.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const MDP = "Password123!";
@@ -26,22 +26,50 @@ const MDP = "Password123!";
 // Accès direct à la base, comme les autres scripts de vérification : on lit ce
 // que l'application a RÉELLEMENT écrit, pas ce qu'elle affiche. Un écran peut
 // mentir sans que la base change, et l'inverse est tout aussi possible.
-const db = new Database("prisma/dev.db");
-const un = (sql, ...args) => db.prepare(sql).get(...args);
-const tous = (sql, ...args) => db.prepare(sql).all(...args);
-const ecrire = (sql, ...args) => db.prepare(sql).run(...args);
+const un = lireUne;
+const tous = lire;
 
-// `rowid` en second critère : deux lignes créées dans la même milliseconde
+// `id` en second critère : deux lignes créées dans la même milliseconde
 // rendraient l'ordre indéterminé, et le test deviendrait capricieux.
+//
+// C'était `rowid` du temps de SQLite. Postgres n'en a pas — la colonne
+// n'existe simplement pas, et la requête échouait. `id` ne dit rien de la
+// chronologie, mais ce n'est pas ce qu'on lui demande : il départage.
 const tauxActif = () =>
   un(
-    "SELECT id, ratePercent FROM Commission WHERE isActive = 1 ORDER BY createdAt DESC, rowid DESC LIMIT 1"
+    `SELECT id, "ratePercent" FROM "Commission" WHERE "isActive" = true
+      ORDER BY "createdAt" DESC, id DESC LIMIT 1`
   );
 const ecrituresDe = (orderId) =>
   tous(
-    'SELECT id, type, amount, rate FROM "Transaction" WHERE orderId = ?',
+    'SELECT id, type, amount, rate FROM "Transaction" WHERE "orderId" = ?',
     orderId
   );
+
+/**
+ * Attend que la BASE reflète le geste, au lieu de dormir un temps fixe.
+ *
+ * Les délais de ce script étaient calibrés sur un fichier SQLite local, où
+ * l'écriture est visible dans la milliseconde. La base est maintenant à
+ * Dublin : entre le clic et la lecture, il y a un aller-retour réseau. Les
+ * contrôles lisaient donc l'état d'AVANT et annonçaient des régressions qui
+ * n'existaient pas — le message d'échec affichait d'ailleurs la bonne valeur,
+ * lue quelques dizaines de millisecondes plus tard.
+ *
+ * La valeur retenue est RENDUE, et non relue : `verifier(lire() === x, …,
+ * lire())` faisait deux allers-retours et pouvait juger sur l'un et rapporter
+ * l'autre.
+ */
+const attendreQue = async (mesure, attendu, limiteMs = 20000) => {
+  const fin = Date.now() + limiteMs;
+  let valeur = await mesure();
+  while (Date.now() < fin) {
+    if (attendu(valeur)) return valeur;
+    await new Promise((r) => setTimeout(r, 250));
+    valeur = await mesure();
+  }
+  return valeur;
+};
 
 console.log(`\n=== TRANSACTIONS & COMMISSION depuis ${BASE} ===\n`);
 
@@ -112,27 +140,27 @@ try {
     "un aperçu chiffre ce que le taux donnerait"
   );
 
-  const avantEnregistrement = tous("SELECT id FROM Commission").length;
+  const avantEnregistrement = (await tous(`SELECT id FROM "Commission"`)).length;
 
   await bouton(admin, /Enregistrer le taux/i).click();
-  await admin.waitForTimeout(1800);
 
+  const taux10 = await attendreQue(tauxActif, (t) => t?.ratePercent === 10);
   verifier(
-    tauxActif()?.ratePercent === 10,
+    taux10?.ratePercent === 10,
     "le nouveau taux est enregistré",
-    String(tauxActif()?.ratePercent)
+    String(taux10?.ratePercent)
   );
 
-  const actives = un(
-    "SELECT COUNT(*) AS n FROM Commission WHERE isActive = 1"
-  ).n;
+  const actives = (await un(
+    `SELECT COUNT(*) AS n FROM "Commission" WHERE "isActive" = true`
+  )).n;
   verifier(
     actives === 1,
     "un seul taux reste actif : l'ancien est désactivé, pas écrasé",
     `${actives} ligne(s) active(s)`
   );
 
-  const historique = tous("SELECT id FROM Commission").length;
+  const historique = (await tous(`SELECT id FROM "Commission"`)).length;
   verifier(
     historique === avantEnregistrement + 1,
     "l'ancien taux subsiste dans l'historique",
@@ -147,11 +175,15 @@ try {
   ]) {
     await champ.fill(valeur);
     await bouton(admin, /Enregistrer le taux/i).click();
-    await admin.waitForTimeout(900);
+    await admin.waitForTimeout(1200);
+    // Ici on attend qu'il NE se passe rien : il n'y a pas de conséquence à
+    // guetter, seulement un état à confirmer. Une seule lecture, servant à la
+    // fois au verdict et au message.
+    const inchange = await tauxActif();
     verifier(
-      tauxActif()?.ratePercent === 10,
+      inchange?.ratePercent === 10,
       `${pourquoi} est refusé`,
-      `taux devenu ${tauxActif()?.ratePercent}`
+      `taux devenu ${inchange?.ratePercent}`
     );
   }
 
@@ -159,11 +191,11 @@ try {
   // clavier d'un téléphone.
   await champ.fill("4,5");
   await bouton(admin, /Enregistrer le taux/i).click();
-  await admin.waitForTimeout(1800);
+  const taux45 = await attendreQue(tauxActif, (t) => t?.ratePercent === 4.5);
   verifier(
-    tauxActif()?.ratePercent === 4.5,
+    taux45?.ratePercent === 4.5,
     "la virgule décimale est acceptée (4,5 %)",
-    String(tauxActif()?.ratePercent)
+    String(taux45?.ratePercent)
   );
 
   // ═══════════ 2. Une commande payée mais NON libérée ne coûte rien
@@ -176,16 +208,16 @@ try {
   // Le produit vient du catalogue réel, et son prix est lu en base : le
   // montant attendu de la commission est ainsi calculé indépendamment de
   // l'application, au lieu d'être supposé.
-  const produit = un(
+  const produit = (await un(
     `SELECT p.id, p.name, p.price
-       FROM Product p
-       JOIN SellerProfile s ON s.id = p.sellerId
-       JOIN User u ON u.id = s.userId
+       FROM "Product" p
+       JOIN "SellerProfile" s ON s.id = p."sellerId"
+       JOIN "User" u ON u.id = s."userId"
       WHERE u.email = 'vendeur@koli.ci'
         AND p.status = 'ACTIVE' AND p.quantity > 0
       ORDER BY p.price DESC
       LIMIT 1`
-  );
+  ));
   verifier(produit != null, "un produit du catalogue est disponible");
   if (!produit) throw new Error("Catalogue vide : la suite est sans objet.");
 
@@ -193,41 +225,67 @@ try {
     waitUntil: "networkidle",
   });
 
-  const continuer = async () => {
+  // On attend l'ETAPE SUIVANTE, pas 700 ms. Ce délai valait pour une base
+  // locale ; il expirait avant que l'assistant n'ait affiché le champ suivant,
+  // et la saisie partait dans le vide — la commande n'était alors jamais créée.
+  const continuer = async (champSuivant) => {
     await bouton(vendeur, /Continuer/i).click();
-    await vendeur.waitForTimeout(700);
+    await vendeur
+      .locator(champSuivant)
+      .first()
+      .waitFor({ state: "visible", timeout: 30000 })
+      .catch(() => {});
   };
 
   await vendeur.locator("#productId").selectOption(produit.id);
   await vendeur.locator("#quantity").fill("1");
-  await continuer();
+  await continuer("#buyerName");
 
   await vendeur.locator("#buyerName").fill("Awa Koné");
   await vendeur.locator("#buyerPhone").fill("+2250505050505");
   await vendeur.locator("#buyerCity").fill("Abidjan");
   await vendeur.locator("#buyerAddress").fill("Cocody 2 Plateaux");
-  await continuer();
+  await continuer("#deliveryFee");
 
   await vendeur.locator("#deliveryFee").fill("1500");
-  await continuer();
+  await continuer('button:has-text("Créer la commande")');
 
   await bouton(vendeur, /Créer la commande/i).click();
-  await vendeur.waitForTimeout(4500);
 
-  const commande = un(
-    `SELECT o.id, o.reference, o.sellerId, o.status
-       FROM "Order" o
-      WHERE o.buyerName = 'Awa Koné'
-      ORDER BY o.createdAt DESC, o.rowid DESC
-      LIMIT 1`
+  // La commande est identifiee par SA reference, lue a l'ecran — et non par
+  // « la plus recente au nom d'Awa Koné ». Le jeu de donnees en contient une
+  // qui porte ce nom : le jour ou la creation echouait, le test se saisissait
+  // de celle-la et rapportait un statut inattendu au lieu de dire ce qui
+  // s'etait reellement passe — la commande n'avait pas ete creee.
+  await vendeur
+    .waitForFunction(() => /KOLI-[2-9A-Z]{8}/.test(document.body.innerText), {
+      timeout: 30000,
+    })
+    .catch(() => {});
+
+  const affichee = (await vendeur.evaluate(() => document.body.innerText)).match(
+    /KOLI-[2-9A-Z]{8}/
+  )?.[0];
+
+  verifier(affichee != null, "la commande de test est creee et sa reference affichee");
+  if (!affichee) throw new Error("Aucune reference a l'ecran : la suite est sans objet.");
+
+  const commande = await attendreQue(
+    () =>
+      un(
+        `SELECT o.id, o.reference, o."sellerId", o.status
+           FROM "Order" o WHERE o.reference = ?`,
+        affichee
+      ),
+    (o) => o != null
   );
   verifier(
-    commande != null && commande.status === "PAYMENT_PENDING",
-    "commande de test créée",
-    commande ? commande.status : "aucune"
+    commande?.status === "PAYMENT_PENDING",
+    "elle attend son paiement",
+    commande?.status ?? "introuvable en base"
   );
 
-  if (!commande) throw new Error("Aucune commande : la suite est sans objet.");
+  if (!commande) throw new Error("Commande introuvable en base : la suite est sans objet.");
 
   // Retenu dès maintenant : si la suite échoue, le nettoyage doit quand même
   // rendre l'article au catalogue.
@@ -246,9 +304,13 @@ try {
   await connecter(client, "client@koli.ci");
   await client.goto(`${BASE}/pay/${reference}`, { waitUntil: "networkidle" });
   await bouton(client, /Simuler un paiement/i).click();
-  await client.waitForTimeout(3000);
 
-  const apresPaiement = ecrituresDe(commande.id);
+  const apresPaiement = await attendreQue(
+    () => ecrituresDe(commande.id),
+    (ecritures) =>
+      ecritures.some((t) => t.type === "PAYMENT") &&
+      ecritures.some((t) => t.type === "FUNDS_SECURED")
+  );
   verifier(
     apresPaiement.some((t) => t.type === "PAYMENT") &&
       apresPaiement.some((t) => t.type === "FUNDS_SECURED"),
@@ -264,22 +326,22 @@ try {
   // ═══════════ 3. Livraison puis confirmation : la commission tombe
   // L'OTP est rattaché à la LIVRAISON, pas à la commande (§27) : il faut
   // passer par Delivery. `consumedAt IS NULL` = code non encore utilisé.
-  const otp = un(
+  const otp = (await un(
     `SELECT o.code
-       FROM OtpCode o
-       JOIN Delivery d ON d.id = o.deliveryId
-      WHERE d.orderId = ? AND o.consumedAt IS NULL
-      ORDER BY o.createdAt DESC
+       FROM "OtpCode" o
+       JOIN "Delivery" d ON d.id = o."deliveryId"
+      WHERE d."orderId" = ? AND o."consumedAt" IS NULL
+      ORDER BY o."createdAt" DESC
       LIMIT 1`,
     commande.id
-  );
-  const livreur1 = un("SELECT id FROM DriverProfile LIMIT 1");
+  ));
+  const livreur1 = (await un(`SELECT id FROM "DriverProfile" LIMIT 1`));
 
-  ecrire(
-    "UPDATE Delivery SET driverId = ?, status = 'ASSIGNED' WHERE orderId = ?",
+  (await ecrire(
+    `UPDATE "Delivery" SET "driverId" = ?, status = 'ASSIGNED' WHERE "orderId" = ?`,
     livreur1.id,
     commande.id
-  );
+  ));
 
   const ctxLivreur = await navigateur.newContext({
     viewport: { width: 390, height: 844 },
@@ -304,13 +366,13 @@ try {
   // déjà couvert par verif:parcours. Si la remise n'a pas abouti, on pose
   // l'état pour que la vérification du prélèvement reste possible, et on le
   // dit explicitement plutôt que de laisser croire à un parcours complet.
-  const avantConfirmation = un(
+  const avantConfirmation = (await un(
     'SELECT status FROM "Order" WHERE id = ?',
     commande.id
-  );
+  ));
   if (avantConfirmation.status !== "DELIVERED") {
-    ecrire(
-      "UPDATE \"Order\" SET status = 'DELIVERED' WHERE id = ?",
+    await ecrire(
+      `UPDATE "Order" SET status = 'DELIVERED' WHERE id = ?`,
       commande.id
     );
     console.log(
@@ -326,10 +388,12 @@ try {
   );
   if (await confirmer.count()) {
     await confirmer.click();
-    await client.waitForTimeout(3000);
   }
 
-  const apresLiberation = ecrituresDe(commande.id);
+  const apresLiberation = await attendreQue(
+    () => ecrituresDe(commande.id),
+    (ecritures) => ecritures.some((t) => t.type === "FUNDS_RELEASED")
+  );
   const ligneCommission = apresLiberation.find((t) => t.type === "COMMISSION");
 
   verifier(
@@ -357,17 +421,18 @@ try {
     await admin.goto(`${BASE}/admin/commissions`, { waitUntil: "networkidle" });
     await admin.locator("#taux").fill("12");
     await bouton(admin, /Enregistrer le taux/i).click();
-    await admin.waitForTimeout(1800);
+    const taux12 = await attendreQue(tauxActif, (t) => t?.ratePercent === 12);
 
     verifier(
-      tauxActif()?.ratePercent === 12,
-      "le taux a bien changé pour l'avenir"
+      taux12?.ratePercent === 12,
+      "le taux a bien changé pour l'avenir",
+      String(taux12?.ratePercent)
     );
 
-    const inchangee = un(
+    const inchangee = (await un(
       'SELECT amount, rate FROM "Transaction" WHERE id = ?',
       ligneCommission.id
-    );
+    ));
     verifier(
       inchangee.amount === -commissionAttendue && inchangee.rate === 4.5,
       "changer le taux ne réécrit AUCUNE commission déjà prélevée",
@@ -383,17 +448,17 @@ try {
     "la page Solde explique la retenue plutôt que d'amputer sans un mot"
   );
 
-  const libere = un(
-    "SELECT COALESCE(SUM(amount), 0) AS s FROM Fund WHERE sellerId = ? AND released = 1",
+  const libere = (await un(
+    `SELECT COALESCE(SUM(amount), 0) AS s FROM "Fund" WHERE "sellerId" = ? AND released = true`,
     commande.sellerId
-  ).s;
-  const retenu = un(
+  )).s;
+  const retenu = (await un(
     `SELECT COALESCE(SUM(t.amount), 0) AS s
        FROM "Transaction" t
-       JOIN "Order" o ON o.id = t.orderId
-      WHERE t.type = 'COMMISSION' AND o.sellerId = ?`,
+       JOIN "Order" o ON o.id = t."orderId"
+      WHERE t.type = 'COMMISSION' AND o."sellerId" = ?`,
     commande.sellerId
-  ).s;
+  )).s;
   const attendu = libere - Math.abs(retenu);
 
   verifier(
@@ -427,13 +492,13 @@ try {
     montantsSignes.join(" | ") || "aucun montant signé"
   );
 
-  const concurrent = un(
+  const concurrent = (await un(
     `SELECT o.reference
        FROM "Order" o
-      WHERE o.sellerId <> ?
+      WHERE o."sellerId" <> ?
       LIMIT 1`,
     commande.sellerId
-  );
+  ));
   // Un contrôle qui disparaît en silence se lit comme une réussite : si le jeu
   // de données ne contient qu'un vendeur, on le dit plutôt que de se taire.
   if (concurrent) {
@@ -517,19 +582,19 @@ try {
   // Les lignes créées par les exécutions précédentes sont SUPPRIMÉES plutôt
   // qu'empilées : sans cela, l'historique des taux se remplissait d'une
   // vingtaine de lignes fantômes à chaque passage.
-  ecrire("DELETE FROM Commission WHERE id LIKE 'cm-verif-%'");
-  ecrire("UPDATE Commission SET isActive = 0 WHERE isActive = 1");
+  await ecrire(`DELETE FROM "Commission" WHERE id LIKE 'cm-verif-%'`);
+  await ecrire(`UPDATE "Commission" SET "isActive" = false WHERE "isActive" = true`);
 
-  // ⚠ Prisma stocke les DateTime SQLite en TEXTE ISO-8601, pas en entier.
-  // Une première version écrivait `Date.now()` : SQLite classant tout entier
-  // avant tout texte, ces lignes se retrouvaient systématiquement en fin de
-  // tri décroissant. `tauxCommissionActif()` ordonne justement par
-  // `createdAt desc` — la ligne réactivée ici aurait donc pu ne pas être celle
-  // retenue. Le format doit être identique à celui qu'écrit l'application.
-  ecrire(
-    "INSERT INTO Commission (id, ratePercent, isActive, createdAt) VALUES (?, 5, 1, ?)",
+  // Le taux actif est retrouvé par `createdAt desc` : la ligne réactivée ici
+  // doit donc porter une date que Postgres classe comme l'application le
+  // ferait. Un horodatage ISO convient — le pilote le convertit en
+  // `timestamp`, là où SQLite conservait du texte et rangeait tout entier
+  // avant tout texte, ce qui avait déjà fait passer ces lignes en fin de tri.
+  await ecrire(
+    `INSERT INTO "Commission" (id, "ratePercent", "isActive", "createdAt")
+     VALUES (?, 5, true, ?)`,
     `cm-verif-${Date.now()}`,
-    new Date().toISOString().replace("Z", "+00:00")
+    new Date().toISOString()
   );
 
   // La commande de test est retirée et le stock rendu au catalogue.
@@ -544,15 +609,15 @@ try {
   // numérotation des factures doit encaisser sans collision — elle part
   // désormais du plus grand numéro, plus du nombre de factures.
   if (aNettoyer) {
-    ecrire('DELETE FROM "Order" WHERE id = ?', aNettoyer.orderId);
-    ecrire(
-      "UPDATE Product SET quantity = quantity + ? WHERE id = ?",
+    (await ecrire('DELETE FROM "Order" WHERE id = ?', aNettoyer.orderId));
+    (await ecrire(
+      `UPDATE "Product" SET quantity = quantity + ? WHERE id = ?`,
       aNettoyer.quantite,
       aNettoyer.produitId
-    );
+    ));
   }
 
-  db.close();
+
   await navigateur.close();
 }
 

@@ -13,7 +13,7 @@
  */
 
 import { chromium } from "playwright";
-import Database from "better-sqlite3";
+import { lireUne } from "./base-donnees.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const MDP = "Password123!";
@@ -45,25 +45,22 @@ const connecter = async (page, identifiant) => {
 };
 
 /** Stock du produit de demonstration, lu en base. */
-function stockRobeWax() {
-  const db = new Database("prisma/dev.db", { readonly: true });
-  const r = db
-    .prepare("SELECT quantity FROM Product WHERE name LIKE ?")
-    .get("Robe Wax%");
-  db.close();
+async function stockRobeWax() {
+  const r = await lireUne(
+    'SELECT quantity FROM "Product" WHERE name LIKE ?',
+    "Robe Wax%"
+  );
   return r?.quantity ?? null;
 }
 
 /** Lit l'etat des fonds directement en base : c'est la seule verite. */
-function fonds(reference) {
-  const db = new Database("prisma/dev.db", { readonly: true });
-  const r = db
-    .prepare(
-      "SELECT f.released, f.amount, o.status FROM Fund f JOIN 'Order' o ON o.id = f.orderId WHERE o.reference = ?"
-    )
-    .get(reference);
-  db.close();
-  return r;
+async function fonds(reference) {
+  return lireUne(
+    `SELECT f.released, f.amount, o.status FROM "Fund" f
+       JOIN "Order" o ON o.id = f."orderId"
+      WHERE o.reference = ?`,
+    reference
+  );
 }
 
 // ═══════════════ 1. Le vendeur cree une commande, le client la paie
@@ -121,7 +118,7 @@ if (!reference) {
   await bouton(client, /Simuler un paiement réussi/i).click();
   await client.waitForTimeout(4000);
 
-  verifier(fonds(reference)?.status === "FUNDS_SECURED", "paiement securise");
+  verifier((await fonds(reference))?.status === "FUNDS_SECURED", "paiement securise");
 
   // Le bouton doit exister AVANT toute livraison : « produit non recu ».
   const signaler = bouton(client, /Signaler un problème/i);
@@ -148,9 +145,9 @@ if (!reference) {
     new URL(client.url()).pathname
   );
 
-  const etat = fonds(reference);
+  const etat = (await fonds(reference));
   verifier(etat?.status === "DISPUTE_OPEN", "la commande passe en litige", etat?.status);
-  verifier(etat?.released === 0, "les fonds NE sont PAS liberes (§33)");
+  verifier(etat?.released === false, "les fonds NE sont PAS liberes (§33)");
 
   // ═══════════════ 3. Le client ne peut plus confirmer pour debloquer
   await client.goto(`${BASE}/pay/${reference}`, { waitUntil: "networkidle" });
@@ -230,7 +227,7 @@ if (!reference) {
   await bouton(admin, /Rendre la décision/i).click();
   await admin.waitForTimeout(2500);
   verifier(
-    fonds(reference)?.status === "DISPUTE_OPEN",
+    (await fonds(reference))?.status === "DISPUTE_OPEN",
     "une motivation trop courte ne tranche rien"
   );
 
@@ -240,26 +237,25 @@ if (!reference) {
   await bouton(admin, /Rendre la décision/i).click();
   await admin.waitForTimeout(4000);
 
-  const final = fonds(reference);
+  const final = (await fonds(reference));
   verifier(
     final?.status === "REFUND_PENDING",
     "la commande passe en remboursement",
     final?.status
   );
   verifier(
-    final?.released === 0,
+    final?.released === false,
     "les fonds ne sont PAS verses au vendeur quand le client gagne"
   );
 
   // La creance de remboursement est bien inscrite.
   {
-    const db = new Database("prisma/dev.db", { readonly: true });
-    const r = db
-      .prepare(
-        "SELECT r.amount FROM Refund r JOIN 'Order' o ON o.id = r.orderId WHERE o.reference = ?"
-      )
-      .get(reference);
-    db.close();
+    const r = await lireUne(
+      `SELECT r.amount FROM "Refund" r
+         JOIN "Order" o ON o.id = r."orderId"
+        WHERE o.reference = ?`,
+      reference
+    );
     // 18 500 d'articles + 2 000 de livraison : le client a regle les deux.
     verifier(r?.amount === 20500, "le remboursement porte sur le total regle", String(r?.amount));
   }
@@ -277,7 +273,7 @@ if (!reference) {
   );
 
   // ═══════════════ 8. Phase 22 — le remboursement est traite
-  const stockAvant = stockRobeWax();
+  const stockAvant = (await stockRobeWax());
 
   await admin.goto(`${BASE}/admin/remboursements`, { waitUntil: "networkidle" });
   const listeRemb = await admin.evaluate(() => document.body.innerText);
@@ -293,7 +289,7 @@ if (!reference) {
     "rembourser demande confirmation (§58)"
   );
   verifier(
-    fonds(reference)?.status === "REFUND_PENDING",
+    (await fonds(reference))?.status === "REFUND_PENDING",
     "rien n'est parti tant que la confirmation n'est pas donnee"
   );
 
@@ -302,31 +298,30 @@ if (!reference) {
   await bouton(admin, /Confirmer le remboursement/i).click();
   await admin.waitForTimeout(4000);
 
-  const apresRemb = fonds(reference);
+  const apresRemb = (await fonds(reference));
   verifier(
     apresRemb?.status === "REFUNDED",
     "la commande passe en remboursee",
     apresRemb?.status
   );
   verifier(
-    apresRemb?.released === 1,
+    apresRemb?.released === true,
     "le sequestre est solde : ce n'est plus un engagement de la plateforme"
   );
   verifier(
-    stockRobeWax() === stockAvant,
+    (await stockRobeWax()) === stockAvant,
     "le stock n'est PAS remis d'office",
-    `avant ${stockAvant}, apres ${stockRobeWax()}`
+    `avant ${stockAvant}, apres ${(await stockRobeWax())}`
   );
 
   // Le journal (§40) porte le mouvement, en negatif.
   {
-    const db = new Database("prisma/dev.db", { readonly: true });
-    const t = db
-      .prepare(
-        "SELECT t.type, t.amount FROM 'Transaction' t JOIN 'Order' o ON o.id = t.orderId WHERE o.reference = ? AND t.type = 'REFUND'"
-      )
-      .get(reference);
-    db.close();
+    const t = await lireUne(
+      `SELECT t.type, t.amount FROM "Transaction" t
+         JOIN "Order" o ON o.id = t."orderId"
+        WHERE o.reference = ? AND t.type = 'REFUND'`,
+      reference
+    );
     verifier(
       t?.amount === -20500,
       "le journal inscrit le remboursement en negatif : l'argent sort",

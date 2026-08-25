@@ -18,7 +18,7 @@
  */
 
 import { chromium } from "playwright";
-import Database from "better-sqlite3";
+import { lire } from "./base-donnees.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const MDP = "Password123!";
@@ -34,28 +34,23 @@ const verifier = (ok, libelle, detail = "") => {
   }
 };
 
-const lire = (requete, ...params) => {
-  const db = new Database("prisma/dev.db", { readonly: true });
-  const r = db.prepare(requete).all(...params);
-  db.close();
-  return r;
-};
-
 const attendreQue = async (mesure, attendu, limiteMs = 20000) => {
   const fin = Date.now() + limiteMs;
   while (Date.now() < fin) {
-    if (attendu(mesure())) return true;
+    if (attendu(await mesure())) return true;
     await new Promise((r) => setTimeout(r, 250));
   }
   return false;
 };
 
-const etatCommande = (ref) =>
-  lire('SELECT status FROM "Order" WHERE reference = ?', ref)[0]?.status;
-const etatLivraison = (ref) =>
-  lire(
-    'SELECT d.status FROM Delivery d JOIN "Order" o ON o.id = d.orderId WHERE o.reference = ?',
-    ref
+const etatCommande = async (ref) =>
+  (await lire('SELECT status FROM "Order" WHERE reference = ?', ref))[0]?.status;
+const etatLivraison = async (ref) =>
+  (
+    await lire(
+      'SELECT d.status FROM "Delivery" d JOIN "Order" o ON o.id = d."orderId" WHERE o.reference = ?',
+      ref
+    )
   )[0]?.status;
 
 const navigateur = await chromium.launch();
@@ -80,7 +75,9 @@ let reference;
   const page = await ctx.newPage();
   await connecter(page, "vendeur@koli.ci");
 
-  const telClient = lire("SELECT phone FROM User WHERE email = ?", "client@koli.ci")[0].phone;
+  const telClient = (
+    await lire('SELECT phone FROM "User" WHERE email = ?', "client@koli.ci")
+  )[0].phone;
 
   // Le test cree SON produit, avec du stock.
   //
@@ -138,7 +135,7 @@ let reference;
     await attendreQue(() => etatCommande(reference), (s) => s === "FUNDS_SECURED");
     await ctxClient.close();
 
-    verifier(etatCommande(reference) === "FUNDS_SECURED", "la commande est payee");
+    verifier((await etatCommande(reference)) === "FUNDS_SECURED", "la commande est payee");
 
     // Assignation d'un livreur.
     await page.goto(`${BASE}/vendeur/commandes?q=${reference}`, { waitUntil: "networkidle" });
@@ -152,9 +149,9 @@ let reference;
     await attendreQue(() => etatCommande(reference), (s) => s === "SELLER_ACCEPTED");
 
     verifier(
-      etatCommande(reference) === "SELLER_ACCEPTED",
+      (await etatCommande(reference)) === "SELLER_ACCEPTED",
       "un livreur est assigne",
-      etatCommande(reference)
+      (await etatCommande(reference))
     );
   }
 
@@ -212,18 +209,20 @@ if (!reference) {
       () => etatLivraison(reference),
       (s) => s === "TO_PICK_UP"
     );
-    verifier(avance, "la livraison passe a « a recuperer »", etatLivraison(reference));
+    verifier(avance, "la livraison passe a « a recuperer »", (await etatLivraison(reference)));
     verifier(
-      etatCommande(reference) === "READY_FOR_PICKUP",
+      (await etatCommande(reference)) === "READY_FOR_PICKUP",
       "la commande suit",
-      etatCommande(reference)
+      (await etatCommande(reference))
     );
 
     // Le livreur en est prevenu : sans avis, il passerait au hasard.
-    const avisLivreur = lire(
-      `SELECT COUNT(*) n FROM Notification x JOIN User u ON u.id = x.userId
-        WHERE u.role = 'DRIVER' AND x.type = 'PACKAGE_READY' AND x.entityId = ?`,
-      reference
+    const avisLivreur = (
+      await lire(
+        `SELECT COUNT(*) n FROM "Notification" x JOIN "User" u ON u.id = x."userId"
+          WHERE u.role = 'DRIVER' AND x.type = 'PACKAGE_READY' AND x."entityId" = ?`,
+        reference
+      )
     )[0].n;
     verifier(avisLivreur > 0, "le livreur est prevenu que le colis l'attend");
   }
@@ -253,11 +252,11 @@ if (!reference) {
         () => etatLivraison(reference),
         (s) => s === etatAttendu
       );
-      verifier(ok, `la livraison passe a ${etatAttendu}`, etatLivraison(reference));
+      verifier(ok, `la livraison passe a ${etatAttendu}`, (await etatLivraison(reference)));
       verifier(
-        etatCommande(reference) === commandeAttendue,
+        (await etatCommande(reference)) === commandeAttendue,
         `la commande passe a ${commandeAttendue}`,
-        etatCommande(reference)
+        (await etatCommande(reference))
       );
     }
   }
@@ -315,10 +314,12 @@ if (!reference) {
   );
 
   // Chaque etape a produit un avis.
-  const avis = lire(
-    `SELECT x.type FROM Notification x JOIN User u ON u.id = x.userId
-      WHERE u.email = 'client@koli.ci' AND x.entityId = ?`,
-    reference
+  const avis = (
+    await lire(
+      `SELECT x.type FROM "Notification" x JOIN "User" u ON u.id = x."userId"
+        WHERE u.email = 'client@koli.ci' AND x."entityId" = ?`,
+      reference
+    )
   ).map((r) => r.type);
 
   for (const type of ["PICKED_UP", "IN_TRANSIT", "ARRIVED"]) {
@@ -330,9 +331,11 @@ if (!reference) {
 
 // ═══════════ 6. Un autre livreur ne fait pas avancer cette course
 {
-  const autre = lire(
-    `SELECT u.email FROM User u JOIN DriverProfile p ON p.userId = u.id
-      WHERE u.email != 'livreur@koli.ci' LIMIT 1`
+  const autre = (
+    await lire(
+      `SELECT u.email FROM "User" u JOIN "DriverProfile" p ON p."userId" = u.id
+        WHERE u.email <> 'livreur@koli.ci' LIMIT 1`
+    )
   )[0]?.email;
 
   if (!autre) {
@@ -340,7 +343,7 @@ if (!reference) {
     // second livreur, que le jeu de donnees ne fournit pas toujours.
     verifier(true, "pas de second livreur : controle de propriete verifie ailleurs");
   } else {
-    const avant = etatLivraison(reference);
+    const avant = (await etatLivraison(reference));
     const ctx = await navigateur.newContext();
     const p2 = await ctx.newPage();
     await connecter(p2, autre);
@@ -351,7 +354,7 @@ if (!reference) {
       "un autre livreur ne voit pas cette course",
       autre
     );
-    verifier(etatLivraison(reference) === avant, "et ne la fait pas avancer");
+    verifier((await etatLivraison(reference)) === avant, "et ne la fait pas avancer");
     await ctx.close();
   }
 }

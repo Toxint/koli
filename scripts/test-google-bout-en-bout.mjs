@@ -19,7 +19,7 @@
  */
 
 import { chromium } from "playwright";
-import Database from "better-sqlite3";
+import { lireUne, ecrire } from "./base-donnees.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://127.0.0.1:3000";
 const marque = Date.now().toString().slice(-7);
@@ -31,21 +31,17 @@ const marque = Date.now().toString().slice(-7);
  * d'administration : ce test porte sur la connexion Google, et le faire
  * dependre d'un ecran sans rapport le rendait fragile.
  */
-function etatDuVendeur(nouveau) {
-  const db = new Database("prisma/dev.db");
-  try {
-    if (nouveau) {
-      db.prepare("UPDATE User SET status = ? WHERE email = ?").run(
-        nouveau,
-        "vendeur@koli.ci"
-      );
-    }
-    return db
-      .prepare("SELECT status FROM User WHERE email = ?")
-      .get("vendeur@koli.ci")?.status;
-  } finally {
-    db.close();
+async function etatDuVendeur(nouveau) {
+  if (nouveau) {
+    await ecrire(
+      'UPDATE "User" SET status = ? WHERE email = ?',
+      nouveau,
+      "vendeur@koli.ci"
+    );
   }
+  return (
+    await lireUne('SELECT status FROM "User" WHERE email = ?', "vendeur@koli.ci")
+  )?.status;
 }
 
 console.log(`\n=== CONNEXION GOOGLE, BOUT EN BOUT depuis ${BASE} ===\n`);
@@ -232,7 +228,7 @@ async function passerParGoogle(page, compte) {
   // d'administration : ce test porte sur le refus cote Google, pas sur
   // l'interface admin — qui a son propre test. Passer par elle rendait ce cas
   // dependant d'un ecran sans rapport, et donc fragile.
-  etatDuVendeur("SUSPENDED");
+  (await etatDuVendeur("SUSPENDED"));
 
   await passerParGoogle(page, {
     sub: `sub-rattache-${marque}`,
@@ -254,9 +250,9 @@ async function passerParGoogle(page, compte) {
   );
 
   // On le reactive, pour ne pas laisser la base de demonstration degradee.
-  etatDuVendeur("ACTIVE");
+  (await etatDuVendeur("ACTIVE"));
   verifier(
-    etatDuVendeur() === "ACTIVE",
+    (await etatDuVendeur()) === "ACTIVE",
     "le compte de demonstration est bien reactive apres le test"
   );
   await ctx.close();

@@ -8,19 +8,25 @@
  * signale. Sur un registre qui dit combien la plateforme doit a qui, c'est le
  * genre d'ecart qu'on ne decouvre qu'au moment de payer.
  *
- * Il verifie quatre choses :
+ * Il verifie cinq choses :
  *
- *  1. toute colonne en `<chose>Id` porte une VRAIE clef etrangere ;
- *  2. SQLite les fait respecter (elles sont decoratives sans le reglage) ;
+ *  1. les clefs etrangeres declarees sont toutes VALIDEES ;
+ *  2. toute colonne en `<chose>Id` porte une VRAIE clef etrangere ;
  *  3. aucune ligne orpheline ne subsiste ;
- *  4. les migrations couvrent bien l'etat du schema.
+ *  4. chaque sequestre revient au vendeur de sa commande ;
+ *  5. les migrations couvrent bien l'etat du schema.
+ *
+ * **Il interroge la base REELLE**, celle que designe `DATABASE_URL`. Il a lu
+ * un fichier SQLite local jusqu'au passage a Postgres, ce qui le rendait vert
+ * quoi qu'il arrive sur Supabase : un controle d'integrite qui inspecte une
+ * autre base que celle qui sert est pire que pas de controle du tout.
  *
  * Usage : node scripts/verifier-schema.mjs
  */
 
-import Database from "better-sqlite3";
 import fs from "node:fs";
 import path from "node:path";
+import { lire, lireUne, fermer } from "./base-donnees.mjs";
 
 console.log("\n=== INTEGRITE DU SCHEMA ===\n");
 
@@ -33,24 +39,51 @@ const verifier = (ok, libelle, detail = "") => {
   }
 };
 
-const db = new Database("prisma/dev.db", { readonly: true });
+// Les clefs etrangeres du schema, colonne par colonne. `conkey` et `confkey`
+// sont des TABLEAUX de numeros de colonne — d'ou le depliage par `unnest`,
+// apparie sur le rang pour que la colonne source corresponde a sa cible.
+const clefs = await lire(`
+  SELECT con.conname       AS nom,
+         src.relname       AS table_source,
+         sa.attname        AS colonne_source,
+         cible.relname     AS table_cible,
+         ca.attname        AS colonne_cible,
+         con.convalidated  AS validee
+  FROM pg_constraint con
+  JOIN pg_class src   ON src.oid = con.conrelid
+  JOIN pg_class cible ON cible.oid = con.confrelid
+  JOIN unnest(con.conkey)  WITH ORDINALITY AS s(attnum, ord) ON true
+  JOIN unnest(con.confkey) WITH ORDINALITY AS c(attnum, ord) ON c.ord = s.ord
+  JOIN pg_attribute sa ON sa.attrelid = con.conrelid   AND sa.attnum = s.attnum
+  JOIN pg_attribute ca ON ca.attrelid = con.confrelid  AND ca.attnum = c.attnum
+  WHERE con.contype = 'f' AND con.connamespace = 'public'::regnamespace
+  ORDER BY 2, 3`);
 
 // ═══════════ 1. Les clefs etrangeres sont-elles respectees ?
 {
-  const actif = db.pragma("foreign_keys", { simple: true });
+  // Postgres les fait respecter d'office — sauf celles ajoutees en NOT VALID,
+  // qui laissent passer les lignes deja presentes. C'est l'equivalent exact du
+  // `PRAGMA foreign_keys` qu'il fallait activer sous SQLite.
+  const suspendues = clefs.filter((c) => !c.validee).map((c) => c.nom);
+
+  verifier(clefs.length > 0, "le schema declare des clefs etrangeres", `${clefs.length}`);
   verifier(
-    actif === 1,
-    "SQLite fait respecter les clefs etrangeres",
-    `PRAGMA foreign_keys = ${actif}`
+    suspendues.length === 0,
+    "toutes les clefs etrangeres sont validees",
+    suspendues.join(", ")
   );
 }
 
 // ═══════════ 2. Toute colonne « <chose>Id » porte une clef
 {
-  const tables = db
-    .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_prisma%'")
-    .all()
-    .map((t) => t.name);
+  const colonnes = await lire(`
+    SELECT table_name AS "table", column_name AS colonne
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name NOT LIKE '\\_prisma%'
+      AND column_name LIKE '%Id'
+      AND column_name <> 'id'
+    ORDER BY 1, 2`);
 
   // Colonnes volontairement SANS clef, et pourquoi.
   const exceptions = new Map([
@@ -65,21 +98,13 @@ const db = new Database("prisma/dev.db", { readonly: true });
     ["User.googleId", "identifiant externe Google"],
   ]);
 
-  const manquantes = [];
+  const portantUneClef = new Set(
+    clefs.map((c) => `${c.table_source}.${c.colonne_source}`)
+  );
 
-  for (const table of tables) {
-    const colonnes = db.pragma(`table_info(${JSON.stringify(table)})`);
-    const cles = db
-      .pragma(`foreign_key_list(${JSON.stringify(table)})`)
-      .map((f) => f.from);
-
-    for (const c of colonnes) {
-      if (!/Id$/.test(c.name) || c.name === "id") continue;
-      if (exceptions.has(`${table}.${c.name}`)) continue;
-      if (cles.includes(c.name)) continue;
-      manquantes.push(`${table}.${c.name}`);
-    }
-  }
+  const manquantes = colonnes
+    .map((c) => `${c.table}.${c.colonne}`)
+    .filter((q) => !exceptions.has(q) && !portantUneClef.has(q));
 
   verifier(
     manquantes.length === 0,
@@ -90,13 +115,27 @@ const db = new Database("prisma/dev.db", { readonly: true });
 
 // ═══════════ 3. Aucune ligne orpheline
 {
-  const violations = db.pragma("foreign_key_check");
+  // `PRAGMA foreign_key_check` n'a pas d'equivalent : on le refait a la main,
+  // clef par clef. Verifier que les contraintes EXISTENT ne suffit pas — une
+  // contrainte posee en NOT VALID puis validee a tort laisserait derriere elle
+  // exactement les lignes que ce controle cherche.
+  const orphelines = [];
+
+  for (const c of clefs) {
+    const { n } = await lireUne(
+      `SELECT COUNT(*) AS n
+         FROM "${c.table_source}" s
+         LEFT JOIN "${c.table_cible}" t ON t."${c.colonne_cible}" = s."${c.colonne_source}"
+        WHERE s."${c.colonne_source}" IS NOT NULL
+          AND t."${c.colonne_cible}" IS NULL`
+    );
+    if (n > 0) orphelines.push(`${c.table_source}.${c.colonne_source} (${n})`);
+  }
+
   verifier(
-    violations.length === 0,
+    orphelines.length === 0,
     "aucune ligne orpheline dans la base",
-    violations.length
-      ? `${violations.length} : ${JSON.stringify(violations.slice(0, 2))}`
-      : ""
+    orphelines.join(", ")
   );
 }
 
@@ -105,12 +144,12 @@ const db = new Database("prisma/dev.db", { readonly: true });
   // Meme avec la clef, rien n'impose que `Fund.sellerId` corresponde au
   // vendeur de la COMMANDE. Une divergence rendrait le solde faux des deux
   // cotes a la fois.
-  const ecarts = db
-    .prepare(
-      `SELECT COUNT(*) n FROM Fund f JOIN "Order" o ON o.id = f.orderId
-        WHERE o.sellerId != f.sellerId`
-    )
-    .get().n;
+  const { n: ecarts } = await lireUne(
+    `SELECT COUNT(*) AS n
+       FROM "Fund" f
+       JOIN "Order" o ON o.id = f."orderId"
+      WHERE o."sellerId" <> f."sellerId"`
+  );
 
   verifier(
     ecarts === 0,
@@ -118,8 +157,6 @@ const db = new Database("prisma/dev.db", { readonly: true });
     `${ecarts} ecart(s)`
   );
 }
-
-db.close();
 
 // ═══════════ 5. Les migrations existent et couvrent le schema
 {
@@ -150,25 +187,22 @@ db.close();
       vides.join(", ")
     );
 
-    const base = db2Ouvrir();
-    const appliquees = base
-      .prepare("SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL")
-      .all()
-      .map((r) => r.migration_name);
-    base.close();
+    const appliquees = (
+      await lire(
+        `SELECT migration_name FROM "_prisma_migrations" WHERE finished_at IS NOT NULL`
+      )
+    ).map((r) => r.migration_name);
 
     const nonAppliquees = migrations.filter((m) => !appliquees.includes(m));
     verifier(
       nonAppliquees.length === 0,
-      "toutes les migrations sont appliquees a la base locale",
+      "toutes les migrations sont appliquees a la base qui sert",
       nonAppliquees.join(", ")
     );
   }
 }
 
-function db2Ouvrir() {
-  return new Database("prisma/dev.db", { readonly: true });
-}
+await fermer();
 
 console.log("");
 console.log(

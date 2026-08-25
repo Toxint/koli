@@ -20,7 +20,7 @@
  */
 
 import { chromium } from "playwright";
-import Database from "better-sqlite3";
+import { ecrire } from "./base-donnees.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const marque = Date.now().toString().slice(-7);
@@ -56,7 +56,9 @@ await page
   .filter({ visible: true })
   .first()
   .click();
-await page.waitForTimeout(5000);
+await page
+  .waitForURL((u) => u.pathname === "/vendeur/dashboard", { timeout: 30000 })
+  .catch(() => {});
 
 verifier(
   new URL(page.url()).pathname === "/vendeur/dashboard",
@@ -70,9 +72,7 @@ verifier(
 // autre test etait en train d'utiliser : ce test devenait hostile a ses
 // voisins et les faisait echouer sans rapport avec ce qu'ils verifient.
 {
-  const db = new Database("prisma/dev.db");
-  db.prepare("DELETE FROM User WHERE email = ?").run(EMAIL_TEST);
-  db.close();
+  await ecrire('DELETE FROM "User" WHERE email = ?', EMAIL_TEST);
 }
 
 // 3. L'utilisateur revient sur son espace.
@@ -119,7 +119,11 @@ await page
   .filter({ visible: true })
   .first()
   .click();
-await page.waitForTimeout(4000);
+// On attend la NAVIGATION, pas un delai : la connexion ecrit desormais sur une
+// base distante, et quatre secondes ne suffisent plus toujours.
+await page
+  .waitForURL((u) => u.pathname === "/vendeur/dashboard", { timeout: 30000 })
+  .catch(() => {});
 
 verifier(
   new URL(page.url()).pathname === "/vendeur/dashboard",

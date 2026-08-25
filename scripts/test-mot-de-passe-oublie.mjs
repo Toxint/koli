@@ -14,7 +14,7 @@
  */
 
 import { chromium } from "playwright";
-import Database from "better-sqlite3";
+import { lireUne } from "./base-donnees.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const marque = Date.now().toString().slice(-7);
@@ -71,10 +71,17 @@ await page
   .filter({ visible: true })
   .first()
   .click();
-await page.waitForTimeout(4500);
+// On attend la NAVIGATION, pas un delai. L'inscription ecrit desormais sur une
+// base distante : les 4,5 secondes taillees pour un fichier SQLite local
+// expiraient avant l'arrivee sur le tableau de bord, et le test annoncait un
+// echec d'inscription qui n'en etait pas un.
+await page
+  .waitForURL((u) => u.pathname === "/vendeur/dashboard", { timeout: 30000 })
+  .catch(() => {});
 verifier(
   new URL(page.url()).pathname === "/vendeur/dashboard",
-  "compte de test cree"
+  "compte de test cree",
+  new URL(page.url()).pathname
 );
 await ctx.clearCookies();
 
@@ -138,7 +145,12 @@ const essayer = async (motDePasse) => {
     .filter({ visible: true })
     .first()
     .click();
-  await p.waitForTimeout(4000);
+  // Une connexion reussie quitte /connexion ; une connexion refusee y reste.
+  // On attend donc le depart, borne dans le temps : l'echec legitime coute la
+  // duree du delai, la reussite ne coute que ce qu'elle prend.
+  await p
+    .waitForURL((u) => !u.pathname.startsWith("/connexion"), { timeout: 15000 })
+    .catch(() => {});
   const chemin = new URL(p.url()).pathname;
   await c.close();
   return chemin;
@@ -172,11 +184,10 @@ verifier(
 
 // -------------------- 8. Le jeton est bien HACHE en base, jamais en clair
 {
-  const db = new Database("prisma/dev.db", { readonly: true });
-  const ligne = db
-    .prepare("SELECT resetTokenHash FROM User WHERE email = ?")
-    .get(COMPTE.email);
-  db.close();
+  const ligne = await lireUne(
+    'SELECT "resetTokenHash" FROM "User" WHERE email = ?',
+    COMPTE.email
+  );
   const jetonClair = chemin.split("/").pop();
   verifier(
     ligne?.resetTokenHash == null,

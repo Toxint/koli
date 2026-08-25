@@ -16,7 +16,7 @@
  */
 
 import { chromium } from "playwright";
-import Database from "better-sqlite3";
+import { lire } from "./base-donnees.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const MDP = "Password123!";
@@ -32,28 +32,25 @@ const verifier = (ok, libelle, detail = "") => {
   }
 };
 
-const lire = (requete, ...params) => {
-  const db = new Database("prisma/dev.db", { readonly: true });
-  const r = db.prepare(requete).all(...params);
-  db.close();
-  return r;
-};
-
-const compterPour = (email, type) =>
-  lire(
-    `SELECT COUNT(*) n FROM Notification n
-       JOIN User u ON u.id = n.userId
-      WHERE u.email = ? AND n.type = ?`,
-    email,
-    type
+const compterPour = async (email, type) =>
+  (
+    await lire(
+      `SELECT COUNT(*) n FROM "Notification" n
+         JOIN "User" u ON u.id = n."userId"
+        WHERE u.email = ? AND n.type = ?`,
+      email,
+      type
+    )
   )[0].n;
 
 
-const nonLuesVendeur = () =>
-  lire(
-    `SELECT COUNT(*) n FROM Notification n JOIN User u ON u.id = n.userId
-      WHERE u.email = ? AND n.readAt IS NULL`,
-    "vendeur@koli.ci"
+const nonLuesVendeur = async () =>
+  (
+    await lire(
+      `SELECT COUNT(*) n FROM "Notification" n JOIN "User" u ON u.id = n."userId"
+        WHERE u.email = ? AND n."readAt" IS NULL`,
+      "vendeur@koli.ci"
+    )
   )[0].n;
 
 /**
@@ -67,7 +64,7 @@ const nonLuesVendeur = () =>
 const attendreQue = async (mesure, attendu, limiteMs = 20000) => {
   const fin = Date.now() + limiteMs;
   while (Date.now() < fin) {
-    if (attendu(mesure())) return true;
+    if (attendu(await mesure())) return true;
     await new Promise((r) => setTimeout(r, 250));
   }
   return false;
@@ -77,6 +74,23 @@ const navigateur = await chromium.launch();
 
 const bouton = (p, libelle) =>
   p.getByRole("button", { name: libelle }).filter({ visible: true }).first();
+
+/**
+ * Passe a l'etape suivante de l'assistant, et ATTEND qu'elle soit la.
+ *
+ * Les 600 ms accordees ici valaient pour une base locale. Sur une liaison
+ * lente, l'etape suivante n'etait pas encore affichee : la saisie partait dans
+ * le vide, la commande n'etait jamais creee, et le test concluait a des
+ * notifications manquantes — alors que rien n'avait ete commande.
+ */
+const continuer = async (page, champSuivant) => {
+  await bouton(page, /Continuer/i).click();
+  await page
+    .locator(champSuivant)
+    .first()
+    .waitFor({ state: "visible", timeout: 30000 })
+    .catch(() => {});
+};
 
 const connecter = async (page, identifiant) => {
   await page.goto(`${BASE}/connexion`, { waitUntil: "networkidle" });
@@ -95,11 +109,13 @@ let reference;
   const page = await ctx.newPage();
   await connecter(page, "vendeur@koli.ci");
 
-  const avantVendeur = compterPour("vendeur@koli.ci", "FUNDS_SECURED");
-  const avantClient = compterPour("client@koli.ci", "PAYMENT_CONFIRMED");
+  const avantVendeur = (await compterPour("vendeur@koli.ci", "FUNDS_SECURED"));
+  const avantClient = (await compterPour("client@koli.ci", "PAYMENT_CONFIRMED"));
 
   // Commande au nom du client de demonstration, pour qu'il soit notifiable.
-  const telClient = lire("SELECT phone FROM User WHERE email = ?", "client@koli.ci")[0].phone;
+  const telClient = (
+    await lire('SELECT phone FROM "User" WHERE email = ?', "client@koli.ci")
+  )[0].phone;
 
   // L'assistant du §18, en cinq etapes. Les libelles suivent
   // scripts/test-commande-etapes.mjs, qui fait foi sur ce parcours.
@@ -117,19 +133,16 @@ let reference;
   verifier(option !== "", "un produit disponible existe au catalogue");
   await selecteur.selectOption(option);
   await page.locator("#quantity").fill("1");
-  await bouton(page, /Continuer/i).click();
-  await page.waitForTimeout(600);
+  await continuer(page, "#buyerName");
 
   await page.locator("#buyerName").fill("Awa Koné");
   await page.locator("#buyerPhone").fill(telClient);
   await page.locator("#buyerCity").fill("Abidjan");
   await page.locator("#buyerAddress").fill("Cocody Angré");
-  await bouton(page, /Continuer/i).click();
-  await page.waitForTimeout(600);
+  await continuer(page, "#deliveryFee");
 
   await page.locator("#deliveryFee").fill("1000");
-  await bouton(page, /Continuer/i).click();
-  await page.waitForTimeout(600);
+  await continuer(page, String.raw`button:has-text("Créer la commande")`);
 
   // On ATTEND la reference plutot que de dormir un temps fixe : la creation
   // fait un aller-retour serveur dont la duree varie, et un test qui echoue
@@ -176,7 +189,7 @@ let reference;
     verifier(
       vendeurPrevenu,
       "le paiement previent le VENDEUR : il n'avait aucun moyen de l'apprendre",
-      `${avantVendeur} → ${compterPour("vendeur@koli.ci", "FUNDS_SECURED")}`
+      `${avantVendeur} → ${(await compterPour("vendeur@koli.ci", "FUNDS_SECURED"))}`
     );
 
     const clientPrevenu = await attendreQue(
@@ -186,7 +199,7 @@ let reference;
     verifier(
       clientPrevenu,
       "le client est prevenu que son paiement est securise",
-      `${avantClient} → ${compterPour("client@koli.ci", "PAYMENT_CONFIRMED")}`
+      `${avantClient} → ${(await compterPour("client@koli.ci", "PAYMENT_CONFIRMED"))}`
     );
   }
 
@@ -202,10 +215,12 @@ let reference;
   const cloche = page.getByRole("link", { name: /Notifications/i }).filter({ visible: true }).first();
   verifier((await cloche.count()) > 0, "une cloche figure au menu");
 
-  const nonLues = lire(
-    `SELECT COUNT(*) n FROM Notification n JOIN User u ON u.id = n.userId
-      WHERE u.email = ? AND n.readAt IS NULL`,
-    "vendeur@koli.ci"
+  const nonLues = (
+    await lire(
+      `SELECT COUNT(*) n FROM "Notification" n JOIN "User" u ON u.id = n."userId"
+        WHERE u.email = ? AND n."readAt" IS NULL`,
+      "vendeur@koli.ci"
+    )
   )[0].n;
 
   const pastille = await page.evaluate(() => {
@@ -281,7 +296,7 @@ let reference;
   verifier(
     nonLuesAffichees.length > 0,
     "le filtre « non lues » affiche bien des notifications a examiner",
-    `${nonLuesAffichees.length} ligne(s), ${nonLuesVendeur()} non lue(s) en base`
+    `${nonLuesAffichees.length} ligne(s), ${(await nonLuesVendeur())} non lue(s) en base`
   );
   verifier(
     nonLuesAffichees.length > 0 && nonLuesAffichees.every(Boolean),
@@ -295,7 +310,7 @@ let reference;
   // cliquait donc le mauvais bouton, et passait tant qu'il ne restait qu'un
   // seul non-lu — par pure coincidence arithmetique.
   const marquer = bouton(page, /^Marquer comme lu$/);
-  const avant = nonLuesVendeur();
+  const avant = (await nonLuesVendeur());
 
   // La precondition est ELLE-MEME verifiee : sans non-lue, le controle suivant
   // n'aurait rien a eprouver et disparaitrait en silence.
@@ -305,7 +320,7 @@ let reference;
   if (avant > 0 && (await marquer.count()) > 0) {
     await marquer.click();
     const baisse = await attendreQue(nonLuesVendeur, (n) => n === avant - 1);
-    verifier(baisse, "le marquage est enregistre", `${avant} → ${nonLuesVendeur()}`);
+    verifier(baisse, "le marquage est enregistre", `${avant} → ${(await nonLuesVendeur())}`);
   }
 
 
@@ -316,7 +331,7 @@ let reference;
   // comme une reussite. On verifie donc explicitement l'un ou l'autre cas.
   await page.goto(`${BASE}/notifications`, { waitUntil: "networkidle" });
 
-  const restantesAvant = nonLuesVendeur();
+  const restantesAvant = (await nonLuesVendeur());
 
   const tout = bouton(page, /Tout marquer comme lu/i);
   const proposeTout = (await tout.count()) > 0;
@@ -333,7 +348,7 @@ let reference;
     verifier(
       vide,
       "« tout marquer comme lu » vide bien le compteur",
-      `${nonLuesVendeur()} restante(s)`
+      `${(await nonLuesVendeur())} restante(s)`
     );
   }
 
@@ -364,10 +379,12 @@ let reference;
   // La portee par `userId` de l'action est verifiee a part, dans
   // lib/__tests__/notifications_action.test.ts : elle se controle sur l'appel
   // lui-meme, pas depuis un navigateur.
-  const idAutrui = lire(
-    `SELECT n.id FROM Notification n JOIN User u ON u.id = n.userId
-      WHERE u.email = ? LIMIT 1`,
-    "vendeur@koli.ci"
+  const idAutrui = (
+    await lire(
+      `SELECT n.id FROM "Notification" n JOIN "User" u ON u.id = n."userId"
+        WHERE u.email = ? LIMIT 1`,
+      "vendeur@koli.ci"
+    )
   )[0]?.id;
 
   verifier(

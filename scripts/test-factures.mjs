@@ -19,18 +19,23 @@
  */
 
 import { chromium } from "playwright";
-import Database from "better-sqlite3";
+import { lire, lireUne, ecrire } from "./base-donnees.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const MDP = "Password123!";
 
-const db = new Database("prisma/dev.db");
-const un = (sql, ...a) => db.prepare(sql).get(...a);
-const tous = (sql, ...a) => db.prepare(sql).all(...a);
-const ecrire = (sql, ...a) => db.prepare(sql).run(...a);
+const un = lireUne;
+const tous = lire;
 
-/** Même format que Prisma pour les DateTime SQLite : du TEXTE ISO-8601. */
-const maintenantISO = () => new Date().toISOString().replace("Z", "+00:00");
+/**
+ * L'instant courant, tel que Postgres l'attend.
+ *
+ * Du temps de SQLite, Prisma stockait les `DateTime` en TEXTE ISO-8601 et il
+ * fallait reproduire ce format au caractère près. Postgres a un vrai type
+ * `timestamp` : le pilote convertit une date ISO, et le suffixe `+00:00`
+ * bricolé n'a plus lieu d'être.
+ */
+const maintenantISO = () => new Date().toISOString();
 
 /**
  * Fixtures posées EN BASE, et non par l'interface.
@@ -47,17 +52,17 @@ const maintenantISO = () => new Date().toISOString().replace("Z", "+00:00");
 const PREFIXE_FIXTURE = "fx-fac-";
 let numeroFixture = 900000;
 
-function poserFacture({ sellerId, customerId, buyerPhone, buyerName, montant }) {
+async function poserFacture({ sellerId, customerId, buyerPhone, buyerName, montant }) {
   const suffixe = `${Date.now()}-${numeroFixture}`;
   const orderId = `${PREFIXE_FIXTURE}o-${suffixe}`;
   const reference = `KOLI-FX${String(numeroFixture).slice(-6)}`;
   const quand = maintenantISO();
 
-  ecrire(
+  await ecrire(
     `INSERT INTO "Order"
-       (id, reference, sellerId, customerId, buyerName, buyerPhone,
-        buyerCountry, buyerCity, buyerAddress, deliveryFee, currency,
-        status, createdAt, updatedAt)
+       (id, reference, "sellerId", "customerId", "buyerName", "buyerPhone",
+        "buyerCountry", "buyerCity", "buyerAddress", "deliveryFee", currency,
+        status, "createdAt", "updatedAt")
      VALUES (?, ?, ?, ?, ?, ?, 'Côte d''Ivoire', 'Abidjan', 'Cocody', 0,
              'XOF', 'COMPLETED', ?, ?)`,
     orderId,
@@ -70,8 +75,8 @@ function poserFacture({ sellerId, customerId, buyerPhone, buyerName, montant }) 
     quand
   );
 
-  ecrire(
-    `INSERT INTO Payment (id, orderId, provider, status, amount, createdAt, confirmedAt)
+  await ecrire(
+    `INSERT INTO "Payment" (id, "orderId", provider, status, amount, "createdAt", "confirmedAt")
      VALUES (?, ?, 'TEST', 'SUCCEEDED', ?, ?, ?)`,
     `${PREFIXE_FIXTURE}p-${suffixe}`,
     orderId,
@@ -83,8 +88,8 @@ function poserFacture({ sellerId, customerId, buyerPhone, buyerName, montant }) 
   // Numéro hors de la plage réelle (rang 9xxxxx) : il ne peut pas entrer en
   // collision avec la numérotation de l'application.
   const numero = `FAC-${new Date().getFullYear()}-${String(numeroFixture).padStart(6, "0")}`;
-  ecrire(
-    "INSERT INTO Invoice (id, orderId, number, createdAt) VALUES (?, ?, ?, ?)",
+  await ecrire(
+    `INSERT INTO "Invoice" (id, "orderId", number, "createdAt") VALUES (?, ?, ?, ?)`,
     `${PREFIXE_FIXTURE}i-${suffixe}`,
     orderId,
     numero,
@@ -95,11 +100,11 @@ function poserFacture({ sellerId, customerId, buyerPhone, buyerName, montant }) 
   return { orderId, reference, numero };
 }
 
-function nettoyerFixtures() {
+async function nettoyerFixtures() {
   // L'ordre importe : Invoice et Payment référencent Order.
-  ecrire(`DELETE FROM Invoice WHERE id LIKE '${PREFIXE_FIXTURE}%'`);
-  ecrire(`DELETE FROM Payment WHERE id LIKE '${PREFIXE_FIXTURE}%'`);
-  ecrire(`DELETE FROM "Order" WHERE id LIKE '${PREFIXE_FIXTURE}%'`);
+  await ecrire(`DELETE FROM "Invoice" WHERE id LIKE '${PREFIXE_FIXTURE}%'`);
+  await ecrire(`DELETE FROM "Payment" WHERE id LIKE '${PREFIXE_FIXTURE}%'`);
+  await ecrire(`DELETE FROM "Order" WHERE id LIKE '${PREFIXE_FIXTURE}%'`);
 }
 
 console.log(`\n=== FACTURES depuis ${BASE} ===\n`);
@@ -139,47 +144,47 @@ const numerosAffiches = (page) =>
 
 try {
   // Restes d'une exécution interrompue : on repart d'une base propre.
-  nettoyerFixtures();
+  (await nettoyerFixtures());
 
-  const idVendeurPrincipal = un(
-    `SELECT s.id FROM SellerProfile s JOIN User u ON u.id = s.userId
+  const idVendeurPrincipal = (await un(
+    `SELECT s.id FROM "SellerProfile" s JOIN "User" u ON u.id = s."userId"
       WHERE u.email = 'vendeur@koli.ci'`
-  ).id;
-  const clientCompte = un(
-    `SELECT u.phone, c.id AS profil FROM User u
-       JOIN CustomerProfile c ON c.userId = u.id
+  )).id;
+  const clientCompte = (await un(
+    `SELECT u.phone, c.id AS profil FROM "User" u
+       JOIN "CustomerProfile" c ON c."userId" = u.id
       WHERE u.email = 'client@koli.ci'`
-  );
-  const autreVendeur = un(
-    "SELECT id FROM SellerProfile WHERE id <> ? LIMIT 1",
+  ));
+  const autreVendeur = (await un(
+    `SELECT id FROM "SellerProfile" WHERE id <> ? LIMIT 1`,
     idVendeurPrincipal
-  );
+  ));
 
   // Facture d'un concurrent : elle ne doit JAMAIS apparaître au vendeur.
   const factureConcurrent = autreVendeur
-    ? poserFacture({
+    ? (await poserFacture({
         sellerId: autreVendeur.id,
         customerId: null,
         buyerName: "Client du concurrent",
         buyerPhone: "+2250700000001",
         montant: 33000,
-      })
+      }))
     : null;
 
   // Achat SANS COMPTE au nom du client : `customerId` nul, seul le téléphone
   // rattache. C'est la situation de la majorité du public visé.
-  const factureInvitee = poserFacture({
+  const factureInvitee = (await poserFacture({
     sellerId: idVendeurPrincipal,
     customerId: null,
     buyerName: "Achat invité",
     buyerPhone: clientCompte.phone,
     montant: 12000,
-  });
+  }));
 
   // ═══════════ 1. La numérotation, telle qu'elle est REELLEMENT en base
-  const facturesBase = tous(
-    "SELECT number FROM Invoice ORDER BY number ASC"
-  ).map((f) => f.number);
+  const facturesBase = (await tous(
+    `SELECT number FROM "Invoice" ORDER BY number ASC`
+  )).map((f) => f.number);
 
   verifier(
     facturesBase.length > 0,
@@ -198,9 +203,9 @@ try {
   verifier(doublons.length === 0, "aucun numero en double", doublons.join(", "));
 
   // Une facture par paiement abouti, ni plus ni moins.
-  const paiementsAboutis = un(
-    "SELECT COUNT(*) n FROM Payment WHERE status = 'SUCCEEDED'"
-  ).n;
+  const paiementsAboutis = (await un(
+    `SELECT COUNT(*) n FROM "Payment" WHERE status = 'SUCCEEDED'`
+  )).n;
   verifier(
     facturesBase.length === paiementsAboutis,
     "une facture par paiement abouti, exactement",
@@ -257,12 +262,12 @@ try {
   const idVendeur = idVendeurPrincipal;
 
   const siennes = new Set(
-    tous(
-      `SELECT i.number FROM Invoice i
-         JOIN "Order" o ON o.id = i.orderId
-        WHERE o.sellerId = ?`,
+    (await tous(
+      `SELECT i.number FROM "Invoice" i
+         JOIN "Order" o ON o.id = i."orderId"
+        WHERE o."sellerId" = ?`,
       idVendeur
-    ).map((r) => r.number)
+    )).map((r) => r.number)
   );
   verifier(
     affichees.every((n) => siennes.has(n)),
@@ -338,19 +343,19 @@ try {
     "elle parle de « reçus » et non de « factures » : le client a payé, il ne doit rien"
   );
 
-  const telClient = un(
-    "SELECT phone FROM User WHERE email = 'client@koli.ci'"
-  ).phone;
+  const telClient = (await un(
+    `SELECT phone FROM "User" WHERE email = 'client@koli.ci'`
+  )).phone;
   const sesRecus = new Set(
-    tous(
-      `SELECT i.number FROM Invoice i
-         JOIN "Order" o ON o.id = i.orderId
-        WHERE o.buyerPhone = ?
-           OR o.customerId = (SELECT c.id FROM CustomerProfile c
-                                JOIN User u ON u.id = c.userId
+    (await tous(
+      `SELECT i.number FROM "Invoice" i
+         JOIN "Order" o ON o.id = i."orderId"
+        WHERE o."buyerPhone" = ?
+           OR o."customerId" = (SELECT c.id FROM "CustomerProfile" c
+                                JOIN "User" u ON u.id = c."userId"
                                WHERE u.email = 'client@koli.ci')`,
       telClient
-    ).map((r) => r.number)
+    )).map((r) => r.number)
   );
 
   const recusAffiches = await numerosAffiches(client);
@@ -388,11 +393,11 @@ try {
   }
 
   // ═══════════ 6. La pièce elle-meme reste atteignable et complete
-  const reference = un(
-    `SELECT o.reference FROM Invoice i JOIN "Order" o ON o.id = i.orderId
-      WHERE o.sellerId = ? LIMIT 1`,
+  const reference = (await un(
+    `SELECT o.reference FROM "Invoice" i JOIN "Order" o ON o.id = i."orderId"
+      WHERE o."sellerId" = ? LIMIT 1`,
     idVendeur
-  ).reference;
+  )).reference;
 
   const piece = await vendeur.goto(`${BASE}/facture/${reference}`, {
     waitUntil: "networkidle",
@@ -552,8 +557,8 @@ try {
 } finally {
   // Les fixtures sont retirées quoi qu'il arrive : un test qui laisse des
   // traces fausse les suivants — et ici, ce seraient de fausses factures.
-  nettoyerFixtures();
-  db.close();
+  (await nettoyerFixtures());
+
   await navigateur.close();
 }
 

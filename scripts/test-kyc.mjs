@@ -14,7 +14,7 @@
  */
 
 import { chromium } from "playwright";
-import Database from "better-sqlite3";
+import { lire } from "./base-donnees.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const MDP = "Password123!";
@@ -30,15 +30,46 @@ const verifier = (ok, libelle, detail = "") => {
   }
 };
 
-const lire = (requete, ...params) => {
-  const db = new Database("prisma/dev.db", { readonly: true });
-  const r = db.prepare(requete).all(...params);
-  db.close();
-  return r;
-};
-
 const bouton = (p, libelle) =>
   p.getByRole("button", { name: libelle }).filter({ visible: true }).first();
+
+/**
+ * Attend que la BASE porte la trace du depot, au lieu de dormir un temps fixe.
+ *
+ * Les 3,5 secondes accordees ici valaient pour un fichier SQLite local. Un
+ * depot de piece ecrit sur disque PUIS en base : sur une liaison lente, la
+ * lecture arrivait avant l'ecriture et le test annoncait « la piece n'est pas
+ * enregistree » — suivi de six echecs en cascade, tous faux.
+ */
+const attendreQue = async (mesure, attendu, limiteMs = 25000) => {
+  const fin = Date.now() + limiteMs;
+  let valeur = await mesure();
+  while (Date.now() < fin) {
+    if (attendu(valeur)) return valeur;
+    await new Promise((r) => setTimeout(r, 300));
+    valeur = await mesure();
+  }
+  return valeur;
+};
+
+/**
+ * La derniere piece deposee par le vendeur de demonstration.
+ *
+ * Toujours `d.*`, jamais une liste de colonnes passee en argument : une
+ * requete dont le SQL se compose a l'execution echappe a `verif:requetes`, qui
+ * confronte chaque requete au schema reel. Le peu qu'on gagnerait a ne lire
+ * que deux colonnes ne vaut pas de sortir du champ de ce controle.
+ */
+const dernierePiece = async () =>
+  (
+    await lire(
+      `SELECT d.* FROM "KycDocument" d
+         JOIN "SellerProfile" s ON s.id = d."sellerId"
+         JOIN "User" u ON u.id = s."userId"
+        WHERE u.email = ? ORDER BY d."createdAt" DESC LIMIT 1`,
+      "vendeur@koli.ci"
+    )
+  )[0];
 
 const connecter = async (page, identifiant) => {
   await page.goto(`${BASE}/connexion`, { waitUntil: "networkidle" });
@@ -88,12 +119,18 @@ const navigateur = await chromium.launch();
   // Nom legal.
   await page.locator("#legalName").fill("Koné Awa Marie");
   await bouton(page, /Enregistrer/i).click();
-  await page.waitForTimeout(2500);
 
-  const enBase = lire(
-    `SELECT legalName FROM SellerProfile s JOIN User u ON u.id = s.userId WHERE u.email = ?`,
-    "vendeur@koli.ci"
-  )[0];
+  const enBase = await attendreQue(
+    async () =>
+      (
+        await lire(
+          `SELECT "legalName" FROM "SellerProfile" s
+             JOIN "User" u ON u.id = s."userId" WHERE u.email = ?`,
+          "vendeur@koli.ci"
+        )
+      )[0],
+    (r) => r?.legalName === "Koné Awa Marie"
+  );
   verifier(
     enBase?.legalName === "Koné Awa Marie",
     "le nom legal est enregistre",
@@ -119,36 +156,46 @@ const navigateur = await chromium.launch();
   });
   await page.waitForTimeout(3000);
 
-  const traceFaux = lire(
-    `SELECT COUNT(*) n FROM KycDocument d JOIN SellerProfile s ON s.id = d.sellerId
-       JOIN User u ON u.id = s.userId WHERE u.email = ? AND d.originalName = ?`,
+  const traceFaux = (await lire(
+    `SELECT COUNT(*) n FROM "KycDocument" d JOIN "SellerProfile" s ON s.id = d."sellerId"
+       JOIN "User" u ON u.id = s."userId" WHERE u.email = ? AND d."originalName" = ?`,
     "vendeur@koli.ci",
     nomFaux
-  )[0].n;
+  ))[0].n;
 
   verifier(
     traceFaux === 0,
     "un fichier HTML annonce comme image est REFUSE",
     `${traceFaux} enregistrement(s) du fichier piege`
   );
+  // On ATTEND l'avertissement au lieu de le compter une fois : `count()` ne
+  // patiente pas, et sur une liaison lente il rendait 0 avant que la reponse
+  // du serveur n'ait fait apparaitre le message.
+  const avertissement = page.locator('[role="alert"]').filter({ hasText: /format/i }).first();
+  await avertissement.waitFor({ state: "visible", timeout: 20000 }).catch(() => {});
   verifier(
-    (await page.locator('[role="alert"]').filter({ hasText: /format/i }).count()) > 0,
+    (await avertissement.count()) > 0,
     "le refus est explique au vendeur"
   );
 
   // ═══════════ 3. Une vraie image est acceptee
+  //
+  // On note la piece PRECEDENTE avant d'envoyer : redeposer la remplace par une
+  // ligne neuve, portant un nouvel identifiant. Attendre « une piece nommee
+  // identité » ne suffirait pas — celle du passage precedent porte le meme nom,
+  // et le test s'arreterait dessus, la trouvant deja REFUSEE.
+  const pieceAvant = await dernierePiece();
+
   await champ.setInputFiles({
     name: "ma piece d'identité.jpg",
     mimeType: "image/jpeg",
     buffer: JPEG,
   });
-  await page.waitForTimeout(3500);
 
-  const doc = lire(
-    `SELECT d.* FROM KycDocument d JOIN SellerProfile s ON s.id = d.sellerId
-       JOIN User u ON u.id = s.userId WHERE u.email = ? ORDER BY d.createdAt DESC LIMIT 1`,
-    "vendeur@koli.ci"
-  )[0];
+  const doc = await attendreQue(
+    () => dernierePiece(),
+    (d) => d != null && d.id !== pieceAvant?.id
+  );
 
   verifier(doc !== undefined, "la piece est enregistree");
   verifier(doc?.status === "PENDING", "elle attend un examen", doc?.status);
@@ -174,11 +221,7 @@ const navigateur = await chromium.launch();
 
 // ═══════════ 4. La piece n'est PAS atteignable sans autorisation
 {
-  const doc = lire(
-    `SELECT d.id, d.fileUrl FROM KycDocument d JOIN SellerProfile s ON s.id = d.sellerId
-       JOIN User u ON u.id = s.userId WHERE u.email = ? ORDER BY d.createdAt DESC LIMIT 1`,
-    "vendeur@koli.ci"
-  )[0];
+  const doc = await dernierePiece();
 
   if (!doc) {
     verifier(false, "une piece existe pour eprouver les acces");
@@ -291,12 +334,12 @@ const navigateur = await chromium.launch();
     await bouton(page, /Confirmer le refus/i).click();
     await page.waitForTimeout(3000);
 
-    const doc = lire(
-      `SELECT d.status, d.rejectionReason, d.reviewedById FROM KycDocument d
-         JOIN SellerProfile s ON s.id = d.sellerId JOIN User u ON u.id = s.userId
-        WHERE u.email = ? ORDER BY d.createdAt DESC LIMIT 1`,
+    const doc = (await lire(
+      `SELECT d.status, d."rejectionReason", d."reviewedById" FROM "KycDocument" d
+         JOIN "SellerProfile" s ON s.id = d."sellerId" JOIN "User" u ON u.id = s."userId"
+        WHERE u.email = ? ORDER BY d."createdAt" DESC LIMIT 1`,
       "vendeur@koli.ci"
-    )[0];
+    ))[0];
 
     verifier(doc?.status === "REJECTED", "la piece est refusee", doc?.status);
     verifier(
@@ -306,10 +349,10 @@ const navigateur = await chromium.launch();
     verifier(doc?.reviewedById != null, "l'examinateur est identifie");
 
     // §48 : la decision figure au journal d'audit.
-    const trace = lire(
-      "SELECT * FROM AuditLog WHERE action = ? ORDER BY createdAt DESC LIMIT 1",
+    const trace = (await lire(
+      `SELECT * FROM "AuditLog" WHERE action = ? ORDER BY "createdAt" DESC LIMIT 1`,
       "KYC_DOCUMENT_REVIEWED"
-    )[0];
+    ))[0];
     verifier(trace !== undefined, "la decision est consignee au journal (§48)");
     verifier(
       trace?.actorName != null,

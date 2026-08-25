@@ -15,7 +15,7 @@
  */
 
 import { createHmac } from "node:crypto";
-import Database from "better-sqlite3";
+import { lire, lireUne, ecrire } from "./base-donnees.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const SECRET = process.env.PAYMENT_WEBHOOK_SECRET ?? "secret-de-test-koli";
@@ -31,13 +31,6 @@ const verifier = (ok, libelle, detail = "") => {
   }
 };
 
-const lire = (requete, ...params) => {
-  const db = new Database("prisma/dev.db", { readonly: true });
-  const r = db.prepare(requete).all(...params);
-  db.close();
-  return r;
-};
-
 /**
  * Pose une reference fournisseur sur un paiement en attente.
  *
@@ -48,20 +41,15 @@ const lire = (requete, ...params) => {
  *
  * On la fabrique donc, plutot que d'annoncer un controle qui ne verifie rien.
  */
-const preparerPaiementEnAttente = () => {
-  const db = new Database("prisma/dev.db");
-  const cible = db
-    .prepare(`SELECT id, amount FROM Payment WHERE status = 'PENDING' LIMIT 1`)
-    .get();
+const preparerPaiementEnAttente = async () => {
+  const cible = await lireUne(
+    `SELECT id, amount FROM "Payment" WHERE status = 'PENDING' LIMIT 1`
+  );
 
-  if (!cible) {
-    db.close();
-    return null;
-  }
+  if (!cible) return null;
 
   const ref = `test_rappel_${Date.now()}`;
-  db.prepare("UPDATE Payment SET providerRef = ? WHERE id = ?").run(ref, cible.id);
-  db.close();
+  await ecrire('UPDATE "Payment" SET "providerRef" = ? WHERE id = ?', ref, cible.id);
 
   return { id: cible.id, amount: cible.amount, providerRef: ref };
 };
@@ -112,11 +100,11 @@ const rappeler = async (corps, entetes = {}) =>
 // ═══════════ 4. LE POINT CRITIQUE : un rappel forge ne fait payer personne
 {
   // On cible une VRAIE commande encore en attente de paiement.
-  const cible = lire(
-    `SELECT p.id, p.status, o.reference FROM Payment p
-       JOIN "Order" o ON o.id = p.orderId
+  const cible = (await lire(
+    `SELECT p.id, p.status, o.reference FROM "Payment" p
+       JOIN "Order" o ON o.id = p."orderId"
       WHERE p.status = 'PENDING' LIMIT 1`
-  )[0];
+  ))[0];
 
   if (!cible) {
     verifier(false, "une commande en attente existe pour eprouver le forgeage");
@@ -131,7 +119,7 @@ const rappeler = async (corps, entetes = {}) =>
     // Sans signature valide.
     const r = await rappeler(corps, { "x-koli-signature": "f".repeat(64) });
 
-    const apres = lire("SELECT status FROM Payment WHERE id = ?", cible.id)[0].status;
+    const apres = (await lire(`SELECT status FROM "Payment" WHERE id = ?`, cible.id))[0].status;
 
     verifier(r.status === 401, "le rappel forge est rejete", `statut ${r.status}`);
     verifier(
@@ -182,7 +170,7 @@ const rappeler = async (corps, entetes = {}) =>
 
 // ═══════════ 7. Signature valide sur un paiement reel : l'etat suit
 {
-  const cible = preparerPaiementEnAttente();
+  const cible = (await preparerPaiementEnAttente());
 
   if (!cible) {
     verifier(false, "un paiement en attente existe pour eprouver le rappel");
@@ -193,7 +181,7 @@ const rappeler = async (corps, entetes = {}) =>
       amount: cible.amount,
     });
     const r = await rappeler(corps, { "x-koli-signature": signer(corps) });
-    const apres = lire("SELECT status FROM Payment WHERE id = ?", cible.id)[0].status;
+    const apres = (await lire(`SELECT status FROM "Payment" WHERE id = ?`, cible.id))[0].status;
 
     verifier(r.status === 200, "un rappel signe est accepte");
     verifier(
@@ -205,7 +193,7 @@ const rappeler = async (corps, entetes = {}) =>
     // Rejeu : les agregateurs renvoient leurs rappels. Le meme, deux fois, ne
     // doit rien casser.
     const r2 = await rappeler(corps, { "x-koli-signature": signer(corps) });
-    const apres2 = lire("SELECT status FROM Payment WHERE id = ?", cible.id)[0].status;
+    const apres2 = (await lire(`SELECT status FROM "Payment" WHERE id = ?`, cible.id))[0].status;
     verifier(
       r2.status === 200 && apres2 === "AWAITING_CUSTOMER",
       "un rappel rejoue ne change rien de plus"
@@ -215,7 +203,7 @@ const rappeler = async (corps, entetes = {}) =>
 
 // ═══════════ 8. Un montant discordant n'est pas traite
 {
-  const cible = preparerPaiementEnAttente();
+  const cible = (await preparerPaiementEnAttente());
 
   if (!cible) {
     verifier(false, "un paiement en attente existe pour eprouver le montant");
@@ -228,7 +216,7 @@ const rappeler = async (corps, entetes = {}) =>
       amount: cible.amount + 1,
     });
     const r = await rappeler(corps, { "x-koli-signature": signer(corps) });
-    const apres = lire("SELECT status FROM Payment WHERE id = ?", cible.id)[0].status;
+    const apres = (await lire(`SELECT status FROM "Payment" WHERE id = ?`, cible.id))[0].status;
 
     verifier(r.status === 200, "le rappel discordant est recu sans erreur");
     verifier(

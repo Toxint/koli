@@ -15,7 +15,7 @@
  */
 
 import { chromium } from "playwright";
-import Database from "better-sqlite3";
+import { lireUne } from "./base-donnees.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const MDP = "Password123!";
@@ -31,15 +31,31 @@ const verifier = (ok, libelle, detail = "") => {
   }
 };
 
-const db = new Database("prisma/dev.db", { readonly: true });
-const compter = (action) =>
-  db.prepare("SELECT COUNT(*) n FROM AuditLog WHERE action = ?").get(action).n;
+const compter = async (action) =>
+  (await lireUne('SELECT COUNT(*) n FROM "AuditLog" WHERE action = ?', action)).n;
 const derniere = (action) =>
-  db
-    .prepare(
-      "SELECT * FROM AuditLog WHERE action = ? ORDER BY createdAt DESC LIMIT 1"
-    )
-    .get(action);
+  lireUne(
+    `SELECT * FROM "AuditLog" WHERE action = ? ORDER BY "createdAt" DESC LIMIT 1`,
+    action
+  );
+
+/**
+ * Attend que le journal porte la trace, au lieu de dormir un temps fixe.
+ *
+ * Les délais de ce script étaient calibrés sur un fichier SQLite local. Avec
+ * la base à Dublin, le compteur était lu AVANT que l'écriture n'arrive : le
+ * contrôle annonçait « 0 → 1 » en échec, c'est-à-dire la preuve même que
+ * l'acte avait bien été inscrit — une demi-seconde après le verdict.
+ */
+const attendreCompte = async (action, attendu, limiteMs = 20000) => {
+  const fin = Date.now() + limiteMs;
+  let n = await compter(action);
+  while (Date.now() < fin && n !== attendu) {
+    await new Promise((r) => setTimeout(r, 250));
+    n = await compter(action);
+  }
+  return n;
+};
 
 const navigateur = await chromium.launch();
 const ctx = await navigateur.newContext({ viewport: { width: 1280, height: 900 } });
@@ -78,7 +94,7 @@ await connecter("admin@koli.ci");
 
 // ═══════════ 2. Changer le taux de commission laisse une trace
 {
-  const avant = compter("COMMISSION_RATE_SET");
+  const avant = (await compter("COMMISSION_RATE_SET"));
 
   await page.goto(`${BASE}/admin/commissions`, { waitUntil: "networkidle" });
   const champ = page.locator("#taux");
@@ -89,13 +105,14 @@ await connecter("admin@koli.ci");
   await bouton(page, /Enregistrer/i).click();
   await page.waitForTimeout(2500);
 
+  const apresTaux = await attendreCompte("COMMISSION_RATE_SET", avant + 1);
   verifier(
-    compter("COMMISSION_RATE_SET") === avant + 1,
+    apresTaux === avant + 1,
     "changer le taux inscrit un acte au journal",
-    `${avant} → ${compter("COMMISSION_RATE_SET")}`
+    `${avant} → ${apresTaux}`
   );
 
-  const ligne = derniere("COMMISSION_RATE_SET");
+  const ligne = (await derniere("COMMISSION_RATE_SET"));
   verifier(
     ligne?.actorName != null && ligne.actorName.length > 0,
     "l'acte nomme son auteur",
@@ -119,7 +136,7 @@ await connecter("admin@koli.ci");
 
 // ═══════════ 3. Suspendre un compte laisse une trace
 {
-  const avant = compter("ACCOUNT_STATUS_SET");
+  const avant = (await compter("ACCOUNT_STATUS_SET"));
 
   await page.goto(`${BASE}/admin/utilisateurs`, { waitUntil: "networkidle" });
   const basculer = page
@@ -145,13 +162,14 @@ await connecter("admin@koli.ci");
       await page.waitForTimeout(2000);
     }
 
+    const apresStatut = await attendreCompte("ACCOUNT_STATUS_SET", avant + 1);
     verifier(
-      compter("ACCOUNT_STATUS_SET") === avant + 1,
+      apresStatut === avant + 1,
       "suspendre ou reactiver un compte inscrit un acte",
-      `${avant} → ${compter("ACCOUNT_STATUS_SET")}`
+      `${avant} → ${apresStatut}`
     );
 
-    const details = JSON.parse(derniere("ACCOUNT_STATUS_SET")?.metadata ?? "{}");
+    const details = JSON.parse((await derniere("ACCOUNT_STATUS_SET"))?.metadata ?? "{}");
     verifier(
       details.avant !== details.apres,
       "l'acte dit ce qui a change",
@@ -162,7 +180,7 @@ await connecter("admin@koli.ci");
 
 // ═══════════ 4. Verifier un vendeur laisse une trace
 {
-  const avant = compter("SELLER_VERIFICATION_SET");
+  const avant = (await compter("SELLER_VERIFICATION_SET"));
 
   await page.goto(`${BASE}/admin/vendeurs`, { waitUntil: "networkidle" });
   const action = page
@@ -182,10 +200,11 @@ await connecter("admin@koli.ci");
       await page.waitForTimeout(2000);
     }
 
+    const apresVerif = await attendreCompte("SELLER_VERIFICATION_SET", avant + 1);
     verifier(
-      compter("SELLER_VERIFICATION_SET") === avant + 1,
+      apresVerif === avant + 1,
       "une decision de verification inscrit un acte",
-      `${avant} → ${compter("SELLER_VERIFICATION_SET")}`
+      `${avant} → ${apresVerif}`
     );
   } else {
     verifier(false, "une action de verification est proposee");
@@ -207,9 +226,10 @@ await connecter("admin@koli.ci");
   );
 
   // L'auteur doit etre nomme : un journal anonyme ne sert a rien.
-  const admin = db
-    .prepare("SELECT name FROM User WHERE email = ?")
-    .get("admin@koli.ci");
+  const admin = await lireUne(
+    'SELECT name FROM "User" WHERE email = ?',
+    "admin@koli.ci"
+  );
   verifier(
     texte.includes(admin.name),
     "chaque acte est attribue a son auteur",
@@ -292,7 +312,7 @@ await connecter("admin@koli.ci");
   );
 }
 
-db.close();
+
 await navigateur.close();
 
 console.log("");

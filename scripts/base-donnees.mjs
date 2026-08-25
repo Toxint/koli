@@ -1,4 +1,7 @@
 import pg from "pg";
+import { chargerEnv } from "./env.mjs";
+
+chargerEnv();
 
 /**
  * Acces a la base pour les scripts de verification.
@@ -24,7 +27,12 @@ import pg from "pg";
  * requete cherche une table `order` qui n existe pas.
  */
 
-const url = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
+// Le POOLER d abord, et non la connexion directe. Les verifications ne
+// touchent pas au schema : le mode transaction leur suffit. Et le port 5432
+// est frequemment filtre — VPN, partage de connexion mobile, reseau
+// d entreprise —, auquel cas toute la campagne echouerait sur un motif
+// etranger a ce qu elle verifie.
+const url = process.env.DATABASE_URL ?? process.env.DIRECT_URL;
 
 if (!url) {
   console.error(
@@ -76,6 +84,23 @@ export async function lireUne(requete, ...params) {
 export async function ecrire(requete, ...params) {
   const r = await pool.query(traduireParametres(requete), params);
   return r.rowCount ?? 0;
+}
+
+/**
+ * Duree moyenne d un aller-retour vers la base, connexion deja etablie.
+ *
+ * Ce n est pas une curiosite. Les tests de bout en bout enchainent des dizaines
+ * de requetes : a 40 ms, une page se rend en une demi-seconde ; a 700 ms, la
+ * meme page met vingt-six secondes et tous les delais d attente expirent. Les
+ * scripts rapportent alors des regressions qui n existent pas — c est
+ * exactement ce qui s est produit, et il a fallu une demi-journee pour
+ * comprendre que la faute etait au reseau et non au code.
+ */
+export async function mesurerLatence(tirs = 5) {
+  await pool.query("SELECT 1");
+  const debut = Date.now();
+  for (let i = 0; i < tirs; i++) await pool.query("SELECT 1");
+  return Math.round((Date.now() - debut) / tirs);
 }
 
 /**
