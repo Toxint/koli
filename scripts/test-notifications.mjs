@@ -265,6 +265,30 @@ let reference;
     );
   }
 
+  // Filtre « non lues ».
+  await page.goto(`${BASE}/notifications?filtre=non-lues`, { waitUntil: "networkidle" });
+  const nonLuesAffichees = await page
+    .locator("main ul li")
+    // Drapeau « i » indispensable : la pastille porte la classe `uppercase`,
+    // et `innerText` restitue « NOUVEAU ». Sans lui, ce controle etait FAUX
+    // des qu il y avait quelque chose a verifier — il ne passait que sur une
+    // liste vide, c est-a-dire quand il ne verifiait rien.
+    .evaluateAll((els) => els.map((e) => /Nouveau/i.test(e.innerText)));
+  // La liste doit CONTENIR quelque chose, sinon le controle suivant est vide
+  // de sens : `every` sur un tableau vide vaut vrai. C'est ce qui masquait le
+  // defaut de casse — le controle ne passait que lorsqu'il n'avait rien a
+  // verifier.
+  verifier(
+    nonLuesAffichees.length > 0,
+    "le filtre « non lues » affiche bien des notifications a examiner",
+    `${nonLuesAffichees.length} ligne(s), ${nonLuesVendeur()} non lue(s) en base`
+  );
+  verifier(
+    nonLuesAffichees.length > 0 && nonLuesAffichees.every(Boolean),
+    "le filtre « non lues » n'affiche que des non-lues",
+    JSON.stringify(nonLuesAffichees.slice(0, 5))
+  );
+
   // Marquer comme lu.
   // Expression ANCREE : sans le '^', /Marquer comme lu/ correspond aussi a
   // « Tout marquer comme lu », qui figure plus haut dans la page. Le test
@@ -284,16 +308,6 @@ let reference;
     verifier(baisse, "le marquage est enregistre", `${avant} → ${nonLuesVendeur()}`);
   }
 
-  // Filtre « non lues ».
-  await page.goto(`${BASE}/notifications?filtre=non-lues`, { waitUntil: "networkidle" });
-  const nonLuesAffichees = await page
-    .locator("main ul li")
-    .evaluateAll((els) => els.map((e) => /Nouveau/.test(e.innerText)));
-  verifier(
-    nonLuesAffichees.every(Boolean),
-    "le filtre « non lues » n'affiche que des non-lues",
-    JSON.stringify(nonLuesAffichees.slice(0, 5))
-  );
 
   // « Tout marquer comme lu ».
   //

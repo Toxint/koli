@@ -27,7 +27,16 @@ const ROLE_ROUTES: { prefix: string; role: string; redirect: string }[] = [
   { prefix: "/admin", role: "ADMIN", redirect: "/connexion" },
 ];
 
-export async function middleware(request: NextRequest) {
+/**
+ * Renomme de `middleware.ts` en `proxy.ts` : Next 16 deprecie l ancienne
+ * convention. Le fichier fonctionnait encore, mais un avertissement a chaque
+ * construction finit par ne plus etre lu — et la prochaine version majeure ne
+ * previendra plus, elle cassera.
+ *
+ * Seuls le nom du fichier et celui de la fonction exportee changent ; le
+ * matcher et la logique sont identiques.
+ */
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const token = request.cookies.get(COOKIE_NAME)?.value;

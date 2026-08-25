@@ -700,12 +700,12 @@ L'enum `DeliveryStatus` gagne l'état **`UNASSIGNED`** qui lui manquait : une li
 ### Manques connus, à traiter dans leur phase
 
 - ~~Navigation (§10)~~ — **fait**. Barre latérale repliable à partir de 1024px, tiroir glissant en dessous, cloche de notifications et déconnexion avec confirmation. Le compteur de non-lues passe par `MenuEspace`, un composant serveur : recopié sur chaque page, une page finissait par l'oublier et affichait une pastille vide en permanence.
-- **Jalons du livreur (§26)** — les étapes intermédiaires (colis récupéré, en transit, arrivé) n'ont pas d'interface. La validation OTP franchit le chemin d'un bloc, chaque saut restant une transition légale et journalisée. À remplacer par de vraies actions en Phase 15, avec un état « non assignée » à ajouter à l'enum `DeliveryStatus`.
+- ~~Jalons du livreur (§26)~~ — **fait le 25/08/2026**. Six étapes du §26, source unique dans `lib/deliveries/jalons.ts` : le vendeur déclare le colis prêt, le livreur pose les trois jalons suivants, le client suit sur une frise. A révélé un défaut actif : une commande assignée restait en `SELLER_ACCEPTED`, statut que la page de suivi ne connaissait pas — elle reproposait de payer une commande déjà réglée.
 - ~~Assignation du livreur (§26)~~ — **fait** le 20/08/2026, voir §8 quater.
-- **Tableaux sur mobile (§8)** — défilement horizontal au lieu d'une conversion en cartes (Phase 28).
-- **Breakpoint tablette** — seuls `sm:` et `lg:` sont utilisés ; `md:` (768px, §7) est inexploité (Phase 28).
-- **`/pay/<référence>` inexistante** renvoie une page « Commande introuvable » avec un statut HTTP 200 plutôt qu'un 404.
-- **Convention Next.js** — Next 16 signale que `middleware.ts` est déprécié au profit de `proxy.ts`. Migration à planifier.
+- ~~Tableaux sur mobile (§8)~~ — **fait**. Plus aucun `<table>` dans l’interface : les listes sont des cartes empilées, vérifié par balayage du code.
+- **Breakpoint tablette** — `md:` (768px) n’est utilisé que dans deux fichiers. Ce n’est pas un défaut constaté : `verif:responsive` couvre 768px et n’y relève ni débordement, ni cible tactile trop petite, ni contraste insuffisant. À revoir seulement si un usage réel sur tablette montre une mise en page à l’étroit.
+- ~~`/pay/<référence>` inexistante~~ — **fait le 25/08/2026**. `notFound()` et un `not-found.tsx` propre au paiement : vrai 404, message utile à qui a reçu un lien par WhatsApp plutôt que le « cette page n’existe pas » générique.
+- ~~Convention Next.js~~ — **fait le 25/08/2026**. `middleware.ts` renommé en `proxy.ts`, fonction exportée `proxy`. Matcher et logique inchangés ; l’avertissement de construction a disparu.
 - ~~Migrations Prisma~~ — **fait le 24/08/2026**. La base existante a été prise pour référence (`prisma/migrations/0_init`, produite par lecture de la base elle-même et non du schéma, puis marquée appliquée). `db push` ne doit plus être utilisé : `npm run db:migrer` en développement, `npm run db:deployer` en production. Vérifié en reconstruisant une base vierge depuis les seules migrations — structure identique, aucun écart.
 - ~~Clé étrangère manquante~~ — **fait le 24/08/2026**. `Fund.sellerId`, `OrderStatusHistory.actorUserId` et `DisputeMessage.authorUserId` n’étaient que des chaînes. `npm run verif:schema` vérifie désormais que toute colonne en `<chose>Id` porte une vraie clé, que SQLite les fait respecter, et qu’aucune ligne orpheline ne subsiste.
 

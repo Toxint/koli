@@ -75,9 +75,20 @@ verifier(
   "le catalogue est accessible"
 );
 verifier(texte.length > 40, "le catalogue affiche du contenu", `${texte.length} car.`);
+
+// On CHERCHE le produit au lieu de le supposer sur la premiere page.
+//
+// Le catalogue est pagine a 20 et trie du plus recent au plus ancien. Chaque
+// passage de la suite y ajoute des produits de test ; passe le vingtieme, les
+// produits de demonstration — les plus anciens — sont repousses en page 2, et
+// le controle echouait sur une pagination qui fonctionne parfaitement.
+await page.goto(`${BASE}/vendeur/produits?q=Robe+Wax`, {
+  waitUntil: "networkidle",
+});
+texte = await page.evaluate(() => document.body.innerText);
 verifier(
-  /Robe Wax|Sac en Cuir/i.test(texte),
-  "les produits de demonstration sont listes"
+  /Robe Wax/i.test(texte),
+  "un produit de demonstration se retrouve par la recherche"
 );
 // -------------------------------------------------------- 2. Creation produit
 //

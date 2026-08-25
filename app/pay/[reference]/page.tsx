@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { getCurrentUser } from "@/lib/auth/actions";
 import { PayFlow } from "./pay-flow";
@@ -120,20 +121,7 @@ export default async function PayReferencePage({
     );
   }
 
-  // Commande introuvable
-  return (
-    <main className="min-h-screen bg-cream flex items-center justify-center p-4">
-      <div className="max-w-md w-full text-center space-y-4">
-        <div className="w-16 h-16 rounded-full bg-brand-soft text-brand flex items-center justify-center text-3xl mx-auto">
-          <Icone nom="alerte" className="w-8 h-8 mx-auto" />
-        </div>
-        <h1 className="text-xl font-bold text-brand dark:text-white">
-          Commande introuvable
-        </h1>
-        <p className="text-sm text-ink-muted">
-          La référence de commande <code className="bg-brand-soft dark:bg-slate-800 px-1 py-0.5 rounded text-brand">{reference}</code> n&apos;existe pas ou a expiré.
-        </p>
-      </div>
-    </main>
-  );
+  // Reference inconnue : un vrai 404, et non une page « introuvable »
+  // renvoyee avec un code de succes. L ecran vit dans not-found.tsx.
+  notFound();
 }
