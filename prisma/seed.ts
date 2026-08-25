@@ -96,6 +96,46 @@ async function main() {
 
   const sellerProfileId = sellerUser.sellerProfile!.id;
 
+  // 2 bis. Un SECOND vendeur — pas un ornement.
+  //
+  // Plusieurs contrôles portent sur le cloisonnement : un vendeur ne doit voir
+  // ni les factures, ni le journal financier, ni les clients d'un autre. Avec
+  // un seul vendeur en base, ces contrôles n'avaient rien à comparer et le
+  // disaient — « cloisonnement NON vérifié ». Un contrôle qui ne peut pas
+  // échouer ne protège rien : la faille resterait invisible jusqu'au jour où
+  // un vrai second vendeur s'inscrirait.
+  const autreVendeur = await prisma.user.create({
+    data: {
+      name: "Maison Baoulé",
+      phone: "+2250709080706",
+      email: "vendeur2@koli.ci",
+      passwordHash: defaultPasswordHash,
+      role: UserRole.SELLER,
+      status: UserStatus.ACTIVE,
+      sellerProfile: {
+        create: {
+          businessName: "Maison Baoulé",
+          verificationStatus: SellerVerificationStatus.VERIFIED,
+        },
+      },
+    },
+    include: { sellerProfile: true },
+  });
+
+  const autreSellerProfileId = autreVendeur.sellerProfile!.id;
+
+  const pagne = await prisma.product.create({
+    data: {
+      sellerId: autreSellerProfileId,
+      name: "Pagne Baoulé tissé main",
+      description: "Pagne tissé à la main, motifs traditionnels baoulé.",
+      category: "Mode",
+      price: 32000,
+      quantity: 6,
+      weightKg: 0.6,
+    },
+  });
+
   // 3. Customer User
   const customerUser = await prisma.user.create({
     data: {
@@ -255,11 +295,56 @@ async function main() {
     },
   });
 
+  // 7. Une commande chez le SECOND vendeur.
+  //
+  // Le produit ne suffisait pas : les contrôles de cloisonnement cherchent une
+  // COMMANDE appartenant à un concurrent, pour vérifier qu'elle n'apparaît ni
+  // dans le journal financier, ni dans les factures du premier vendeur. Sans
+  // elle, ils s'abstenaient — et un contrôle qui s'abstient ne prouve rien.
+  await prisma.order.create({
+    data: {
+      reference: generateOrderReference(),
+      sellerId: autreSellerProfileId,
+      buyerName: "Kouadio Yao",
+      buyerPhone: "+2250788990011",
+      buyerCountry: "Côte d'Ivoire",
+      buyerCity: "Bouaké",
+      buyerAddress: "Quartier Air France",
+      deliveryFee: 1500,
+      status: OrderStatus.FUNDS_SECURED,
+      items: {
+        create: [{ productId: pagne.id, quantity: 1, unitPrice: 32000 }],
+      },
+      payment: {
+        create: {
+          provider: PaymentProviderType.TEST,
+          status: PaymentStatus.SUCCEEDED,
+          amount: 33500,
+          simulatedOutcome: "SUCCESS",
+          confirmedAt: new Date(),
+        },
+      },
+      fund: {
+        create: {
+          sellerId: autreSellerProfileId,
+          amount: 32000,
+          secured: true,
+          released: false,
+          securedAt: new Date(),
+        },
+      },
+      invoice: {
+        create: { number: formaterNumeroFacture(new Date().getFullYear(), 2) },
+      },
+    },
+  });
+
   console.log("✅ Database seeded successfully!");
   console.log("-----------------------------------------");
   console.log("Comptes de démonstration (Mot de passe: Password123!) :");
   console.log(`- Admin:   ${admin.email} (${admin.phone})`);
   console.log(`- Vendeur: ${sellerUser.email} (${sellerUser.phone})`);
+  console.log(`- Vendeur 2: ${autreVendeur.email} (${autreVendeur.phone}) — pour les controles de cloisonnement`);
   console.log(`- Client:  ${customerUser.email} (${customerUser.phone})`);
   console.log(`- Livreur: ${driverUser.email} (${driverUser.phone})`);
   console.log("-----------------------------------------");
