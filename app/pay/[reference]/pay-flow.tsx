@@ -7,6 +7,9 @@ import { simulatePaymentAction } from "@/lib/payments/actions";
 import { confirmReceptionAction } from "@/lib/orders/actions";
 import { Icone } from "@/components/ui/Icone";
 import { FormulaireLitige } from "@/components/domain/FormulaireLitige";
+import { FriseLivraison } from "@/components/domain/FriseLivraison";
+import { JALONS, indiceJalon } from "@/lib/deliveries/jalons";
+import type { OrderStatus } from "@prisma/client";
 
 interface PayFlowProps {
   order: {
@@ -93,12 +96,21 @@ export function PayFlow({
     status === "REFUND_PENDING" ||
     status === "REFUNDED";
 
-  const estPaye =
-    status === "FUNDS_SECURED" ||
-    status === "CUSTOMER_CONFIRMED" ||
-    status === "DELIVERED" ||
-    status === "FUNDS_RELEASED" ||
-    status === "COMPLETED";
+  /**
+   * Payé = tout ce qui se trouve SUR LA FRISE, à partir du séquestre.
+   *
+   * La liste était énumérée à la main et oubliait les états intermédiaires —
+   * livreur désigné, colis récupéré, en route, arrivé. Une commande assignée à
+   * un livreur retombait donc sur l'écran de paiement, qui proposait de régler
+   * une seconde fois une commande déjà payée. C'est le défaut le plus grave
+   * qu'un écran puisse avoir : il ne se plante pas, il ment.
+   *
+   * En le déduisant de la frise, tout état ajouté à celle-ci est couvert
+   * d'office. Un état hors parcours — litige, remboursement, échec — rend
+   * `-1` et suit son propre chemin.
+   */
+  const positionFrise = indiceJalon(status as OrderStatus);
+  const estPaye = positionFrise >= 0;
 
   if (enLitige) {
     const rembourse = status === "REFUND_PENDING" || status === "REFUNDED";
@@ -154,6 +166,12 @@ export function PayFlow({
     const attendConfirmation = status === "DELIVERED";
     const estTermine = status === "FUNDS_RELEASED" || status === "COMPLETED";
 
+    // Entre le paiement et la remise, l'ecran annoncait invariablement
+    // « Paiement securise KOLI confirme » — vrai, mais sans interet : le client
+    // sait qu'il a paye, ce qu'il veut savoir c'est OU EST SON COLIS.
+    const jalon = JALONS[positionFrise];
+    const enChemin = !attendConfirmation && !estTermine && positionFrise > 0;
+
     return (
       <div className="max-w-md mx-auto py-12 px-4 text-center space-y-4">
         <div
@@ -170,14 +188,18 @@ export function PayFlow({
             ? "Avez-vous reçu votre commande ?"
             : estTermine
               ? "Commande terminée"
-              : "Paiement sécurisé KOLI confirmé"}
+              : enChemin
+                ? jalon.libelleClient
+                : "Paiement sécurisé KOLI confirmé"}
         </h1>
         <p className="text-sm text-ink-muted dark:text-slate-300">
           {attendConfirmation
             ? "Le livreur a marqué votre colis comme remis. Confirmez la réception pour que le vendeur soit payé (simulation)."
             : estTermine
               ? "Vous avez confirmé la réception. Les fonds seraient versés au vendeur — aucun mouvement réel n'a lieu en mode test."
-              : "Votre paiement simulé est enregistré. Aucun argent réel n'a été prélevé ni détenu. Le vendeur voit la commande comme payée et prépare l'expédition."}
+              : enChemin
+                ? jalon.detailClient
+                : "Votre paiement simulé est enregistré. Aucun argent réel n'a été prélevé ni détenu. Le vendeur voit la commande comme payée et prépare l'expédition."}
         </p>
 
         <span className="inline-block px-3 py-1 rounded-full bg-test-mode-surface dark:bg-amber-950/80 text-test-mode dark:text-amber-300 text-[11px] font-bold uppercase tracking-wider border border-brand-border/60">
@@ -218,6 +240,15 @@ export function PayFlow({
             <span className="text-ink-muted">Adresse :</span>
             <span>{order.buyerAddress}, {order.buyerCity}</span>
           </div>
+        </div>
+
+        {/* §26 : la frise de suivi. Elle repond a la seule question que se
+            pose un client entre l'expedition et la remise. */}
+        <div className="bg-white dark:bg-slate-900 border border-hairline dark:border-slate-800 p-5 rounded-xl text-left">
+          <h2 className="text-[11px] font-bold uppercase tracking-wider text-ink-muted mb-3">
+            Suivi de votre colis
+          </h2>
+          <FriseLivraison statut={status as OrderStatus} />
         </div>
 
         {error && (

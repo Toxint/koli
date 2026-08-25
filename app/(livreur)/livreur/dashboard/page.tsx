@@ -3,6 +3,8 @@ import { getCurrentUser } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/prisma";
 import { MenuEspace } from "@/components/ui/MenuEspace";
 import { ValidateOtpModal } from "@/components/driver/ValidateOtpModal";
+import { JalonLivraison } from "@/components/domain/JalonLivraison";
+import { prochainJalonLivreur, JALONS } from "@/lib/deliveries/jalons";
 import { pluriel } from "@/lib/format";
 import { Icone } from "@/components/ui/Icone";
 
@@ -84,6 +86,14 @@ export default async function DriverDashboardPage() {
                 // Aucun montant n'est calcule ici : §25 interdit d'exposer au
                 // livreur des informations financieres qui ne lui servent pas.
                 const isDelivered = delivery.status === "CONFIRMED";
+                // §26 : l'etape suivante, et elle seule. Le livreur n'a jamais
+                // qu'une reponse juste a donner.
+                const prochain = isDelivered
+                  ? null
+                  : prochainJalonLivreur(delivery.status);
+                const etapeActuelle = JALONS.find(
+                  (j) => j.statutLivraison === delivery.status
+                );
 
                 return (
                   <div
@@ -121,7 +131,9 @@ export default async function DriverDashboardPage() {
                         >
                           <>
                             <Icone nom={isDelivered ? "valide" : "horloge"} className="w-3.5 h-3.5" />
-                            {isDelivered ? "Livrée" : "En cours de livraison"}
+                            {isDelivered
+                              ? "Livrée"
+                              : (etapeActuelle?.libelleClient ?? "En cours de livraison")}
                           </>
                         </span>
                       </div>
@@ -182,6 +194,16 @@ export default async function DriverDashboardPage() {
                           Déjà réglé — rien à encaisser
                         </span>
                       </div>
+
+                      {/* §26 : l'etape suivante. Elle n'ouvre aucun droit —
+                          la remise reste attestee par le code de reception. */}
+                      {prochain && (
+                        <JalonLivraison
+                          deliveryId={delivery.id}
+                          code={prochain.code}
+                          libelle={prochain.actionLivreur}
+                        />
+                      )}
 
                       {/* Interactive OTP Validation Modal */}
                       <ValidateOtpModal

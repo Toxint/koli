@@ -120,6 +120,10 @@ enum NotificationType {
   PACKAGE_READY
   PICKED_UP
   IN_TRANSIT
+  // Le livreur est devant la porte. C est le moment ou le client doit AGIR :
+  // sortir son code de reception. Sans type dedie, cet avis se serait confondu
+  // avec « en route », qui n appelle aucun geste.
+  ARRIVED
   DELIVERED
   CUSTOMER_CONFIRMED
   FUNDS_RELEASED

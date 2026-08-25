@@ -204,11 +204,31 @@ const attendreDeconnexion = async (page) => {
     });
     const page = await ctx.newPage();
     await connecter(page, identifiant);
+
+    // On attend LE TEXTE ATTENDU, pas seulement le changement d'URL.
+    //
+    // `connecter` avale l'expiration de son attente. Quand le serveur est
+    // sollicite par le reste de la suite, la connexion depasse le delai, le
+    // test lit la page de connexion, et conclut que le menu ne nomme pas
+    // l'espace — un echec etranger a ce qu'il verifie, qui n'apparaissait
+    // qu'une fois sur trois.
+    await page
+      .waitForFunction(
+        (motif) => new RegExp(motif, "i").test(document.body.innerText),
+        attendu.source,
+        { timeout: 30000 }
+      )
+      .catch(() => {});
+
     const texte = await page.evaluate(() => document.body.innerText);
     verifier(
       attendu.test(texte),
       `${identifiant} : le menu nomme l'espace`,
-      texte.match(/Espace \w+/)?.[0] ?? "aucun"
+      /* Sans le drapeau « i », ce detail affichait TOUJOURS « aucun » : la
+         feuille de style rend le libelle en majuscules, et `innerText` en
+         tient compte. Un message d'echec qui n'apprend rien vaut a peine
+         mieux que pas de message. */
+      texte.match(/Espace \w+/i)?.[0] ?? "aucun"
     );
     await ctx.close();
   }

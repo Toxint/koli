@@ -60,12 +60,39 @@ const FORMULATIONS: Record<NotificationType, ParRole> = {
   },
   PACKAGE_READY: {
     defaut: { titre: "Colis prêt", detail: "Le colis est prêt à être enlevé." },
+    DRIVER: {
+      titre: "Un colis vous attend",
+      detail: "Le vendeur a préparé le colis : vous pouvez venir l'enlever.",
+    },
+    CLIENT: {
+      titre: "Votre colis est prêt",
+      detail: "Le vendeur l'a préparé ; le livreur va l'enlever.",
+    },
   },
   PICKED_UP: {
     defaut: { titre: "Colis enlevé", detail: "Le livreur a récupéré le colis." },
+    CLIENT: {
+      titre: "Votre colis est parti",
+      detail: "Le livreur l'a en main. Vous serez prévenu de son arrivée.",
+    },
   },
   IN_TRANSIT: {
     defaut: { titre: "Colis en route", detail: "La livraison est en cours." },
+    CLIENT: {
+      titre: "Votre colis est en route",
+      detail: "Gardez votre téléphone à portée de main.",
+    },
+  },
+  ARRIVED: {
+    defaut: {
+      titre: "Le livreur est arrivé",
+      detail: "Le colis est sur place.",
+    },
+    CLIENT: {
+      titre: "Votre livreur est arrivé",
+      detail:
+        "Donnez-lui votre code de réception pour recevoir votre colis.",
+    },
   },
   DELIVERED: {
     defaut: {

@@ -9,6 +9,7 @@ import { formatCFA, pluriel } from "@/lib/format";
 import { libelleStatut, classesBadgeStatut } from "@/lib/orders/statusLabels";
 import { listAvailableDriversAction } from "@/lib/deliveries/assign";
 import { AssignerLivreur } from "@/components/domain/AssignerLivreur";
+import { ColisPret } from "@/components/domain/ColisPret";
 import { PreuveLivraison } from "@/components/domain/PreuveLivraison";
 import Link from "next/link";
 import { Icone } from "@/components/ui/Icone";
@@ -200,6 +201,15 @@ export default async function SellerOrdersPage({
                               order.delivery?.driver?.user.name ?? null
                             }
                           />
+
+                          {/* §26 : declarer le colis pret previent le livreur.
+                              Le bouton disparait une fois le geste fait. */}
+                          {order.delivery?.driverId &&
+                            order.delivery.status === "ASSIGNED" && (
+                              <div className="mt-2">
+                                <ColisPret reference={order.reference} />
+                              </div>
+                            )}
                         </div>
                       )}
                     </div>

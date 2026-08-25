@@ -21,9 +21,38 @@ import path from "node:path";
  * nom de son propriétaire — qu'on ne veut pas voir apparaître sur le disque.
  */
 
-/** Racine du magasin. Hors de `public/`, et ignorée par git. */
+/**
+ * Racine du magasin. Hors de `public/`, et ignorée par git.
+ *
+ * Le chemin est volontairement calculé à l exécution : il doit pouvoir être
+ * déplacé sur un volume monté sans reconstruire l application, et les tests
+ * l isolent dans un dossier temporaire.
+ *
+ * Turbopack ne peut donc pas l analyser statiquement, et signale que « tout le
+ * projet est tracé » — c est-à-dire embarqué dans le paquet serveur au
+ * déploiement. Les commentaires `turbopackIgnore` ci-dessous lèvent ce
+ * traçage : ces accès sont intentionnels, et leur portée est garantie non pas
+ * par l analyse statique mais par la vérification de confinement écrite dans
+ * `lireFichier` et `supprimerFichier`.
+ */
 const RACINE =
   process.env.KYC_STORAGE_DIR ?? path.join(process.cwd(), ".donnees", "kyc");
+
+/** Forme absolue, calculée une fois : elle sert de borne à chaque accès. */
+const RACINE_ABSOLUE = path.resolve(/* turbopackIgnore: true */ RACINE);
+
+/**
+ * Le chemin demandé reste-t-il DANS le magasin ?
+ *
+ * Même quand la valeur vient de notre propre base : une reprise de données, une
+ * migration bâclée, et un chemin remontant permettrait de lire — ou d effacer —
+ * n importe quel fichier du serveur.
+ */
+function dansLeMagasin(absolu: string): boolean {
+  return (
+    absolu === RACINE_ABSOLUE || absolu.startsWith(RACINE_ABSOLUE + path.sep)
+  );
+}
 
 /**
  * Types acceptés, et leur signature binaire.
@@ -106,8 +135,8 @@ export async function rangerFichier(
   const relatif = path.posix.join(dossier, nom);
   const absolu = path.join(RACINE, dossier, nom);
 
-  await mkdir(path.dirname(absolu), { recursive: true });
-  await writeFile(absolu, donnees, { mode: 0o600 });
+  await mkdir(/* turbopackIgnore: true */ path.dirname(absolu), { recursive: true });
+  await writeFile(/* turbopackIgnore: true */ absolu, donnees, { mode: 0o600 });
 
   return { chemin: relatif, mime: type.mime, taille: donnees.length };
 }
@@ -121,23 +150,18 @@ export async function rangerFichier(
  * comparaison de chaînes.
  */
 export async function lireFichier(chemin: string): Promise<Uint8Array | null> {
-  const absolu = path.resolve(RACINE, chemin);
-  const racine = path.resolve(RACINE);
-
-  if (absolu !== racine && !absolu.startsWith(racine + path.sep)) {
-    return null;
-  }
+  const absolu = path.resolve(/* turbopackIgnore: true */ RACINE, chemin);
+  if (!dansLeMagasin(absolu)) return null;
 
   try {
-    return new Uint8Array(await readFile(absolu));
+    return new Uint8Array(await readFile(/* turbopackIgnore: true */ absolu));
   } catch {
     return null;
   }
 }
 
 export async function supprimerFichier(chemin: string): Promise<void> {
-  const absolu = path.resolve(RACINE, chemin);
-  const racine = path.resolve(RACINE);
-  if (absolu !== racine && !absolu.startsWith(racine + path.sep)) return;
-  await unlink(absolu).catch(() => {});
+  const absolu = path.resolve(/* turbopackIgnore: true */ RACINE, chemin);
+  if (!dansLeMagasin(absolu)) return;
+  await unlink(/* turbopackIgnore: true */ absolu).catch(() => {});
 }
