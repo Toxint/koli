@@ -159,6 +159,13 @@ npx next start -H 0.0.0.0 -p 3000
 
 Il tourne en **production** (`next start`), pas en `next dev`.
 
+**Conséquence qui surprend** : `next start` impose `NODE_ENV=production`. Tout
+comportement conditionné à la production se déclenche donc **aussi sur cette
+machine**. C'est ainsi que le refus de stockage KYC non durable a fait échouer
+sept contrôles en local — le correctif n'est pas d'affaiblir la garde mais de
+déclarer le choix dans `.env.local` (`KYC_STORAGE_DIR`), ce qui est exactement
+ce qu'elle réclame.
+
 **Ne jamais lancer `npm run build` pendant qu'il sert** : le processus garde en
 mémoire les anciens fragments, la page se remonte en boucle, et les tests
 échouent avec « element was detached from the DOM ». Séquence correcte :
