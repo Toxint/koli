@@ -70,13 +70,20 @@ export function reconnaitreType(donnees: Uint8Array): TypeReconnu | null {
 /**
  * Choisit le magasin, et REFUSE le choix par défaut en production.
  *
- * L'ordre n'est pas anodin :
+ * L'ordre :
  *
- *  1. `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` → stockage objet.
- *  2. `KYC_STORAGE_DIR` → disque, à un emplacement DÉLIBÉRÉMENT choisi
- *     (volume monté, dossier de test).
+ *  1. `KYC_STORAGE_DIR` → disque, à un emplacement DÉLIBÉRÉMENT indiqué
+ *     (volume monté, dossier de développement, dossier de test).
+ *  2. `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` → stockage objet.
  *  3. En production, sans l'un ni l'autre → **erreur**.
  *  4. Sinon → `.donnees/kyc`, le disque local du poste de développement.
+ *
+ * **Pourquoi le disque explicite passe DEVANT Supabase.** `.env` porte les
+ * identifiants Supabase — il en a besoin pour `npm run supabase:stockage` — et
+ * le serveur local lit `.env` en plus de `.env.local`. Sans cette priorité, le
+ * développement écrirait dans le vrai seau : lentement, et en y laissant des
+ * pièces de test. La règle est celle du reste du projet : ce qui est déclaré
+ * explicitement l'emporte.
  *
  * Le point 3 est la raison d'être de cette fonction. Sans lui, un déploiement
  * sans serveur se rabattrait sur un disque éphémère : les pièces d'identité
@@ -85,15 +92,15 @@ export function reconnaitreType(donnees: Uint8Array): TypeReconnu | null {
  * refus net au premier dépôt.
  */
 function choisirMagasin(): MagasinKyc {
+  if (process.env.KYC_STORAGE_DIR) {
+    return magasinDisque(process.env.KYC_STORAGE_DIR);
+  }
+
   const url = process.env.SUPABASE_URL;
   const clef = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (url && clef) {
     return magasinSupabase(url, clef, process.env.KYC_BUCKET ?? "kyc");
-  }
-
-  if (process.env.KYC_STORAGE_DIR) {
-    return magasinDisque(process.env.KYC_STORAGE_DIR);
   }
 
   if (process.env.NODE_ENV === "production") {

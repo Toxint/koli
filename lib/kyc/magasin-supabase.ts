@@ -37,7 +37,21 @@ export function magasinSupabase(
 ): MagasinKyc {
   const base = `${urlProjet.replace(/\/+$/, "")}/storage/v1/object/${encodeURIComponent(seau)}`;
 
-  const entetes = { Authorization: `Bearer ${clefService}` };
+  /**
+   * Les DEUX en-têtes, et ce n'est pas une redondance.
+   *
+   * `apikey` s'adresse à la passerelle de Supabase, `Authorization` au service
+   * de stockage derrière elle. Les clefs de nouvelle génération
+   * (`sb_secret_…`) ne sont pas des jetons JWT : présentées au seul
+   * `Authorization`, la passerelle tente de les décoder et répond
+   * « Invalid Compact JWS » — un message qui parle de signature alors que le
+   * problème est un en-tête manquant. Les anciennes clefs `service_role`, qui
+   * sont des JWT, acceptent les deux formes.
+   */
+  const entetes = {
+    apikey: clefService,
+    Authorization: `Bearer ${clefService}`,
+  };
 
   /** Le chemin est encodé segment par segment : jamais concaténé tel quel. */
   const adresse = (chemin: string) =>

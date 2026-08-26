@@ -146,6 +146,11 @@ async function main() {
     fetch(`${URL_PROJET}/storage/v1${chemin}`, {
       ...options,
       headers: {
+        // Les DEUX : `apikey` pour la passerelle Supabase, `Authorization`
+        // pour le service derriere elle. Les clefs `sb_secret_…` ne sont pas
+        // des JWT — presentees au seul `Authorization`, la passerelle tente de
+        // les decoder et repond « Invalid Compact JWS ».
+        apikey: CLEF,
         Authorization: `Bearer ${CLEF}`,
         "content-type": "application/json",
         connection: "close",
@@ -229,13 +234,21 @@ async function main() {
   // Creer le seau ne prouve rien : les droits d ecriture sur les objets sont
   // une autre affaire que les droits sur les seaux. On depose, on relit, on
   // supprime.
-  const temoin = `_controle/${Date.now()}.txt`;
-  const attendu = "controle de mise en route KOLI";
+  //
+  // Le temoin est un VRAI JPEG minuscule, pas du texte : le seau n accepte que
+  // les types du §37, et un temoin en `text/plain` echouait sur notre propre
+  // restriction — ce qui prouvait le contraire de ce qu on voulait montrer.
+  const temoin = `_controle/${Date.now()}.jpg`;
+  const attendu = new Uint8Array([
+    0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01,
+    ...new Array(32).fill(0x20),
+    0xff, 0xd9,
+  ]);
 
   const depot = await api(`/object/${SEAU}/${temoin}`, {
     method: "POST",
-    headers: { "content-type": "text/plain" },
-    body: new TextEncoder().encode(attendu),
+    headers: { "content-type": "image/jpeg" },
+    body: attendu,
   });
 
   if (!depot.ok) {
@@ -246,12 +259,22 @@ async function main() {
   }
 
   const relecture = await api(`/object/${SEAU}/${temoin}`);
-  const relu = relecture.ok ? await relecture.text() : "";
+  const relu = relecture.ok
+    ? new Uint8Array(await relecture.arrayBuffer())
+    : new Uint8Array();
 
   await api(`/object/${SEAU}/${temoin}`, { method: "DELETE" });
 
-  if (relu !== attendu) {
-    arreter("Le fichier temoin n a pas ete relu correctement.");
+  // Octet par octet : un stockage qui rendrait un fichier tronque, ou une page
+  // d erreur a la place, passerait une comparaison de taille.
+  const identique =
+    relu.length === attendu.length && relu.every((o, i) => o === attendu[i]);
+
+  if (!identique) {
+    arreter(
+      "Le fichier temoin n a pas ete relu a l identique.",
+      `${attendu.length} octets deposes, ${relu.length} relus.`
+    );
   }
 
   ok("depot, relecture et suppression verifies");

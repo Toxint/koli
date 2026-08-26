@@ -59,6 +59,19 @@ describe("le choix du magasin KYC", () => {
     expect(nomDuMagasin()).toContain("/var/koli/kyc");
   });
 
+  it("fait primer le disque explicite sur Supabase", async () => {
+    // Le cas réel du poste de développement : `.env` porte les identifiants
+    // Supabase — `supabase:stockage` en a besoin — et le serveur local lit
+    // `.env` en plus de `.env.local`. Sans cette priorité, développer
+    // écrirait dans le vrai seau.
+    process.env.SUPABASE_URL = "https://exemple.supabase.co";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "clef-de-service";
+    process.env.KYC_STORAGE_DIR = ".donnees/kyc";
+
+    const { nomDuMagasin } = await chargerStockage();
+    expect(nomDuMagasin()).toContain("disque");
+  });
+
   it("REFUSE de se rabattre sur le disque local en production", async () => {
     vi.stubEnv("NODE_ENV", "production");
 
