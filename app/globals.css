@@ -505,4 +505,42 @@ svg[data-icone] {
   .animate-tiroir {
     animation: glisserDepuisGauche 0.22s ease-out;
   }
+
+  /**
+   * Barre de defilement du menu lateral.
+   *
+   * Celle du systeme est large, grise et a bouts carres : posee sur le bordeaux
+   * du menu, elle donnait l'impression d'un morceau d'interface etranger colle
+   * au bord arrondi du panneau, et son extremite semblait coupee par l'arrondi.
+   *
+   * Celle-ci est fine, doree — la couleur d'accent du menu — et ses bouts sont
+   * arrondis. Elle parcourt toute la hauteur de la zone qui defile : la marge
+   * verticale du rail l'ecarte du haut et du bas, de sorte qu'elle ne vienne
+   * jamais buter contre l'arrondi du panneau.
+   *
+   * `scrollbar-gutter: stable` reserve sa place en permanence : sans cela, la
+   * liste se decalait de quelques pixels au moment ou la barre apparait.
+   */
+  .defilement-menu {
+    /*
+     * Les proprietes STANDARD, pas `::-webkit-scrollbar`.
+     *
+     * Les deux ne cohabitent pas : des que `scrollbar-width` ou
+     * `scrollbar-color` est defini, Chromium ignore ENTIEREMENT les regles
+     * `::-webkit-scrollbar`. Une premiere version fixait la largeur a 6px de
+     * cette facon — la barre en faisait 10, et rien ne le signalait.
+     *
+     * Les proprietes standard ont l'avantage de valoir aussi pour Firefox, et
+     * Chromium arrondit deja les extremites du curseur.
+     */
+    scrollbar-width: thin;
+    scrollbar-color: rgba(224, 168, 46, 0.5) transparent;
+
+    /*
+     * Reserve la place de la barre en permanence : sans cela, la liste se
+     * decale de dix pixels a l'instant ou elle apparait — un sursaut d'autant
+     * plus genant qu'il survient pendant qu'on lit le menu.
+     */
+    scrollbar-gutter: stable;
+  }
 }

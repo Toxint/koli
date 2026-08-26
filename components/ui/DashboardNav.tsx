@@ -157,7 +157,7 @@ export function DashboardNav({
   const contenu = (compact: boolean) => (
     <div
       data-menu-koli=""
-      className="flex h-full flex-col gap-4 bg-menu bg-gradient-to-b from-menu to-menu-deep px-3 py-4 lg:rounded-3xl"
+      className="flex h-full flex-col gap-3 bg-menu bg-gradient-to-b from-menu to-menu-deep px-3 py-3 lg:rounded-3xl"
     >
       {/* Replié, le logo et le bouton s'empilent : à 4,75rem de large, les
           poser côte à côte les écraserait l'un contre l'autre. */}
@@ -236,9 +236,20 @@ export function DashboardNav({
        * entrée au menu vendeur : sous ~670px de hauteur de fenêtre, le bouton
        * devenait purement et simplement inatteignable.
        */}
+      {/*
+       * `pr-1` en mode deploye : la barre de defilement se pose ainsi A
+       * L'INTERIEUR du panneau, ecartee de son bord arrondi, au lieu de venir
+       * s'y ecraser. Replie, la colonne ne fait que 4,75rem et les icones sont
+       * centrees — la moindre marge a droite les decalerait visiblement.
+       *
+       * `pb-1` evite que la derniere rubrique touche le bas une fois la liste
+       * defilee jusqu'au bout.
+       */}
       <nav
         aria-label="Navigation de l'espace"
-        className="min-w-0 flex-1 min-h-0 overflow-y-auto"
+        className={`defilement-menu min-w-0 flex-1 min-h-0 overflow-y-auto pb-1 ${
+          compact ? "" : "pr-1"
+        }`}
       >
         {!compact && (
           <p className="px-3 mb-2 text-[10px] font-bold uppercase tracking-wider text-white/40">
@@ -255,7 +266,7 @@ export function DashboardNav({
                   onClick={() => setTiroirOuvert(false)}
                   aria-current={actif ? "page" : undefined}
                   title={compact ? item.label : undefined}
-                  className={`flex items-center gap-3 rounded-2xl min-h-[46px] text-sm font-semibold transition-colors ${
+                  className={`flex items-center gap-3 rounded-2xl min-h-[44px] text-sm font-semibold transition-colors ${
                     compact ? "justify-center px-2" : "px-3"
                   } ${
                     actif
@@ -291,7 +302,7 @@ export function DashboardNav({
                 : "Notifications"
               : undefined
           }
-          className={`relative flex items-center gap-3 rounded-2xl min-h-[46px] text-sm font-semibold transition-colors ${
+          className={`relative flex items-center gap-3 rounded-2xl min-h-[44px] text-sm font-semibold transition-colors ${
             compact ? "justify-center px-2" : "px-3"
           } ${
             chemin === "/notifications"
@@ -331,7 +342,7 @@ export function DashboardNav({
         <div
           title={compact ? "Mode test — aucun paiement réel" : undefined}
           className={`rounded-2xl bg-white/10 border border-gold/30 ${
-            compact ? "flex justify-center p-2.5" : "px-3 py-2.5"
+            compact ? "flex justify-center p-2" : "px-3 py-2"
           }`}
         >
           {compact ? (
@@ -344,7 +355,7 @@ export function DashboardNav({
               <span className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-gold">
                 <Icone nom="eclair" className="w-3.5 h-3.5" /> Mode test
               </span>
-              <span className="block text-[11px] text-white/70 mt-0.5">
+              <span className="block text-[11px] text-white/70 leading-tight">
                 Aucun paiement réel
               </span>
             </>
