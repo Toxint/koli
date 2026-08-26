@@ -12,9 +12,20 @@ import { Icone } from "@/components/ui/Icone";
 export function FormulaireConnexion({
   googleConfigure,
   motifGoogle,
+  raccourcisDemo = false,
 }: {
   googleConfigure: boolean;
   motifGoogle?: "configuration" | "adresse";
+  /**
+   * Affiche les raccourcis « comptes de test ».
+   *
+   * **Faux par defaut, et ce n'est pas anodin** : ces boutons annoncent
+   * l'adresse du compte ADMINISTRATEUR et le mot de passe commun en clair. La
+   * valeur est decidee cote serveur (`raccourcisDemoActifs`), jamais ici : un
+   * composant client ne peut pas lire l'environnement, et une valeur oubliee
+   * doit masquer, pas reveler.
+   */
+  raccourcisDemo?: boolean;
 }) {
   const router = useRouter();
   const [identifier, setIdentifier] = useState("");
@@ -100,7 +111,10 @@ export function FormulaireConnexion({
                 id="aide-identifiant"
                 className="mt-1 text-xs text-ink-muted dark:text-slate-400"
               >
-                Ex. : +225 07 01 02 03 04 ou vendeur@koli.ci
+                {/* Une adresse MANIFESTEMENT fictive : l'exemple précédent
+                    citait un compte de démonstration réel, ce qui revenait à
+                    l'annoncer à tout visiteur. */}
+                Ex. : +225 07 01 02 03 04 ou awa@exemple.ci
               </p>
             </div>
 
@@ -171,7 +185,8 @@ export function FormulaireConnexion({
               motif={motifGoogle} libelle="Se connecter avec Google" />
           </div>
 
-          {/* Quick Demo Login Shortcut Section */}
+          {/* Raccourcis de démonstration — masqués sauf demande expresse. */}
+          {raccourcisDemo && (
           <div className="mt-8 pt-6 border-t border-hairline dark:border-slate-800">
             {/* `inline-flex` : le SVG est un bloc par defaut et se placait
                 seul au-dessus du libelle au lieu de l'accompagner. */}
@@ -221,6 +236,7 @@ export function FormulaireConnexion({
               Mot de passe universel : <code className="bg-brand-soft dark:bg-slate-800 px-1 py-0.5 rounded text-brand font-mono">Password123!</code>
             </p>
           </div>
+          )}
 
           <div className="mt-6 text-center">
             <p className="text-sm text-ink-muted dark:text-slate-400">

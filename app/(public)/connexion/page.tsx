@@ -9,6 +9,7 @@ import {
 } from "@/lib/auth/google";
 import { headers } from "next/headers";
 import { FormulaireConnexion } from "@/components/domain/FormulaireConnexion";
+import { raccourcisDemoActifs } from "@/lib/config/demonstration";
 
 /**
  * Rendu a la demande, et non pre-rendu au build.
@@ -46,8 +47,11 @@ export default async function PageConnexion() {
     // `Suspense` est requis : `useSearchParams` suspend le rendu, et Next
     // refuse de prerendre une page qui l'utilise sans limite de suspension.
     <Suspense fallback={null}>
-      <FormulaireConnexion googleConfigure={googleUtilisable}
-        motifGoogle={motifGoogle} />
+      <FormulaireConnexion
+        googleConfigure={googleUtilisable}
+        motifGoogle={motifGoogle}
+        raccourcisDemo={raccourcisDemoActifs()}
+      />
     </Suspense>
   );
 }
