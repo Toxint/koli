@@ -105,8 +105,28 @@ fs.writeFileSync(
     "",
     "─────────────────────────────────────────────────────────",
     "",
-    ...lignes,
+    "Pour CHAQUE bloc ci-dessous : le NOM se copie dans le champ « Key »,",
+    "la VALEUR — la ligne juste en dessous — dans le champ « Value ».",
     "",
+    "Ne collez JAMAIS une ligne entiere « CLE=valeur » dans un champ : le",
+    "formulaire de Vercel ne la decoupe pas, et la clef se retrouve melangee",
+    "a sa propre valeur.",
+    "",
+    ...lignes.flatMap((ligne, i) => {
+      const sep = ligne.indexOf("=");
+      const nom = ligne.slice(0, sep);
+      const valeur = ligne.slice(sep + 1);
+      return [
+        `───────── ${i + 1}/${lignes.length} ─────────`,
+        "",
+        "Key :",
+        nom,
+        "",
+        "Value :",
+        valeur,
+        "",
+      ];
+    }),
   ].join("\n"),
   { encoding: "utf8", mode: 0o600 }
 );

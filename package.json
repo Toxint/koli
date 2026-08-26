@@ -52,7 +52,9 @@
     "supabase:preparer": "node scripts/preparer-supabase.mjs",
     "supabase:stockage": "node scripts/preparer-stockage.mjs",
     "supabase:securiser": "node scripts/securiser-demonstration.mjs",
-    "vercel:variables": "node scripts/variables-vercel.mjs"
+    "vercel:variables": "node scripts/variables-vercel.mjs",
+    "vercel:redeployer": "node scripts/redeployer-vercel.mjs",
+    "verif:en-ligne": "node scripts/verifier-en-ligne.mjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
