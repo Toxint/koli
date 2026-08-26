@@ -512,6 +512,84 @@ svg[data-icone] {
     animation: glisserDepuisGauche 0.22s ease-out;
   }
 
+  /* ═══════════════════════════════════════════════════════════════════
+     Apparitions de la vitrine
+     ═══════════════════════════════════════════════════════════════════ */
+
+  @keyframes monteeDouce {
+    from {
+      opacity: 0;
+      transform: translateY(18px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /**
+   * Entree a l'ouverture de la page.
+   *
+   * Reservee a ce qui est VISIBLE d'emblee. L'animation va du transparent vers
+   * l'opaque et se declenche immediatement : rien ne peut rester invisible.
+   *
+   * Le decalage entre elements se pose par `style={{ animationDelay }}` — un
+   * utilitaire par valeur aurait multiplie les classes sans rien apporter.
+   */
+  .apparait-au-chargement {
+    animation: monteeDouce 620ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  /**
+   * Apparition au DEFILEMENT, sans une ligne de JavaScript.
+   *
+   * `animation-timeline: view()` lie l'animation a l'entree de l'element dans
+   * la fenetre. La ou le navigateur ne connait pas cette propriete, la regle
+   * entiere est ignoree : le contenu s'affiche normalement, sans animation.
+   *
+   * C'est ce qui a decide du choix. La meme chose en JavaScript aurait demande
+   * de poser les elements a `opacity: 0` puis de les reveler — et un script
+   * qui ne charge pas, sur le reseau mobile lent que vise KOLI (§70), aurait
+   * laisse une page BLANCHE. Ici, le pire cas est une page sans animation.
+   *
+   * `@media (prefers-reduced-motion: no-preference)` : la regle globale plus
+   * haut ramene deja les durees a zero, mais ne pas declarer l'animation du
+   * tout est plus propre que de la neutraliser apres coup.
+   */
+  @supports (animation-timeline: view()) {
+    @media (prefers-reduced-motion: no-preference) {
+      .apparait {
+        animation: monteeDouce linear both;
+        animation-timeline: view();
+        /* L'element finit son entree bien avant d'etre au centre : anime trop
+           tard, il paraitrait en retard sur le defilement. */
+        animation-range: entry 0% entry 42%;
+      }
+    }
+  }
+
+  /**
+   * Carte de la vitrine.
+   *
+   * Le soulevement au survol n'est pas un ornement : il indique que la carte
+   * est un objet pose, pas une zone du fond. `hover: hover` l'exclut du
+   * tactile, ou le survol « colle » apres l'appui.
+   */
+  .carte-vitrine {
+    transition:
+      transform 220ms cubic-bezier(0.2, 0, 0.2, 1),
+      box-shadow 220ms ease,
+      border-color 220ms ease;
+  }
+
+  @media (hover: hover) {
+    .carte-vitrine:hover {
+      transform: translateY(-4px);
+      border-color: color-mix(in srgb, var(--color-brand) 26%, transparent);
+      box-shadow: 0 18px 40px -24px color-mix(in srgb, var(--color-brand) 55%, transparent);
+    }
+  }
+
   /**
    * Barre de defilement du menu lateral.
    *
