@@ -50,7 +50,8 @@
     "base:supprimer": "node scripts/base-locale.mjs supprimer",
     "base:preparer": "npm run base:demarrer && npx prisma migrate deploy && npx tsx prisma/seed.ts",
     "supabase:preparer": "node scripts/preparer-supabase.mjs",
-    "supabase:stockage": "node scripts/preparer-stockage.mjs"
+    "supabase:stockage": "node scripts/preparer-stockage.mjs",
+    "supabase:securiser": "node scripts/securiser-demonstration.mjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",
