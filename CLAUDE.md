@@ -83,6 +83,7 @@ possible, même par une route d'API.
 |---|---|
 | `docs/koli-plan.md` | **Le document maître.** 87 sections. Fait foi sur le périmètre, l'ordre des phases, les règles métier. À consulter avant toute tâche importante. |
 | `docs/architecture.md` | Architecture technique, schéma de données, décisions et leurs raisons. |
+| `docs/deploiement.md` | Liste de contrôle pour la mise en ligne : variables, région, pièges. |
 | `docs/*.pdf` | Le PDF source d'origine. |
 | `CLAUDE.md` | Ce fichier. Le résumé opérationnel. |
 
@@ -109,10 +110,21 @@ un seul échec.
 
 ### En cours
 
-**Mise en ligne.** Choix retenu : **Vercel + Supabase**. L'adaptateur de
-stockage des pièces KYC vers Supabase Storage est écrit et testé ; il reste à
-créer le seau (`npm run supabase:stockage`, demande la clef `service_role`) puis
-à déployer.
+**Mise en ligne.** Choix retenu : **Vercel + Supabase**. Voir
+`docs/deploiement.md` pour la liste de contrôle complète.
+
+Prêt : base Supabase peuplée ; seau de stockage KYC créé, privé, aller-retour
+vérifié ; adaptateur `magasin-supabase` éprouvé contre le vrai seau ;
+`npm run build` régénère le client Prisma (sans quoi la construction échouerait
+sur Vercel, le client n'étant pas versionné).
+
+Reste à faire : pousser le dépôt (aucun dépôt distant à ce jour — **le projet
+n'existe que sur un portable**), connecter Vercel, renseigner les variables.
+
+⚠ `AUTH_SECRET` vaut `koli-dev-…` : ce n'est pas un tirage aléatoire. Il signe
+les jetons de session — en production, une valeur devinable permettrait de
+forger la session de n'importe quel compte, administrateur compris. **À
+régénérer avant la mise en ligne.**
 
 ### Ensuite
 
