@@ -1,58 +1,17 @@
-import { randomBytes } from "node:crypto";
-import { mkdir, writeFile, readFile, unlink } from "node:fs/promises";
 import path from "node:path";
+import { magasinDisque } from "./magasin-disque";
+import { magasinSupabase } from "./magasin-supabase";
+import type { FichierRange, MagasinKyc, TypeReconnu } from "./magasin";
+
+export type { FichierRange, TypeReconnu } from "./magasin";
 
 /**
  * Magasin de pièces justificatives (§37).
  *
- * **Rien n'est écrit sous `public/`.** Un dossier de `public/` est servi tel
- * quel par le serveur, sans le moindre contrôle : une carte d'identité y
- * atterrissant serait lisible par quiconque devine son adresse, et rien ne le
- * signalerait. Les fichiers vivent donc hors de l'arborescence servie, et
- * `/api/kyc/<id>` est le seul chemin qui les restitue, après vérification du
- * demandeur.
- *
- * **Interface volontairement étroite** — écrire, lire, supprimer. Le MVP écrit
- * sur le disque local ; le jour où un stockage objet sera choisi, seule cette
- * implémentation change, comme `PaymentProvider` pour les paiements (§51).
- *
- * **Le nom du fichier est tiré au sort**, jamais dérivé de celui fourni. Un nom
- * venu du client peut contenir `../`, un caractère interdit, ou simplement le
- * nom de son propriétaire — qu'on ne veut pas voir apparaître sur le disque.
+ * Ce fichier ne range rien lui-même : il RECONNAÎT les types de fichiers et
+ * choisit le magasin. Les deux implémentations vivent à côté — `magasin-disque`
+ * pour le développement, `magasin-supabase` pour l'hébergement en ligne.
  */
-
-/**
- * Racine du magasin. Hors de `public/`, et ignorée par git.
- *
- * Le chemin est volontairement calculé à l exécution : il doit pouvoir être
- * déplacé sur un volume monté sans reconstruire l application, et les tests
- * l isolent dans un dossier temporaire.
- *
- * Turbopack ne peut donc pas l analyser statiquement, et signale que « tout le
- * projet est tracé » — c est-à-dire embarqué dans le paquet serveur au
- * déploiement. Les commentaires `turbopackIgnore` ci-dessous lèvent ce
- * traçage : ces accès sont intentionnels, et leur portée est garantie non pas
- * par l analyse statique mais par la vérification de confinement écrite dans
- * `lireFichier` et `supprimerFichier`.
- */
-const RACINE =
-  process.env.KYC_STORAGE_DIR ?? path.join(process.cwd(), ".donnees", "kyc");
-
-/** Forme absolue, calculée une fois : elle sert de borne à chaque accès. */
-const RACINE_ABSOLUE = path.resolve(/* turbopackIgnore: true */ RACINE);
-
-/**
- * Le chemin demandé reste-t-il DANS le magasin ?
- *
- * Même quand la valeur vient de notre propre base : une reprise de données, une
- * migration bâclée, et un chemin remontant permettrait de lire — ou d effacer —
- * n importe quel fichier du serveur.
- */
-function dansLeMagasin(absolu: string): boolean {
-  return (
-    absolu === RACINE_ABSOLUE || absolu.startsWith(RACINE_ABSOLUE + path.sep)
-  );
-}
 
 /**
  * Types acceptés, et leur signature binaire.
@@ -86,11 +45,6 @@ function estWebp(donnees: Uint8Array): boolean {
 
 export const TAILLE_MAX_OCTETS = 5 * 1024 * 1024; // 5 Mo
 
-export interface TypeReconnu {
-  mime: string;
-  extension: string;
-}
-
 /**
  * Reconnaît le type réel d'un fichier, ou `null`.
  *
@@ -113,55 +67,80 @@ export function reconnaitreType(donnees: Uint8Array): TypeReconnu | null {
   return null;
 }
 
-export interface FichierRange {
-  /** Chemin RELATIF au magasin. Jamais une adresse publique. */
-  chemin: string;
-  mime: string;
-  taille: number;
+/**
+ * Choisit le magasin, et REFUSE le choix par défaut en production.
+ *
+ * L'ordre n'est pas anodin :
+ *
+ *  1. `SUPABASE_URL` + `SUPABASE_SERVICE_ROLE_KEY` → stockage objet.
+ *  2. `KYC_STORAGE_DIR` → disque, à un emplacement DÉLIBÉRÉMENT choisi
+ *     (volume monté, dossier de test).
+ *  3. En production, sans l'un ni l'autre → **erreur**.
+ *  4. Sinon → `.donnees/kyc`, le disque local du poste de développement.
+ *
+ * Le point 3 est la raison d'être de cette fonction. Sans lui, un déploiement
+ * sans serveur se rabattrait sur un disque éphémère : les pièces d'identité
+ * disparaîtraient au déploiement suivant, sans erreur, sans trace, et le
+ * défaut ne se découvrirait qu'au moment d'examiner un dossier. Mieux vaut un
+ * refus net au premier dépôt.
+ */
+function choisirMagasin(): MagasinKyc {
+  const url = process.env.SUPABASE_URL;
+  const clef = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (url && clef) {
+    return magasinSupabase(url, clef, process.env.KYC_BUCKET ?? "kyc");
+  }
+
+  if (process.env.KYC_STORAGE_DIR) {
+    return magasinDisque(process.env.KYC_STORAGE_DIR);
+  }
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "Aucun stockage durable n'est configuré pour les pièces KYC. " +
+        "Renseignez SUPABASE_URL et SUPABASE_SERVICE_ROLE_KEY (stockage objet), " +
+        "ou KYC_STORAGE_DIR si l'hébergement dispose d'un disque persistant. " +
+        "Se rabattre sur le disque local perdrait les pièces au déploiement suivant."
+    );
+  }
+
+  return magasinDisque(path.join(process.cwd(), ".donnees", "kyc"));
+}
+
+/**
+ * Le magasin est résolu au PREMIER usage, pas au chargement du module.
+ *
+ * En production, `choisirMagasin` peut lever : le faire à l'import ferait
+ * échouer la construction de l'application, y compris pour les pages qui ne
+ * touchent pas au KYC.
+ */
+let magasin: MagasinKyc | null = null;
+const obtenir = (): MagasinKyc => (magasin ??= choisirMagasin());
+
+/** Le magasin réellement utilisé, pour le diagnostic. */
+export function nomDuMagasin(): string {
+  return obtenir().nom;
 }
 
 export async function rangerFichier(
   donnees: Uint8Array,
   type: TypeReconnu
 ): Promise<FichierRange> {
-  // Sous-dossier par année-mois : un répertoire unique finit par contenir des
-  // dizaines de milliers d'entrées, ce que le système de fichiers supporte mal.
-  const maintenant = new Date();
-  const dossier = `${maintenant.getFullYear()}-${String(
-    maintenant.getMonth() + 1
-  ).padStart(2, "0")}`;
-
-  const nom = `${randomBytes(24).toString("hex")}.${type.extension}`;
-  const relatif = path.posix.join(dossier, nom);
-  const absolu = path.join(RACINE, dossier, nom);
-
-  await mkdir(/* turbopackIgnore: true */ path.dirname(absolu), { recursive: true });
-  await writeFile(/* turbopackIgnore: true */ absolu, donnees, { mode: 0o600 });
-
-  return { chemin: relatif, mime: type.mime, taille: donnees.length };
+  return obtenir().ranger(donnees, type);
 }
 
 /**
- * Relit un fichier rangé.
+ * Relit une pièce rangée.
  *
- * Le chemin est reconstruit depuis la racine et **vérifié** : même s'il vient
- * de notre propre base, une valeur contenant `..` sortirait du magasin et
- * permettrait de lire n'importe quel fichier du serveur. Le contrôle coûte une
- * comparaison de chaînes.
+ * Le chemin est **vérifié** avant tout accès, même s'il vient de notre propre
+ * base : une valeur contenant `..` désignerait autre chose que ce qu'on a
+ * rangé. Le contrôle est dans chaque magasin, au plus près de l'accès.
  */
 export async function lireFichier(chemin: string): Promise<Uint8Array | null> {
-  const absolu = path.resolve(/* turbopackIgnore: true */ RACINE, chemin);
-  if (!dansLeMagasin(absolu)) return null;
-
-  try {
-    return new Uint8Array(await readFile(/* turbopackIgnore: true */ absolu));
-  } catch {
-    return null;
-  }
+  return obtenir().lire(chemin);
 }
 
 export async function supprimerFichier(chemin: string): Promise<void> {
-  const absolu = path.resolve(/* turbopackIgnore: true */ RACINE, chemin);
-  if (!dansLeMagasin(absolu)) return;
-  await unlink(/* turbopackIgnore: true */ absolu).catch(() => {});
+  return obtenir().supprimer(chemin);
 }
