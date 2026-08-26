@@ -14,15 +14,42 @@ import { chromium } from "playwright";
 
 const BASE = process.argv[2] ?? "https://koli-zeta.vercel.app";
 
-const comptes = fs
-  .readFileSync(".donnees/comptes-supabase.txt", "utf8")
-  .split(/\r?\n/)
-  // `\s*` en tete : le fichier indente son tableau recapitulatif.
-  .map((l) => l.match(/^\s*(\S+)\s+(\S+@\S+)\s+(\S+)\s*$/))
-  .filter(Boolean)
-  .map(([, role, email, mdp]) => ({ role, email, mdp }));
+const COMPTES = ".donnees/comptes-supabase.txt";
 
-const vendeur = comptes.find((c) => c.role === "SELLER");
+/**
+ * Le mot de passe du vendeur de demonstration.
+ *
+ * `MDP_DEMO` passe devant le fichier : c est ce qui permet de lancer ce
+ * controle une fois le fichier range ailleurs, sans avoir a regenerer les mots
+ * de passe — ce qui invaliderait celui que l utilisateur a mis de cote.
+ */
+function motDePasseVendeur() {
+  if (process.env.MDP_DEMO) return process.env.MDP_DEMO;
+
+  if (!fs.existsSync(COMPTES)) return null;
+
+  const ligne = fs
+    .readFileSync(COMPTES, "utf8")
+    .split(/\r?\n/)
+    // `\s*` en tete : le fichier indente son tableau recapitulatif.
+    .map((l) => l.match(/^\s*(\S+)\s+(vendeur@koli\.ci)\s+(\S+)\s*$/))
+    .find(Boolean);
+
+  return ligne?.[3] ?? null;
+}
+
+const mdpVendeur = motDePasseVendeur();
+
+if (!mdpVendeur) {
+  console.error(
+    "   ✗ Mot de passe du vendeur de demonstration inconnu.\n\n" +
+      "   Fournissez celui que vous avez mis de cote :\n\n" +
+      '     MDP_DEMO="…" npm run verif:en-ligne\n'
+  );
+  process.exit(1);
+}
+
+const vendeur = { email: "vendeur@koli.ci", mdp: mdpVendeur };
 
 let echecs = 0;
 const verifier = (ok, libelle, detail = "") => {

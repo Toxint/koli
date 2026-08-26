@@ -209,9 +209,25 @@ async function main() {
   // --------------------------------------------- 3. Le vendeur ne voit pas l'OTP
   console.log("3. Cloisonnement du code de reception");
   await vendeur.goto(`${BASE}/pay/${reference}`, { waitUntil: "networkidle" });
-  const vueVendeur = await vendeur.content();
+
+  /*
+   * On cherche le code dans le TEXTE AFFICHE, comme un nombre entier.
+   *
+   * La version precedente le cherchait dans le HTML brut, ou dorment les
+   * empreintes des fichiers, les identifiants et les jetons. Quatre chiffres
+   * finissent toujours par s'y trouver : le controle echouait au hasard, sur
+   * une fuite qui n'existait pas.
+   *
+   * Ce n'est pas un detail de confort. Un controle de securite qui crie sans
+   * raison finit par etre ignore — et le jour ou il aura raison, personne ne
+   * l'ecoutera.
+   */
+  const codeVisible = (texte) =>
+    codeOtp ? new RegExp(`\\b${codeOtp}\\b`).test(texte) : false;
+
+  const vueVendeur = await vendeur.evaluate(() => document.body.innerText);
   verifier(
-    !vueVendeur.includes(codeOtp ?? "@@@"),
+    !codeVisible(vueVendeur),
     "le vendeur ne voit PAS le code, meme via son propre lien partage"
   );
   verifier(
@@ -271,8 +287,10 @@ async function main() {
     vueLivreur.includes(reference),
     "la commande apparait bien chez le livreur"
   );
+  // Meme raison qu'a l'etape 3 : le texte affiche, pas le HTML brut.
+  const texteLivreur = await livreur.evaluate(() => document.body.innerText);
   verifier(
-    !vueLivreur.includes(codeOtp ?? "@@@"),
+    !codeVisible(texteLivreur),
     "le livreur ne voit PAS le code (il doit le demander au client)"
   );
 

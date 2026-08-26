@@ -31,19 +31,36 @@ import { chargerEnv } from "./env.mjs";
 
 const COMPTES = ".donnees/comptes-supabase.txt";
 
+const DEMO = ["vendeur@koli.ci", "client@koli.ci", "livreur@koli.ci"];
+
 /**
- * Les mots de passe des comptes en ligne, un par role.
+ * Les mots de passe des comptes en ligne.
  *
  * Ils ont ete tires au sort par `supabase:securiser` : `Password123!` ne
  * fonctionne plus en ligne, et c est voulu — un compte administrateur au mot
- * de passe publie dans le depot est une porte ouverte. Le parcours doit donc
- * les recevoir, sinon il echoue des la premiere connexion sur une erreur qui
- * ne dit pas que le mot de passe est en cause.
+ * de passe publie dans le depot est une porte ouverte.
+ *
+ * Deux sources, dans cet ordre :
+ *
+ *   1. `MDP_DEMO` dans l environnement. C est la voie a privilegier une fois
+ *      le fichier range ailleurs : les quatre comptes de demonstration
+ *      partagent un seul mot de passe, il suffit donc de celui-la.
+ *   2. `.donnees/comptes-supabase.txt`, tant qu il existe.
+ *
+ * L environnement passe DEVANT : c est ce qui permet de lancer le controle
+ * apres avoir supprime le fichier, sans avoir a regenerer les mots de passe —
+ * ce qui invaliderait ceux que l utilisateur a mis de cote.
  */
 function motsDePasse() {
-  if (!fs.existsSync(COMPTES)) return {};
-
   const par = {};
+
+  if (process.env.MDP_DEMO) {
+    for (const compte of DEMO) par[compte] = process.env.MDP_DEMO;
+    return par;
+  }
+
+  if (!fs.existsSync(COMPTES)) return par;
+
   for (const ligne of fs.readFileSync(COMPTES, "utf8").split(/\r?\n/)) {
     // `\s*` en tete : le fichier indente son tableau recapitulatif, et une
     // lecture trop stricte n'y trouvait plus rien — en annoncant « mots de
@@ -74,9 +91,12 @@ const mdp = motsDePasse();
 
 if (!mdp["vendeur@koli.ci"]) {
   console.error(
-    `   ✗ Mots de passe introuvables dans ${COMPTES}.\n\n` +
-      "   Ceux des comptes en ligne ont ete tires au sort : sans eux, le\n" +
-      "   parcours echoue des la connexion. Relancez `npm run supabase:securiser`."
+    "   ✗ Mot de passe des comptes de demonstration inconnu.\n\n" +
+      "   Fournissez celui que vous avez mis de cote :\n\n" +
+      "     MDP_DEMO=\"…\" npm run verif:parcours-en-ligne\n\n" +
+      `   (ou remettez ${COMPTES} en place)\n\n` +
+      "   NE relancez PAS `supabase:securiser` pour contourner : il en tirerait\n" +
+      "   de nouveaux, et celui que vous avez conserve ne vaudrait plus rien."
   );
   process.exit(1);
 }
