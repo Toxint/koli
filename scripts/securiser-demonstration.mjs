@@ -108,10 +108,27 @@ async function main() {
       return;
     }
 
+    /*
+     * UN mot de passe commun aux comptes de demonstration, UN autre pour
+     * l administrateur.
+     *
+     * Cinq mots de passe distincts ne se retiennent pas : ils finissent
+     * recopies dans un carnet, un message, une capture. Un seul, partage par
+     * les quatre comptes qui ne peuvent rien casser — ils ne voient que leurs
+     * propres donnees — se retient et suffit a tout essayer.
+     *
+     * L administrateur reste a part. Il arbitre les litiges, suspend des
+     * vendeurs et voit tout. Un mot de passe partage avec des comptes de
+     * demonstration finit toujours par circuler ; autant que celui-la ne
+     * suive pas.
+     */
+    const commun = motDePasse();
+    const administrateur = motDePasse();
+
     const nouveaux = [];
 
     for (const { email, role } of rows) {
-      const clair = motDePasse();
+      const clair = role === "ADMIN" ? administrateur : commun;
       const hache = await bcrypt.hash(clair, 10);
 
       await client.query(`UPDATE "User" SET "passwordHash" = $1 WHERE email = $2`, [
@@ -134,7 +151,28 @@ async function main() {
         "Ces mots de passe ne sont ecrits NULLE PART ailleurs : perdus, ils sont",
         "perdus, et il faudra relancer ce script.",
         "",
-        ...nouveaux.map((c) => `${c.role.padEnd(8)} ${c.email.padEnd(22)} ${c.clair}`),
+        "═══════════════════════════════════════════════════════════",
+        "",
+        "  MOT DE PASSE DE DEMONSTRATION  (client, vendeurs, livreur)",
+        "",
+        `      ${commun}`,
+        "",
+        "═══════════════════════════════════════════════════════════",
+        "",
+        "  MOT DE PASSE ADMINISTRATEUR  (admin@koli.ci)",
+        "",
+        `      ${administrateur}`,
+        "",
+        "  Il est DIFFERENT a dessein. L administrateur arbitre les litiges,",
+        "  suspend des vendeurs et voit tout. Un mot de passe partage avec des",
+        "  comptes de demonstration finit toujours par circuler — dans une",
+        "  capture, un message, une demonstration filmee. Celui-la ne suit pas.",
+        "",
+        "═══════════════════════════════════════════════════════════",
+        "",
+        "Detail par compte :",
+        "",
+        ...nouveaux.map((c) => `  ${c.role.padEnd(8)} ${c.email.padEnd(22)} ${c.clair}`),
         "",
       ].join("\n"),
       { encoding: "utf8", mode: 0o600 }

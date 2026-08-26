@@ -17,7 +17,8 @@ const BASE = process.argv[2] ?? "https://koli-zeta.vercel.app";
 const comptes = fs
   .readFileSync(".donnees/comptes-supabase.txt", "utf8")
   .split(/\r?\n/)
-  .map((l) => l.match(/^(\S+)\s+(\S+@\S+)\s+(\S+)$/))
+  // `\s*` en tete : le fichier indente son tableau recapitulatif.
+  .map((l) => l.match(/^\s*(\S+)\s+(\S+@\S+)\s+(\S+)\s*$/))
   .filter(Boolean)
   .map(([, role, email, mdp]) => ({ role, email, mdp }));
 

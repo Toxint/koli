@@ -45,7 +45,10 @@ function motsDePasse() {
 
   const par = {};
   for (const ligne of fs.readFileSync(COMPTES, "utf8").split(/\r?\n/)) {
-    const m = ligne.match(/^(\S+)\s+(\S+@\S+)\s+(\S+)$/);
+    // `\s*` en tete : le fichier indente son tableau recapitulatif, et une
+    // lecture trop stricte n'y trouvait plus rien — en annoncant « mots de
+    // passe introuvables » sur un fichier qui les contenait pourtant.
+    const m = ligne.match(/^\s*(\S+)\s+(\S+@\S+)\s+(\S+)\s*$/);
     if (m) par[m[2]] = m[3];
   }
   return par;
