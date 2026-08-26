@@ -54,7 +54,8 @@
     "supabase:securiser": "node scripts/securiser-demonstration.mjs",
     "vercel:variables": "node scripts/variables-vercel.mjs",
     "vercel:redeployer": "node scripts/redeployer-vercel.mjs",
-    "verif:en-ligne": "node scripts/verifier-en-ligne.mjs"
+    "verif:en-ligne": "node scripts/verifier-en-ligne.mjs",
+    "verif:parcours-en-ligne": "node scripts/verifier-parcours-en-ligne.mjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",

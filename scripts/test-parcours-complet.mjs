@@ -17,7 +17,24 @@
 import { chromium } from "playwright";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
-const MDP = "Password123!";
+/**
+ * Mot de passe des comptes de demonstration.
+ *
+ * `Password123!` vaut pour la base LOCALE, ou un mot de passe connu est un
+ * outil : un test qui doit deviner un mot de passe ne teste plus rien.
+ *
+ * En ligne, ces mots de passe ont ete tires au sort (`supabase:securiser`) —
+ * un compte administrateur au mot de passe publie dans le depot est une porte
+ * ouverte. Le lanceur `verifier-parcours-en-ligne.mjs` fournit alors les vrais,
+ * un par role, lus dans `.donnees`.
+ */
+const MDP_PAR_COMPTE = {
+  "vendeur@koli.ci": process.env.MDP_VENDEUR,
+  "client@koli.ci": process.env.MDP_CLIENT,
+  "livreur@koli.ci": process.env.MDP_LIVREUR,
+};
+
+const motDePasse = (identifiant) => MDP_PAR_COMPTE[identifiant] || "Password123!";
 
 let etapes = 0;
 let echecs = 0;
@@ -35,7 +52,7 @@ function verifier(condition, libelle, detail = "") {
 async function connecter(page, identifiant) {
   await page.goto(`${BASE}/connexion`, { waitUntil: "networkidle" });
   await page.locator("#identifier").fill(identifiant);
-  await page.locator("#password").fill(MDP);
+  await page.locator("#password").fill(motDePasse(identifiant));
   await page.locator('button[type="submit"]').first().click();
   await page
     .waitForURL((u) => !u.pathname.includes("/connexion"), { timeout: 20000 })
@@ -148,6 +165,11 @@ async function main() {
   // §38 : la facture est emise dans la MEME transaction que le paiement. Emise
   // apres coup, un incident laisserait un encaissement sans piece.
   const lienRecu = client.getByRole("link", { name: /Reçu de paiement/i });
+  // On ATTEND le lien au lieu de le compter une fois : `count()` ne patiente
+  // pas. Contre le site en ligne, il rendait 0 alors que le recu existait bel
+  // et bien — les douze controles suivants le lisent sans difficulte. Un
+  // controle qui echoue sur la vitesse du reseau ne verifie plus le §38.
+  await lienRecu.first().waitFor({ state: "visible", timeout: 20000 }).catch(() => {});
   verifier(
     (await lienRecu.count()) > 0,
     "un recu de paiement est emis des que le paiement aboutit (§38)"
@@ -207,7 +229,22 @@ async function main() {
   const options = await selecteur.locator("option").count();
   verifier(options > 1, "au moins un livreur disponible");
 
-  await selecteur.selectOption({ index: 1 });
+  /*
+   * On choisit le livreur de DEMONSTRATION, jamais « le premier de la liste ».
+   *
+   * Le test se connecte ensuite comme ce livreur : prendre l'index 1 ne
+   * fonctionne que s'il n'existe qu'un seul livreur. Sur la base en ligne, ou
+   * de vrais comptes livreur ont ete crees depuis, la commande partait chez
+   * quelqu'un d'autre — et le test annoncait « la commande n'apparait pas chez
+   * le livreur », ce qui etait vrai, mais ne revelait aucun defaut.
+   */
+  const optionLivreur = await selecteur.evaluate((select) => {
+    const attendu = Array.from(select.options).find((o) =>
+      /Kouassi Express/i.test(o.textContent ?? "")
+    );
+    return attendu?.value ?? select.options[1]?.value ?? "";
+  });
+  await selecteur.selectOption(optionLivreur);
   await vendeur.locator("button", { hasText: "Assigner" }).first().click();
   await vendeur.waitForSelector("text=/Livreur :/", { timeout: 20000 });
   verifier(true, "livreur assigne");
@@ -219,6 +256,15 @@ async function main() {
   const livreur = await ctxLivreur.newPage();
   await connecter(livreur, "livreur@koli.ci");
   await livreur.goto(`${BASE}/livreur/dashboard`, { waitUntil: "networkidle" });
+
+  // Meme raison qu'a l'etape 6 : on attend que la commande PARAISSE, plutot
+  // que de photographier la page a l'instant ou le reseau se tait. Contre le
+  // site en ligne, la liste arrive une fraction de seconde plus tard.
+  await livreur
+    .locator(`text=${reference}`)
+    .first()
+    .waitFor({ state: "visible", timeout: 25000 })
+    .catch(() => {});
 
   const vueLivreur = await livreur.content();
   verifier(
@@ -253,7 +299,24 @@ async function main() {
 
   // ------------------------------------------------- 6. Fonds encore bloques
   console.log("6. Livrer n'est pas etre paye (§29)");
-  await client.goto(`${BASE}/pay/${reference}`, { waitUntil: "networkidle" });
+  /*
+   * On RECHARGE jusqu'a voir la remise, on ne se contente pas d'attendre.
+   *
+   * Cette page est rendue par le serveur : une fois affichee, elle ne changera
+   * plus d'elle-meme. Si elle est demandee dans la seconde qui suit la
+   * validation du livreur, elle peut etre construite a partir d'une lecture
+   * qui precede cette ecriture — et rester indefiniment sur l'etat d'avant.
+   * Patienter devant un ecran fige ne sert alors a rien.
+   *
+   * En local, la question ne se posait pas : l'aller-retour vaut 1 ms.
+   */
+  const finAttente = Date.now() + 30000;
+  do {
+    await client.goto(`${BASE}/pay/${reference}`, { waitUntil: "networkidle" });
+    if (/Avez-vous reçu votre commande/.test(await client.content())) break;
+    await client.waitForTimeout(1500);
+  } while (Date.now() < finAttente);
+
   const avantConfirmation = await client.content();
   verifier(
     /Avez-vous reçu votre commande/.test(avantConfirmation),
