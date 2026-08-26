@@ -5,7 +5,8 @@ import { MenuEspace } from "@/components/ui/MenuEspace";
 import { ValidateOtpModal } from "@/components/driver/ValidateOtpModal";
 import { JalonLivraison } from "@/components/domain/JalonLivraison";
 import { prochainJalonLivreur, JALONS } from "@/lib/deliveries/jalons";
-import { pluriel } from "@/lib/format";
+import { pluriel, formatCFA } from "@/lib/format";
+import { chargerRevenusLivreur } from "@/lib/finance/revenus-livreur";
 import { Icone } from "@/components/ui/Icone";
 
 export default async function DriverDashboardPage() {
@@ -15,6 +16,8 @@ export default async function DriverDashboardPage() {
   }
 
   const driverProfileId = user.driverProfile.id;
+
+  const revenus = await chargerRevenusLivreur(driverProfileId);
 
   const deliveries = await prisma.delivery.findMany({
     where: { driverId: driverProfileId },
@@ -60,6 +63,97 @@ export default async function DriverDashboardPage() {
             )}
           </div>
         </div>
+
+        {/*
+         * ════════════════════════════════════════════════════════════════
+         * Journée du livreur — courses et revenus
+         * ════════════════════════════════════════════════════════════════
+         *
+         * §25 : « Ne jamais afficher au livreur des informations financières
+         * inutiles. » Ses PROPRES frais cessent d'être inutiles à partir du
+         * moment où ils sont sa paie — c'est la seule somme montrée ici. La
+         * valeur de la marchandise, la commission KOLI et le solde du vendeur
+         * ne le regardent pas et n'apparaissent nulle part.
+         */}
+        <section aria-labelledby="titre-journee" className="space-y-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h2
+              id="titre-journee"
+              className="flex items-center gap-2 text-xl font-bold"
+            >
+              <Icone nom="argent" className="h-5 w-5" /> Ma journée
+            </h2>
+            <span className="text-xs font-medium text-ink-muted">
+              Depuis minuit · remis à jour à chaque course validée
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+            {/* Le chiffre du jour, mis en avant : c'est celui qu'un livreur
+                regarde en premier, et souvent le seul. */}
+            <div className="carte-koli rounded-2xl bg-brand p-5 text-white">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-white/80">
+                Gagné aujourd&apos;hui
+              </p>
+              <p className="mt-2 text-2xl font-bold sm:text-3xl">
+                {formatCFA(revenus.gagneAujourdhui)}
+              </p>
+              <p className="mt-1 text-[11px] text-white/80">
+                {revenus.coursesAujourdhui > 0
+                  ? `${formatCFA(revenus.moyenneAujourdhui)} en moyenne par course`
+                  : "Aucune course terminée pour l'instant"}
+              </p>
+            </div>
+
+            <div className="carte-koli rounded-2xl bg-white p-5">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">
+                Courses du jour
+              </p>
+              <p className="mt-2 text-2xl font-bold text-brand sm:text-3xl">
+                {revenus.coursesAujourdhui}
+              </p>
+              <p className="mt-1 text-[11px] text-ink-muted">
+                {pluriel(revenus.coursesTotal, "course au total", "courses au total")}
+              </p>
+            </div>
+
+            <div className="carte-koli rounded-2xl bg-white p-5">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">
+                En cours
+              </p>
+              <p className="mt-2 text-2xl font-bold text-brand sm:text-3xl">
+                {revenus.enCours}
+              </p>
+              <p className="mt-1 text-[11px] text-ink-muted">
+                {revenus.aVenir > 0
+                  ? pluriel(revenus.aVenir, "course à enlever", "courses à enlever")
+                  : "Rien en attente d'enlèvement"}
+              </p>
+            </div>
+
+            <div className="carte-koli rounded-2xl bg-white p-5">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">
+                Gagné au total
+              </p>
+              <p className="mt-2 text-2xl font-bold text-brand sm:text-3xl">
+                {formatCFA(revenus.gagneTotal)}
+              </p>
+              {/* Dire franchement que cet argent n'est pas encaissable. Un
+                  chiffre qui grossit sans jamais arriver sur un compte serait
+                  pris pour une promesse — et le §84 interdit de laisser croire
+                  que KOLI detient des fonds. */}
+              <p className="mt-1 text-[11px] font-semibold text-gold-deep">
+                Mode test — aucun versement réel
+              </p>
+            </div>
+          </div>
+
+          <p className="text-xs leading-relaxed text-ink-muted">
+            Les frais de livraison vous sont acquis dès que le client vous donne
+            son code de réception. Ils ne dépendent pas de sa confirmation
+            ultérieure : la course est faite, elle est payée.
+          </p>
+        </section>
 
         {/* Deliveries list */}
         <div className="space-y-4">

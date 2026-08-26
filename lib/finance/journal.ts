@@ -20,6 +20,7 @@ export const LIBELLES_TYPE: Record<TransactionType, string> = {
   FUNDS_RELEASED: "Libération au vendeur",
   COMMISSION: "Commission KOLI",
   REFUND: "Remboursement",
+  DRIVER_PAYOUT: "Frais de livraison au livreur",
 };
 
 /**
@@ -36,6 +37,8 @@ export const EXPLICATIONS: Record<TransactionType, string> = {
   FUNDS_RELEASED: "Versé au vendeur après confirmation de réception.",
   COMMISSION: "Part conservée par KOLI, prélevée à la libération.",
   REFUND: "Rendu au client après décision de remboursement.",
+  DRIVER_PAYOUT:
+    "Frais de livraison acquis au livreur, à la validation du code de réception.",
 };
 
 export interface LigneJournal {

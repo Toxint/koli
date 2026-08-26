@@ -104,6 +104,20 @@ enum TransactionType {
   FUNDS_SECURED
   FUNDS_RELEASED
   REFUND
+
+  /// Frais de livraison acquis au livreur.
+  ///
+  /// Ils étaient encaissés du client — `Payment.amount` les comprend — mais
+  /// n'étaient crédités à personne : ni au séquestre du vendeur, qui ne porte
+  /// que la marchandise, ni à quiconque d'autre. Le livreur travaillait donc
+  /// gratuitement dans le modèle.
+  ///
+  /// Écrite à la VALIDATION DE L'OTP, et non à la libération des fonds : c'est
+  /// ce code qui prouve la remise, et le travail du livreur s'achève là. Le
+  /// lier à la confirmation du client lui ferait porter un risque qui n'est
+  /// pas le sien — un litige sur la marchandise oppose le client au vendeur et
+  /// ne dit rien sur le fait que le colis a été remis.
+  DRIVER_PAYOUT
 }
 
 enum DeliveryStatus {

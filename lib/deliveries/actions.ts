@@ -194,6 +194,41 @@ export async function validateDeliveryOtpAction(
         }
       }
 
+      /*
+       * Les frais de livraison sont acquis au LIVREUR, et ils le sont ICI.
+       *
+       * Ils etaient encaisses du client — `Payment.amount` les comprend — mais
+       * credites a personne : le sequestre ne porte que la marchandise, et
+       * rien d'autre ne les recevait. Le livreur travaillait gratuitement dans
+       * le modele.
+       *
+       * **Pourquoi a la validation de l'OTP et non a la liberation des fonds.**
+       * Ce code prouve la remise : le travail du livreur s'acheve la. Le lier
+       * a la confirmation du client lui ferait porter un risque qui n'est pas
+       * le sien — un client qui oublie de confirmer, ou qui ouvre un litige
+       * sur la marchandise, le priverait d'une paie qu'il a gagnee. Un litige
+       * oppose le client au vendeur sur ce qu'il y avait dans le colis ; il ne
+       * dit rien sur le fait que le colis a ete remis.
+       *
+       * La commission KOLI (§41) ne s'y applique pas : elle porte sur
+       * `Fund.amount`, qui est la marchandise seule. Le livreur touche donc
+       * exactement le montant annonce.
+       *
+       * `driverId` peut etre nul — une livraison peut etre confirmee sans
+       * livreur assigne — et des frais peuvent valoir zero. Dans les deux cas
+       * il n'y a rien a inscrire : une ecriture nulle encombrerait le journal
+       * sans rien apprendre.
+       */
+      if (delivery.driverId && delivery.order.deliveryFee > 0) {
+        await tx.transaction.create({
+          data: {
+            orderId: delivery.orderId,
+            type: "DRIVER_PAYOUT",
+            amount: delivery.order.deliveryFee,
+          },
+        });
+      }
+
       // §44 : la remise est le moment ou le client doit agir — c'est sa
       // confirmation qui declenche le versement au vendeur (§29). Sans avis,
       // rien ne le lui rappelle et la commande reste en suspens.
