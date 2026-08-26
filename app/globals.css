@@ -25,6 +25,12 @@
   /* Police d'interface. */
   --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
 
+  /* Grands titres de la vitrine — voir app/layout.tsx. */
+  --font-titre: var(--font-titre-source), ui-sans-serif, system-ui, sans-serif;
+
+  /* Un seul mot, en serif italique. */
+  --font-accent: var(--font-accent-source), Georgia, serif;
+
   /* Bordeaux KOLI — titres, textes importants, appels a l'action. */
   --color-brand: #4a0f30;
   --color-brand-strong: #300a20;

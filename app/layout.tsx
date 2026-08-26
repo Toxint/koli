@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Plus_Jakarta_Sans } from "next/font/google";
+import { Plus_Jakarta_Sans, Inter, Instrument_Serif } from "next/font/google";
 import "./globals.css";
 
 /**
@@ -15,6 +15,42 @@ const jakarta = Plus_Jakarta_Sans({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
   variable: "--font-jakarta",
+  display: "swap",
+});
+
+/**
+ * Inter — reservee aux GRANDS TITRES de la vitrine.
+ *
+ * Jakarta est faite pour les interfaces : ses formes s'ouvrent en petit corps,
+ * mais a 80 pixels elles paraissent molles. Inter tient l'echelle : dessin
+ * neutre, chasse serree, tres lisible en graisse extreme — c'est ce qui donne
+ * aux titres leur densite.
+ *
+ * Deux graisses seulement, et uniquement sur la vitrine : un visiteur sur
+ * reseau mobile lent ne telecharge pas une police de plus pour consulter son
+ * tableau de bord.
+ */
+const inter = Inter({
+  subsets: ["latin"],
+  weight: ["700", "800"],
+  variable: "--font-titre-source",
+  display: "swap",
+});
+
+/**
+ * Instrument Serif — un seul mot, en italique.
+ *
+ * Trois verbes a l'imperatif alignes forment un bloc dur. Poser le dernier en
+ * serif italique casse la repetition et designe l'endroit ou tout se joue : la
+ * validation du client, seul moment ou l'argent change de mains.
+ *
+ * Une graisse, un style. Elle ne sert nulle part ailleurs.
+ */
+const serifAccent = Instrument_Serif({
+  subsets: ["latin"],
+  weight: ["400"],
+  style: ["italic"],
+  variable: "--font-accent-source",
   display: "swap",
 });
 
@@ -54,7 +90,10 @@ const RETABLIR_MENU = `try{
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="fr" className={jakarta.variable}>
+    <html
+      lang="fr"
+      className={`${jakarta.variable} ${inter.variable} ${serifAccent.variable}`}
+    >
       <head>
         <script dangerouslySetInnerHTML={{ __html: RETABLIR_MENU }} />
       </head>
