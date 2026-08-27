@@ -90,6 +90,63 @@ const fonctionnalites = [
   },
 ];
 
+/**
+ * Pourquoi choisir KOLI.
+ *
+ * A ne pas confondre avec `fonctionnalites` : celle-la enumere ce que le
+ * produit FAIT, celle-ci repond a « pourquoi vous, plutot que de me
+ * debrouiller ». Deux listes qui se repeteraient donneraient deux fois la
+ * meme page.
+ *
+ * Chaque argument est verifiable dans le produit, aucun n'est une promesse :
+ *
+ *   sequestre        → lib/finance            verif:jalons
+ *   fonds annonces   → app/(vendeur)/…/solde  verif:transactions
+ *   paiement sans compte → app/pay/[reference]  verif:parcours
+ *   canaux de vente  → §2 du plan
+ *   arbitrage        → lib/disputes           verif:litiges
+ *   paie du livreur  → lib/deliveries/actions verif:parcours
+ */
+const raisons = [
+  {
+    titre: "Vous ne payez pas un inconnu",
+    texte:
+      "Votre argent est mis de côté par KOLI, pas versé au vendeur. Il ne part qu'une fois que vous avez confirmé avoir reçu votre commande.",
+    icone: "cadenas" as const,
+  },
+  {
+    titre: "Le vendeur expédie sans crainte",
+    texte:
+      "Il voit que les fonds existent avant d'engager sa marchandise. Plus besoin de choisir entre expédier à l'aveugle et perdre la vente.",
+    icone: "boutique" as const,
+  },
+  {
+    titre: "Rien à installer pour payer",
+    texte:
+      "Le client ouvre le lien et règle. Aucun compte à créer, aucune application à télécharger — c'est ce qui fait qu'une vente aboutit.",
+    icone: "lien" as const,
+  },
+  {
+    titre: "Vendez là où vous vendez déjà",
+    texte:
+      "WhatsApp, Facebook, TikTok, Instagram. KOLI ne remplace pas votre façon de vendre : il sécurise le paiement et la livraison par-dessus.",
+    icone: "partage" as const,
+  },
+  {
+    titre: "Un litige est arbitré, pas subi",
+    texte:
+      "Colis non reçu ou non conforme : l'administration tranche après avoir entendu les deux parties. Les fonds restent bloqués tant que rien n'est décidé.",
+    icone: "bouclier" as const,
+  },
+  {
+    titre: "Le livreur est payé pour sa course",
+    texte:
+      "Les frais de livraison lui sont acquis dès qu'il remet le colis et que le code est validé. Ils ne dépendent pas de la suite, et KOLI n'y prélève rien.",
+    icone: "livreur" as const,
+  },
+];
+
+
 
 /**
  * La trame de points porte sur TOUTE la page, pas sur le seul bloc d'accroche.
@@ -432,6 +489,74 @@ export default function AccueilPage() {
                   {canal}
                 </span>
               ))}
+            </div>
+          </div>
+        </section>
+
+        {/*
+         * ════════════════════════════════════════════════════════════════
+         * Pourquoi choisir KOLI
+         * ════════════════════════════════════════════════════════════════
+         *
+         * Bloc bordeaux profond, arrondi, POSE sur la creme — il ne va pas
+         * d'un bord a l'autre. C'est ce retrait qui en fait un objet et non
+         * une bande : la page respire autour de lui, et l'oeil comprend qu'on
+         * change de registre.
+         *
+         * Ce que cette section dit n'est PAS ce que dit « Fonctionnalites ».
+         * L'une enumere ce que le produit fait, celle-ci repond a « pourquoi
+         * vous, plutot que de vous debrouiller ». Les repeter l'une apres
+         * l'autre aurait donne deux fois la meme page.
+         */}
+        <section id="pourquoi-koli" className="scroll-mt-24 px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
+          <div className="apparait mx-auto max-w-6xl rounded-[2rem] bg-menu bg-gradient-to-b from-menu to-menu-deep px-5 py-14 sm:rounded-[2.5rem] sm:px-10 sm:py-20 lg:px-14">
+            <div className="text-center">
+              <h2 className="font-titre text-3xl font-extrabold tracking-[-0.03em] text-cream sm:text-5xl">
+                Pourquoi choisir KOLI&nbsp;?
+              </h2>
+              <p className="mx-auto mt-4 max-w-2xl text-balance text-base text-white/70 sm:text-lg">
+                Parce que ni l&apos;acheteur ni le vendeur n&apos;a besoin de
+                faire confiance à l&apos;autre.
+              </p>
+            </div>
+
+            <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
+              {raisons.map((r, i) => (
+                <article
+                  key={r.titre}
+                  className="apparait carte-vitrine rounded-3xl border border-white/10 bg-white/[0.06] p-6 sm:p-7"
+                  style={{ animationDelay: `${i * 60}ms` }}
+                >
+                  <span
+                    aria-hidden="true"
+                    className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/10"
+                  >
+                    {/* L'or atteint 7,0:1 sur ce bordeaux : c'est la seule
+                        surface de l'application ou il est lisible en couleur
+                        de trait. */}
+                    <Icone nom={r.icone} className="h-5 w-5 text-gold" />
+                  </span>
+                  <h3 className="mt-5 text-lg font-bold text-white">
+                    {r.titre}
+                  </h3>
+                  <p className="mt-2 text-sm leading-relaxed text-white/70">
+                    {r.texte}
+                  </p>
+                </article>
+              ))}
+            </div>
+
+            <div className="mt-12 text-center">
+              <Link
+                href="/inscription"
+                className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full bg-cream px-8 font-bold text-brand-strong transition-colors hover:bg-white"
+              >
+                Créer un compte gratuitement
+                <Icone nom="fleche-droite" className="h-4 w-4" />
+              </Link>
+              <p className="mt-4 text-xs text-white/60">
+                Aucun paiement réel — KOLI fonctionne en mode test.
+              </p>
             </div>
           </div>
         </section>
