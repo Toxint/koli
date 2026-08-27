@@ -52,6 +52,7 @@ export type NomIcone =
   | "info"
   | "horloge"
   | "eclair"
+  | "etoile"
   | "recherche"
   | "plus"
   | "fleche-droite"
@@ -122,6 +123,11 @@ const CHEMINS: Record<NomIcone, string> = {
   info: "M12 21a9 9 0 100-18 9 9 0 000 18zM12 11v5M12 8h.01",
   horloge: "M12 21a9 9 0 100-18 9 9 0 000 18zM12 7.5V12l3 1.8",
   eclair: "M13.5 3L5 13.5h6L10.5 21 19 10.5h-6L13.5 3z",
+  // Etoile pleine a cinq branches, tracee sur la meme grille de 24 que le
+  // reste du jeu — une etoile importee d ailleurs aurait une graisse de trait
+  // differente et se verrait a cote des autres.
+  etoile:
+    "M12 3.5l2.6 5.3 5.9.9-4.2 4.1 1 5.8-5.3-2.8-5.3 2.8 1-5.8-4.2-4.1 5.9-.9L12 3.5z",
   recherche: "M11 18a7 7 0 100-14 7 7 0 000 14zM20 20l-4-4",
   plus: "M12 5v14M5 12h14",
   "fleche-droite": "M5 12h14M13 6l6 6-6 6",
@@ -132,19 +138,29 @@ export function Icone({
   nom,
   className = "w-5 h-5",
   titre,
+  plein = false,
 }: {
   nom: NomIcone;
   className?: string;
   /** À renseigner seulement si l'icône porte une information à elle seule. */
   titre?: string;
+  /**
+   * Pleine plutôt qu'en trait.
+   *
+   * Le jeu entier est dessiné au trait, et c'est ce qui lui donne son unité.
+   * Une NOTE fait exception : cinq étoiles creuses ne se distinguent de cinq
+   * étoiles vides que par la couleur, ce qui exclut les daltoniens et se voit
+   * mal en plein soleil. Une étoile acquise doit être PLEINE.
+   */
+  plein?: boolean;
 }) {
   return (
     <svg
       data-icone=""
       className={className}
       viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
+      fill={plein ? "currentColor" : "none"}
+      stroke={plein ? "none" : "currentColor"}
       strokeWidth={1.7}
       strokeLinecap="round"
       strokeLinejoin="round"

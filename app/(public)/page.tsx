@@ -146,6 +146,51 @@ const raisons = [
   },
 ];
 
+/**
+ * Temoignages de vendeurs et de clients.
+ *
+ * ┌──────────────────────────────────────────────────────────────────────┐
+ * │  CETTE LISTE EST VIDE, ET C'EST VOULU.                               │
+ * └──────────────────────────────────────────────────────────────────────┘
+ *
+ * KOLI vient d'etre mis en ligne et n'a pas encore d'utilisateur. Ecrire ici
+ * des noms, des villes et des citations inventes reviendrait a publier de
+ * faux avis sur un site accessible a tous — presentes comme veritables, avec
+ * une photo et un metier. Ce n'est pas une maquette qu'on remplace plus tard :
+ * c'est ce que le visiteur lirait.
+ *
+ * La section entiere ne s'affiche donc PAS tant que cette liste est vide. Le
+ * jour ou un vendeur dit quelque chose de vrai, on ajoute son propos ici et la
+ * section apparait — sans autre modification.
+ *
+ * Ce qu'il faut pour ajouter un temoignage :
+ *
+ *   - la personne l'a DIT, et accepte qu'il soit publie avec son nom ;
+ *   - `propos` reprend ses mots, pas une reformulation flatteuse ;
+ *   - `note` est celle qu'elle a donnee, pas cinq par defaut.
+ *
+ * Exemple de la forme attendue — a supprimer en ajoutant le premier vrai :
+ *
+ *   {
+ *     propos: "…",
+ *     nom: "…",
+ *     role: "Vendeuse de pagnes — Abidjan",
+ *     note: 5,
+ *   }
+ */
+interface Temoignage {
+  /** Les mots de la personne, entre guillemets a l'affichage. */
+  propos: string;
+  nom: string;
+  /** Metier et ville, tels qu'elle les donne. */
+  role: string;
+  /** De 1 a 5. Celle qu'elle a donnee. */
+  note: number;
+}
+
+const temoignages: Temoignage[] = [];
+
+
 
 
 /**
@@ -508,6 +553,95 @@ export default function AccueilPage() {
          * vous, plutot que de vous debrouiller ». Les repeter l'une apres
          * l'autre aurait donne deux fois la meme page.
          */}
+        {/*
+         * ════════════════════════════════════════════════════════════════
+         * Temoignages
+         * ════════════════════════════════════════════════════════════════
+         *
+         * La section ne s'affiche QUE s'il y a de vrais temoignages. Voir le
+         * commentaire de `temoignages` : KOLI n'a pas encore d'utilisateur, et
+         * une section vide vaut mieux qu'une section inventee.
+         *
+         * Ce n'est pas une precaution morale abstraite. Un faux avis se
+         * reconnait — un nom trop rond, une ville qui sonne juste, une phrase
+         * trop bien tournee — et le jour ou un visiteur le soupconne, il
+         * doute de TOUT le reste. Sur un produit dont l'argument unique est la
+         * confiance, c'est le pire endroit ou mentir.
+         */}
+        {temoignages.length > 0 && (
+          <section id="temoignages" className="scroll-mt-24">
+            <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24 lg:px-8">
+              <div className="apparait text-center">
+                <h2 className="font-titre text-3xl font-extrabold tracking-[-0.03em] text-heading sm:text-5xl">
+                  Témoignages
+                </h2>
+                <p className="mx-auto mt-4 max-w-2xl text-balance text-base text-ink-muted sm:text-lg">
+                  Ils vendent et achètent avec KOLI au quotidien.
+                </p>
+              </div>
+
+              <div className="mt-12 grid grid-cols-1 gap-5 md:grid-cols-2">
+                {temoignages.map((t, i) => (
+                  <figure
+                    key={t.nom}
+                    className="apparait carte-vitrine rounded-3xl border border-hairline bg-white p-6 sm:p-8"
+                    style={{ animationDelay: `${i * 70}ms` }}
+                  >
+                    {/* La note en toutes lettres pour qui n'y voit pas : cinq
+                        etoiles dessinees ne disent rien a un lecteur d'ecran. */}
+                    <div
+                      className="flex gap-1"
+                      role="img"
+                      aria-label={`${t.note} étoiles sur 5`}
+                    >
+                      {Array.from({ length: 5 }, (_, n) => (
+                        <Icone
+                          key={n}
+                          nom="etoile"
+                          plein
+                          aria-hidden="true"
+                          className={`h-4 w-4 ${
+                            n < t.note ? "text-gold-deep" : "text-hairline"
+                          }`}
+                        />
+                      ))}
+                    </div>
+
+                    <blockquote className="mt-5 text-base leading-relaxed text-ink">
+                      «&nbsp;{t.propos}&nbsp;»
+                    </blockquote>
+
+                    <figcaption className="mt-6 flex items-center gap-3 border-t border-hairline pt-5">
+                      {/* Initiales plutot qu'une photo : nous n'en avons pas,
+                          et une image tiree d'une banque serait un mensonge de
+                          plus. */}
+                      <span
+                        aria-hidden="true"
+                        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-brand text-sm font-bold text-white"
+                      >
+                        {t.nom
+                          .split(/\s+/)
+                          .filter(Boolean)
+                          .slice(0, 2)
+                          .map((m) => m[0]?.toUpperCase() ?? "")
+                          .join("")}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block truncate font-bold text-heading">
+                          {t.nom}
+                        </span>
+                        <span className="block truncate text-sm text-ink-muted">
+                          {t.role}
+                        </span>
+                      </span>
+                    </figcaption>
+                  </figure>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
+
         <section id="pourquoi-koli" className="scroll-mt-24 px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
           <div className="apparait mx-auto max-w-6xl rounded-[2rem] bg-menu bg-gradient-to-b from-menu to-menu-deep px-5 py-14 sm:rounded-[2.5rem] sm:px-10 sm:py-20 lg:px-14">
             <div className="text-center">
