@@ -1,5 +1,9 @@
 import Link from "next/link";
 import { Icone } from "@/components/ui/Icone";
+import {
+  raccourcisDemoActifs,
+  exemplesTemoignagesAutorises,
+} from "@/lib/config/demonstration";
 
 const etapes = [
   {
@@ -190,6 +194,56 @@ interface Temoignage {
 
 const temoignages: Temoignage[] = [];
 
+/**
+ * Exemples de mise en page — VISIBLES SUR LE POSTE, JAMAIS EN LIGNE.
+ *
+ * Ils repondent a un besoin reel : voir la section remplie pour juger de son
+ * rendu, avant d'avoir recueilli les vrais avis. Mais publies tels quels sur
+ * un site accessible a tous, ce seraient de faux avis — des phrases attribuees
+ * a des gens qui ne les ont pas dites.
+ *
+ * Ils sont donc soumis a `RACCOURCIS_DEMO`, la meme garde que les raccourcis de
+ * connexion : renseignee dans `.env.local`, jamais sur l'hebergeur. Une
+ * variable oubliee ne peut que les MASQUER.
+ *
+ * Et quand ils s'affichent, chaque carte porte la mention « exemple ». Un
+ * garde-fou qu'on peut oublier de regarder n'en est pas un : meme sur le poste,
+ * personne ne doit les confondre avec de vrais propos.
+ *
+ * Les vrais temoignages, eux, s'affichent toujours — et remplacent ceux-ci des
+ * qu'il y en a un seul.
+ */
+const exemplesTemoignages: Temoignage[] = [
+  {
+    propos:
+      "Avant, mes clientes me demandaient d'envoyer le colis d'abord. Maintenant je vois que l'argent est là avant de partir à la poste.",
+    nom: "Exemple — vendeuse",
+    role: "Vente de pagnes — Abidjan",
+    note: 5,
+  },
+  {
+    propos:
+      "J'ai payé par le lien sans créer de compte. Le code à donner au livreur, c'est ce qui m'a mis en confiance.",
+    nom: "Exemple — cliente",
+    role: "Cliente — Yopougon",
+    note: 5,
+  },
+  {
+    propos:
+      "Mes frais de course tombent dès que le client me donne son code. Je n'attends plus après le vendeur.",
+    nom: "Exemple — livreur",
+    role: "Livreur à moto — Abidjan",
+    note: 4,
+  },
+  {
+    propos:
+      "Le reçu part sur WhatsApp tout seul. Ça m'évite de le renvoyer à chaque fois qu'on me le redemande.",
+    nom: "Exemple — vendeur",
+    role: "Électroménager — Bouaké",
+    note: 4,
+  },
+];
+
 
 
 
@@ -205,6 +259,17 @@ const temoignages: Temoignage[] = [];
  * la barre flottante puisse en etre l'enfant direct — voir plus bas.
  */
 export default function AccueilPage() {
+  /*
+   * Les vrais temoignages d'abord ; a defaut, les exemples — et seulement sur
+   * un poste qui les demande expressement.
+   *
+   * L'ordre compte : le premier vrai avis chasse les exemples sans qu'il faille
+   * penser a les retirer. Un contenu de remplissage qu'on doit se souvenir de
+   * supprimer finit toujours par rester.
+   */
+  const exemples = temoignages.length === 0 && exemplesTemoignagesAutorises();
+  const aAfficher = temoignages.length > 0 ? temoignages : exemples ? exemplesTemoignages : [];
+
   return (
     <div
       className="min-h-screen bg-cream text-brand dark:text-white"
@@ -568,7 +633,7 @@ export default function AccueilPage() {
          * doute de TOUT le reste. Sur un produit dont l'argument unique est la
          * confiance, c'est le pire endroit ou mentir.
          */}
-        {temoignages.length > 0 && (
+        {aAfficher.length > 0 && (
           <section id="temoignages" className="scroll-mt-24">
             <div className="mx-auto max-w-6xl px-4 py-16 sm:px-6 sm:py-24 lg:px-8">
               <div className="apparait text-center">
@@ -578,10 +643,24 @@ export default function AccueilPage() {
                 <p className="mx-auto mt-4 max-w-2xl text-balance text-base text-ink-muted sm:text-lg">
                   Ils vendent et achètent avec KOLI au quotidien.
                 </p>
+
+                {/* Un bandeau franc, impossible a manquer. Ces exemples ne
+                    sortent jamais du poste, mais celui qui les regarde doit
+                    savoir a la seconde que personne n'a dit ces phrases. */}
+                {exemples && (
+                  <p className="mx-auto mt-5 inline-flex max-w-xl items-center gap-2 rounded-2xl border border-gold-deep/40 bg-gold-soft px-4 py-2.5 text-left text-xs font-semibold text-gold-deep">
+                    <Icone nom="alerte" className="h-4 w-4 shrink-0" />
+                    <span>
+                      Exemples de mise en page — personne n&apos;a dit ces
+                      phrases. Visibles ici seulement, jamais en ligne.
+                      Remplacez-les par de vrais avis.
+                    </span>
+                  </p>
+                )}
               </div>
 
               <div className="mt-12 grid grid-cols-1 gap-5 md:grid-cols-2">
-                {temoignages.map((t, i) => (
+                {aAfficher.map((t, i) => (
                   <figure
                     key={t.nom}
                     className="apparait carte-vitrine rounded-3xl border border-hairline bg-white p-6 sm:p-8"
@@ -627,8 +706,18 @@ export default function AccueilPage() {
                           .join("")}
                       </span>
                       <span className="min-w-0">
-                        <span className="block truncate font-bold text-heading">
-                          {t.nom}
+                        <span className="flex items-center gap-2">
+                          <span className="truncate font-bold text-heading">
+                            {t.nom}
+                          </span>
+                          {/* La mention sur CHAQUE carte, pas seulement en
+                              tete de section : une capture d'ecran d'une seule
+                              carte circulerait sans le bandeau. */}
+                          {exemples && (
+                            <span className="shrink-0 rounded-full bg-gold-soft px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-gold-deep">
+                              exemple
+                            </span>
+                          )}
                         </span>
                         <span className="block truncate text-sm text-ink-muted">
                           {t.role}

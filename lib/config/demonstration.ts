@@ -24,3 +24,34 @@
 export function raccourcisDemoActifs(): boolean {
   return process.env.RACCOURCIS_DEMO === "1";
 }
+
+/**
+ * Les témoignages d'EXEMPLE peuvent-ils s'afficher ?
+ *
+ * Ils servent à juger du rendu de la section avant d'avoir recueilli de vrais
+ * avis. Publiés, ce seraient de faux témoignages — des phrases attribuées à
+ * des gens qui ne les ont pas dites.
+ *
+ * **Deux gardes, et la seconde a été apprise à la dure.**
+ *
+ * `RACCOURCIS_DEMO` seul ne suffit PAS. La page d'accueil est *pré-rendue à la
+ * construction* : ses variables d'environnement sont lues UNE FOIS, au build,
+ * et le résultat est figé dans le HTML servi. Construite sur un poste où la
+ * variable vaut `1`, la page emporte les exemples — et les affiche en ligne
+ * quoi qu'on règle ensuite sur l'hébergeur.
+ *
+ * C'est exactement le piège que `app/(public)/connexion/page.tsx` documente
+ * pour le bouton Google, et il a été retrouvé ici en vérifiant.
+ *
+ * `VERCEL` est posée par l'hébergeur PENDANT la construction. La contrôler
+ * décide donc au bon moment : une page bâtie sur Vercel ne peut pas contenir
+ * les exemples, même si `RACCOURCIS_DEMO` y était renseignée par erreur.
+ *
+ * L'autre remède aurait été `dynamic = "force-dynamic"` sur l'accueil, mais
+ * rendre une page vitrine à chaque visite pour cacher quatre exemples est un
+ * prix disproportionné.
+ */
+export function exemplesTemoignagesAutorises(): boolean {
+  if (process.env.VERCEL) return false;
+  return raccourcisDemoActifs();
+}
