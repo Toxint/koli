@@ -32,6 +32,9 @@ export const registerSchema = z.object({
   }),
   businessName: z.string().optional(),
   vehicle: z.string().optional(),
+  // Ou le livreur tourne. Borne a 80 : de quoi ecrire trois quartiers, pas
+  // de quoi loger un texte dans une liste deroulante.
+  zone: z.string().max(80).optional(),
   city: z.string().optional(),
 });
 

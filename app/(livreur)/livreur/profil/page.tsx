@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/actions";
 import { MenuEspace } from "@/components/ui/MenuEspace";
 import { FormulaireProfil } from "@/components/domain/FormulaireProfil";
+import { DisponibiliteLivreur } from "@/components/domain/DisponibiliteLivreur";
+import { mesVendeursAction } from "@/lib/drivers/equipe";
 
 export const metadata: Metadata = { title: "Mon profil" };
 
@@ -11,6 +13,10 @@ export default async function ProfilPage() {
   if (!user || user.role !== "DRIVER") {
     redirect("/connexion");
   }
+
+  // Les equipes auxquelles il appartient (§5.3). Charge ici et non dans le
+  // composant : c est une lecture de base, elle n a rien a faire cote client.
+  const vendeurs = await mesVendeursAction();
 
   return (
     <div className="min-h-screen bg-cream text-ink lg:pl-[var(--largeur-menu)]">
@@ -43,6 +49,18 @@ export default async function ProfilPage() {
               : {}),
             ...(user.customerProfile ? { city: user.customerProfile.city } : {}),
           }}
+        />
+
+        {/* Disponibilite, zone, et les boutiques pour lesquelles il livre.
+            Place APRES l identite : on regle qui on est avant de regler ce
+            qu on fait. */}
+        <DisponibiliteLivreur
+          disponibleInitial={user.driverProfile?.available ?? true}
+          zoneInitiale={user.driverProfile?.zone ?? ""}
+          vendeurs={vendeurs.map((v) => ({
+            boutique: v.boutique,
+            depuis: v.depuis.toISOString(),
+          }))}
         />
       </main>
     </div>

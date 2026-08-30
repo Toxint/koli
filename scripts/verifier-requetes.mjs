@@ -28,6 +28,25 @@ chargerEnv();
 const DOSSIER = "scripts";
 const EST_SQL = /^\s*(SELECT|INSERT\s+INTO|UPDATE|DELETE\s+FROM|WITH)\b/i;
 
+/**
+ * Un SELECT CSS n'est pas un SELECT SQL.
+ *
+ * Les scripts Playwright visent des elements par selecteur, et `<select>` est
+ * une balise HTML : `page.locator("select option")` et
+ * `"select[id^='livreur-']"` commencent tous deux par le mot SELECT, et la
+ * base les refusait avec une erreur de syntaxe parfaitement exacte — sur du
+ * code parfaitement correct.
+ *
+ * Deux faux positifs suffisent a rendre ce controle inutilisable : on prend
+ * l'habitude de voir du rouge, et le jour ou une VRAIE requete casse, on ne la
+ * distingue plus. Un controle qui crie a tort finit par ne plus etre lu.
+ *
+ * On reconnait un selecteur CSS a ce qui ne peut pas apparaitre en tete d'une
+ * requete SQL : un crochet d'attribut, un point de classe, un diese. Ecarter
+ * ces formes ne relache RIEN — aucune requete SQL valide ne s'ecrit ainsi.
+ */
+const EST_SELECTEUR_CSS = /^\s*select\s*[[.#:>~,]|^\s*select\s+(option|optgroup)\b/i;
+
 /** Les litteraux d'un fichier : gabarits, apostrophes, guillemets. */
 function litteraux(source) {
   const trouves = [];
@@ -35,7 +54,7 @@ function litteraux(source) {
   let m;
   while ((m = motif.exec(source))) {
     const corps = m[0].slice(1, -1);
-    if (EST_SQL.test(corps)) {
+    if (EST_SQL.test(corps) && !EST_SELECTEUR_CSS.test(corps)) {
       trouves.push({ sql: corps, ligne: source.slice(0, m.index).split("\n").length });
     }
   }

@@ -44,6 +44,13 @@ async function main() {
   await prisma.order.deleteMany();
   await prisma.productImage.deleteMany();
   await prisma.product.deleteMany();
+  // §5.3 — les equipes et les invitations, AVANT les profils qui les portent.
+  // Les deux cascadent depuis `SellerProfile`, donc ces lignes sont
+  // techniquement superflues aujourd hui. On les ecrit quand meme : une
+  // suppression qui compte sur une cascade se casse le jour ou la cascade
+  // change, et elle se casse en silence, sur une base a moitie videe.
+  await prisma.sellerDriver.deleteMany();
+  await prisma.driverInvite.deleteMany();
   await prisma.kycDocument.deleteMany();
   await prisma.sellerProfile.deleteMany();
   await prisma.customerProfile.deleteMany();
@@ -177,6 +184,8 @@ async function main() {
       driverProfile: {
         create: {
           vehicle: "Moto YBR 125 - Immatriculation AB-123-CI",
+          zone: "Yopougon, Adjamé et Plateau",
+          available: true,
         },
       },
     },
@@ -184,6 +193,24 @@ async function main() {
   });
 
   const driverProfileId = driverUser.driverProfile!.id;
+
+  // 4 bis. Les EQUIPES de livraison (§5.3).
+  //
+  // « Au debut, chaque vendeur peut utiliser son propre livreur. » Depuis que
+  // cette phrase est implementee, un vendeur ne peut assigner QUE les livreurs
+  // de son equipe — la liste ne renvoie plus tous les livreurs actifs de la
+  // plateforme, et `assignDriverAction` refuse un livreur hors equipe.
+  //
+  // Sans ces deux lignes, le jeu de donnees produirait une base ou le parcours
+  // du §80 s arrete a l assignation : « ce livreur ne fait pas partie de votre
+  // equipe ». Le meme livreur sert aux deux vendeurs, ce qui est justement le
+  // cas reel qu une table de jonction permet et qu un `sellerId` interdisait.
+  await prisma.sellerDriver.createMany({
+    data: [
+      { sellerId: sellerProfileId, driverId: driverProfileId },
+      { sellerId: autreSellerProfileId, driverId: driverProfileId },
+    ],
+  });
 
   // 5. Products
   const product1 = await prisma.product.create({
@@ -338,6 +365,23 @@ async function main() {
           secured: true,
           released: false,
           securedAt: new Date(),
+        },
+      },
+      // Une livraison SANS livreur — comme en produisent les vraies commandes.
+      //
+      // `lib/orders/actions.ts` cree systematiquement la livraison en meme
+      // temps que la commande, vide, en attente d assignation. Cette commande
+      // de demonstration n en avait pas : elle etait donc dans un etat qu aucun
+      // parcours reel ne produit, et `assignDriverAction` y echouait sur un
+      // « enregistrement introuvable » plutot que sur ses propres regles.
+      //
+      // Un jeu de donnees qui fabrique des etats impossibles fait echouer les
+      // controles pour de mauvaises raisons — ou pire, les fait passer.
+      delivery: {
+        create: {
+          driverId: null,
+          status: DeliveryStatus.UNASSIGNED,
+          otpCodes: { create: [{ code: "7351" }] },
         },
       },
       invoice: {

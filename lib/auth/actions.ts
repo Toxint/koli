@@ -7,6 +7,7 @@ import { createSessionCookie, deleteSessionCookie, getSession } from "@/lib/auth
 import { loginSchema, registerSchema } from "@/lib/auth/schemas";
 import { UserRole } from "@prisma/client";
 import { espaceParDefaut } from "@/lib/auth/dashboards";
+import { rejoindreEquipeAction } from "@/lib/drivers/equipe";
 
 export interface ActionResponse {
   success: boolean;
@@ -172,6 +173,7 @@ export async function registerAction(
     role: formData.get("role") as UserRole,
     businessName: formData.get("businessName") as string || undefined,
     vehicle: formData.get("vehicle") as string || undefined,
+    zone: formData.get("zone") as string || undefined,
     city: formData.get("city") as string || undefined,
   };
 
@@ -236,6 +238,10 @@ export async function registerAction(
         driverProfile: {
           create: {
             vehicle: data.vehicle || "Moto",
+            // Pas de valeur de repli sur la zone : « Abidjan » invente ou
+            // travaille quelqu un qui ne l a pas dit, et le vendeur choisirait
+            // sur cette invention. Vide, l ecran affiche « zone non precisee ».
+            zone: data.zone?.trim() || null,
           },
         },
       }),
@@ -257,6 +263,33 @@ export async function registerAction(
     customerId: user.customerProfile?.id,
     driverId: user.driverProfile?.id,
   });
+
+  /*
+   * Le livreur invité entre dans l'équipe du vendeur qui l'a invité (§5.3).
+   *
+   * APRÈS la création du compte et APRÈS la session : dans cet ordre, un lien
+   * périmé ou révoqué ne peut pas faire échouer une inscription par ailleurs
+   * valide. Le livreur a bien son compte ; il lui manque seulement son
+   * rattachement, et le vendeur n'a qu'à lui renvoyer un lien.
+   *
+   * L'échec est donc SILENCIEUX ici, et c'est la seule fois où c'est le bon
+   * choix : refuser le compte punirait le livreur d'une négligence du vendeur.
+   * L'écran d'inscription, lui, a déjà dit à qui le lien rattache — et s'il
+   * n'était plus valable, il l'affichait avant même le formulaire.
+   */
+  const jetonInvitation = formData.get("invitation");
+  if (
+    data.role === "DRIVER" &&
+    user.driverProfile &&
+    typeof jetonInvitation === "string" &&
+    jetonInvitation.length > 0
+  ) {
+    await rejoindreEquipeAction(jetonInvitation, user.driverProfile.id, {
+      id: user.id,
+      name: user.name,
+      role: user.role,
+    });
+  }
 
   const redirectTo = espaceParDefaut(user.role);
   return { success: true, redirectTo };

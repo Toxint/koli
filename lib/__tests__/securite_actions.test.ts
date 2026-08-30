@@ -16,6 +16,9 @@ const prismaMock = {
   order: { findUnique: vi.fn(), update: vi.fn() },
   delivery: { findUnique: vi.fn(), update: vi.fn() },
   driverProfile: { findUnique: vi.fn(), findMany: vi.fn() },
+  // §5.3 — la table des equipes. `assignDriverAction` ne demande plus « ce
+  // livreur existe-t-il ? » mais « travaille-t-il pour MOI ? ».
+  sellerDriver: { findUnique: vi.fn(), findMany: vi.fn() },
   otpCode: { update: vi.fn(), updateMany: vi.fn() },
   fund: { update: vi.fn(), updateMany: vi.fn() },
   payment: { updateMany: vi.fn() },
@@ -322,12 +325,67 @@ describe("assignDriverAction", () => {
     expect(prismaMock.$transaction).not.toHaveBeenCalled();
   });
 
+  /**
+   * §5.3 — LA garde. Un vendeur ne peut assigner que SES livreurs.
+   *
+   * Le code renvoyait auparavant tous les livreurs actifs de la plateforme et
+   * ne vérifiait, à l'assignation, que l'existence et le statut du compte. Un
+   * vendeur pouvait donc faire porter ses colis par le livreur d'un concurrent
+   * — il suffisait de remplacer l'identifiant dans le formulaire.
+   *
+   * Ce test le fixe : `sellerDriver.findUnique` ne trouve rien, donc refus, et
+   * surtout **aucune transaction n'est ouverte**.
+   */
+  it("refuse un livreur qui n'est pas dans l'equipe du vendeur", async () => {
+    getCurrentUserMock.mockResolvedValue(vendeur);
+    prismaMock.order.findUnique.mockResolvedValue(commandePayee);
+    prismaMock.sellerDriver.findUnique.mockResolvedValue(null);
+
+    const res = await assignDriverAction("KOLI-ABCDEFGH", "d-etranger");
+
+    expect(res.success).toBe(false);
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
+    // La question posee est bien « travaille-t-il pour MOI ? », et elle porte
+    // sur le couple vendeur+livreur — pas sur le seul livreur.
+    expect(prismaMock.sellerDriver.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { sellerId_driverId: { sellerId: "s1", driverId: "d-etranger" } },
+      })
+    );
+  });
+
   it("refuse un livreur suspendu", async () => {
     getCurrentUserMock.mockResolvedValue(vendeur);
     prismaMock.order.findUnique.mockResolvedValue(commandePayee);
-    prismaMock.driverProfile.findUnique.mockResolvedValue({
-      id: "d1",
-      user: { name: "Kouassi", status: "SUSPENDED" },
+    prismaMock.sellerDriver.findUnique.mockResolvedValue({
+      driver: {
+        id: "d1",
+        available: true,
+        user: { name: "Kouassi", status: "SUSPENDED" },
+      },
+    });
+
+    const res = await assignDriverAction("KOLI-ABCDEFGH", "d1");
+
+    expect(res.success).toBe(false);
+    expect(prismaMock.$transaction).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Indisponible : le livreur l'a declare lui-meme, et lui seul.
+   *
+   * Passer outre reviendrait a lui confier un colis apres qu'il a dit ne pas en
+   * prendre. Le colis resterait sur place, et c'est le client qui l'apprendrait.
+   */
+  it("refuse un livreur qui s'est declare indisponible", async () => {
+    getCurrentUserMock.mockResolvedValue(vendeur);
+    prismaMock.order.findUnique.mockResolvedValue(commandePayee);
+    prismaMock.sellerDriver.findUnique.mockResolvedValue({
+      driver: {
+        id: "d1",
+        available: false,
+        user: { name: "Kouassi Express", status: "ACTIVE" },
+      },
     });
 
     const res = await assignDriverAction("KOLI-ABCDEFGH", "d1");
@@ -339,9 +397,12 @@ describe("assignDriverAction", () => {
   it("assigne le livreur et fait avancer la commande", async () => {
     getCurrentUserMock.mockResolvedValue(vendeur);
     prismaMock.order.findUnique.mockResolvedValue(commandePayee);
-    prismaMock.driverProfile.findUnique.mockResolvedValue({
-      id: "d1",
-      user: { name: "Kouassi Express", status: "ACTIVE" },
+    prismaMock.sellerDriver.findUnique.mockResolvedValue({
+      driver: {
+        id: "d1",
+        available: true,
+        user: { name: "Kouassi Express", status: "ACTIVE" },
+      },
     });
 
     const tx = {

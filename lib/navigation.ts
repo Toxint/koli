@@ -24,6 +24,10 @@ export const NAV_VENDEUR: NavItem[] = [
   },
   { label: "Catalogue", href: "/vendeur/produits", icone: "catalogue" },
   { label: "Clients", href: "/vendeur/clients", icone: "utilisateurs" },
+  // §5.3 — « Au debut, chaque vendeur peut utiliser son propre livreur. »
+  // Place juste apres les clients : ce sont les deux carnets d'adresses du
+  // vendeur, et on les cherche au meme endroit.
+  { label: "Mes livreurs", href: "/vendeur/livreurs", icone: "livreur" },
   { label: "Factures", href: "/vendeur/factures", icone: "recu" },
   { label: "Transactions", href: "/vendeur/transactions", icone: "journal" },
   { label: "Solde", href: "/vendeur/solde", icone: "solde" },

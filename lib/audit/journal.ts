@@ -52,6 +52,23 @@ export const ACTIONS_AUDIT = {
   FUNDS_RELEASE_TEST: "FUNDS_RELEASE_TEST",
   /** Pièce justificative acceptée ou refusée (§37). */
   KYC_DOCUMENT_REVIEWED: "KYC_DOCUMENT_REVIEWED",
+
+  /* ── Équipes de livraison (§5.3) ──
+   *
+   * Le lien d'invitation vaut droit d'entrée dans l'équipe d'un vendeur : qui
+   * l'a émis, quand, et qui est entré par lui doit rester établi. Sans ces
+   * lignes, un livreur qui apparaît dans une équipe n'a pas d'histoire, et un
+   * vendeur qui conteste sa présence n'a rien à opposer.
+   *
+   * Le JETON, lui, n'entre jamais au journal — voir `emettreInvitationAction`. */
+  /** Un vendeur a émis un lien d'invitation pour ses livreurs. */
+  DRIVER_INVITE_ISSUED: "DRIVER_INVITE_ISSUED",
+  /** Le lien a été fermé — par révocation directe, ou remplacé par un neuf. */
+  DRIVER_INVITE_REVOKED: "DRIVER_INVITE_REVOKED",
+  /** Un livreur est entré dans une équipe par un lien d'invitation. */
+  DRIVER_JOINED_TEAM: "DRIVER_JOINED_TEAM",
+  /** Le vendeur a retiré un livreur de son équipe. */
+  DRIVER_REMOVED_FROM_TEAM: "DRIVER_REMOVED_FROM_TEAM",
 } as const;
 
 export type ActionAudit =
@@ -116,6 +133,10 @@ export const LIBELLES_ACTION: Record<string, string> = {
   REFUND_PROCESSED: "Remboursement traité",
   FUNDS_RELEASE_TEST: "Fonds libérés (test)",
   KYC_DOCUMENT_REVIEWED: "Pièce justificative examinée",
+  DRIVER_INVITE_ISSUED: "Lien d'invitation livreur émis",
+  DRIVER_INVITE_REVOKED: "Lien d'invitation livreur révoqué",
+  DRIVER_JOINED_TEAM: "Livreur entré dans une équipe",
+  DRIVER_REMOVED_FROM_TEAM: "Livreur retiré d'une équipe",
 };
 
 export function libelleAction(action: string): string {

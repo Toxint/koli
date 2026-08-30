@@ -243,6 +243,10 @@ model SellerProfile {
   orders   Order[]
   kyc      KycDocument[]
   funds    Fund[]
+
+  // §5.3 : « Au debut, chaque vendeur peut utiliser son propre livreur. »
+  equipe       SellerDriver[]
+  invitations  DriverInvite[]
 }
 
 model CustomerProfile {
@@ -262,7 +266,90 @@ model DriverProfile {
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
   vehicle String?
 
+  // Ou il tourne, et s il prend des courses en ce moment (§26).
+  //
+  // `zone` est du TEXTE LIBRE — « Yopougon », « Cocody et Plateau ». Pas une
+  // liste fermee de quartiers : personne ne tiendra a jour le decoupage
+  // d Abidjan, et une liste incomplete oblige le livreur a mentir sur ou il
+  // travaille. Le vendeur connait ses livreurs, il lit la phrase.
+  //
+  // Ce n est PAS de la geolocalisation. Le vendeur choisit lui-meme, en
+  // lisant ; rien ici ne calcule un trajet ni ne classe par distance.
+  zone      String?
+  available Boolean @default(true)
+
   deliveries Delivery[]
+  vendeurs   SellerDriver[]
+}
+
+// ── Equipes de livraison ────────────────────────────────
+//
+// §5.3 : « Au debut, chaque vendeur peut utiliser son propre livreur. »
+//
+// Avant cette table, `listAvailableDriversAction` renvoyait TOUS les livreurs
+// actifs de la plateforme : n importe quel vendeur pouvait assigner le livreur
+// d un concurrent, et voyait son nom. C etait une faille de cloisonnement
+// autant qu une erreur de conception.
+
+/**
+ * Le lien entre un vendeur et un livreur — une table de jonction, PAS un
+ * `sellerId` pose sur le livreur.
+ *
+ * Un livreur a moto d Abidjan travaille pour plusieurs commercants, et c est la
+ * norme, pas l exception. Un rattachement unique l aurait oblige a ouvrir un
+ * compte par vendeur — donc a jongler avec plusieurs numeros de telephone, et a
+ * perdre son historique a chaque fois.
+ */
+model SellerDriver {
+  id       String        @id @default(cuid())
+  sellerId String
+  seller   SellerProfile @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  driverId String
+  driver   DriverProfile @relation(fields: [driverId], references: [id], onDelete: Cascade)
+
+  // Par quelle invitation il est entre. `SetNull` et non `Cascade` : revoquer
+  // une invitation ne doit PAS renvoyer les livreurs qu elle a fait entrer.
+  inviteId String?
+  invite   DriverInvite? @relation(fields: [inviteId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+
+  // Deux fois le meme livreur dans la meme equipe n aurait aucun sens, et
+  // ferait apparaitre son nom en double dans la liste d assignation.
+  @@unique([sellerId, driverId])
+  @@index([driverId])
+}
+
+/**
+ * Le lien d invitation qu un vendeur remet a ses livreurs.
+ *
+ * Le livreur ouvre le lien, cree son compte, et se retrouve dans l equipe sans
+ * que le vendeur ait rien a saisir. C est la seule facon d entrer dans une
+ * equipe : il n existe pas de « chercher un livreur par son numero », qui
+ * exposerait l annuaire des livreurs a qui devine un numero.
+ *
+ * REUTILISABLE et non a usage unique : un vendeur donne le meme lien a ses
+ * quatre livreurs. D ou les trois garde-fous — jeton imprevisible, echeance,
+ * revocation — puisque quiconque obtient le lien peut rejoindre l equipe. La
+ * consequence reste mesuree : un nom de plus dans une liste, que le vendeur ne
+ * choisit pas et peut retirer.
+ */
+model DriverInvite {
+  id       String        @id @default(cuid())
+  sellerId String
+  seller   SellerProfile @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  // 32 octets tires au sort, en base64url. Pas un cuid : un identifiant de
+  // base de donnees se devine parfois, et celui-ci vaut droit d entree.
+  token String @unique
+
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  liens SellerDriver[]
+
+  @@index([sellerId])
 }
 
 // ── Catalogue ───────────────────────────────────────────

@@ -10,21 +10,45 @@ import { Icone } from "@/components/ui/Icone";
 
 type RoleType = "SELLER" | "DRIVER" | "CLIENT";
 
+export interface InvitationLivreur {
+  /** Le jeton, tel qu'il voyagera jusqu'à `registerAction`. */
+  jeton: string;
+  /** L'enseigne du vendeur, pour que le livreur sache où il entre. */
+  boutique: string;
+}
+
 export function FormulaireInscription({
   googleConfigure,
   motifGoogle,
+  invitation = null,
+  invitationRefusee = false,
 }: {
   googleConfigure: boolean;
   motifGoogle?: "configuration" | "adresse";
+  /** Renseignée quand la page a été ouverte par un lien d'invitation valable. */
+  invitation?: InvitationLivreur | null;
+  /** Un jeton était présent, mais il ne vaut plus rien. */
+  invitationRefusee?: boolean;
 }) {
   const router = useRouter();
-  const [role, setRole] = useState<RoleType>("SELLER");
+  /*
+   * Un lien d'invitation FIXE le rôle sur « livreur ».
+   *
+   * Le lien ne dit pas « inscris-toi », il dit « rejoins mon équipe de
+   * livraison ». Laisser le choix ouvert produirait le cas absurde d'un
+   * vendeur qui s'inscrit par le lien d'un autre vendeur, et que l'application
+   * essaierait ensuite de rattacher à une équipe alors qu'il n'a pas de profil
+   * de livreur — `registerAction` refuserait en silence, sans que personne ne
+   * comprenne pourquoi.
+   */
+  const [role, setRole] = useState<RoleType>(invitation ? "DRIVER" : "SELLER");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [businessName, setBusinessName] = useState("");
   const [vehicle, setVehicle] = useState("");
+  const [zone, setZone] = useState("");
   const [city, setCity] = useState("Abidjan");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,8 +66,17 @@ export function FormulaireInscription({
     formData.append("role", role);
 
     if (role === "SELLER") formData.append("businessName", businessName);
-    if (role === "DRIVER") formData.append("vehicle", vehicle);
+    if (role === "DRIVER") {
+      formData.append("vehicle", vehicle);
+      formData.append("zone", zone);
+    }
     if (role === "CLIENT") formData.append("city", city);
+
+    // Le jeton part avec l'inscription. `registerAction` le revalide contre la
+    // base : entre l'ouverture de cette page et l'envoi du formulaire, le
+    // vendeur a pu révoquer son lien, et c'est le contrôle au moment d'écrire
+    // qui fait foi — pas celui qui a permis d'afficher l'écran.
+    if (invitation) formData.append("invitation", invitation.jeton);
 
     try {
       const res = await registerAction(null, formData);
@@ -78,11 +111,66 @@ export function FormulaireInscription({
             </div>
           )}
 
+          {/*
+            * Le lien d'invitation, annoncé AVANT le formulaire.
+            *
+            * Le livreur doit savoir chez qui il entre avant de donner son nom
+            * et son numéro. C'est la moindre des choses sur une application
+            * dont le sujet est de ne pas avoir à faire confiance à l'aveugle.
+            */}
+          {invitation && (
+            <div className="mb-6 flex items-start gap-3 rounded-xl border border-brand-border bg-brand-soft/60 p-4">
+              <span
+                aria-hidden="true"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand"
+              >
+                <Icone nom="livreur" className="h-4 w-4 text-white" />
+              </span>
+              <div className="min-w-0 text-sm">
+                <p className="font-bold text-brand">
+                  Vous rejoignez l&apos;équipe de {invitation.boutique}
+                </p>
+                <p className="mt-0.5 text-xs leading-relaxed text-ink-muted">
+                  Une fois votre compte créé, {invitation.boutique} pourra vous
+                  confier des livraisons. Vous restez libre de vous déclarer
+                  indisponible à tout moment depuis votre profil.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/*
+            * Un jeton présent mais mort. Le dire, plutôt que d'inscrire le
+            * livreur dans le vide : il croirait avoir rejoint une équipe, le
+            * vendeur ne le verrait jamais apparaître, et ni l'un ni l'autre
+            * n'aurait le moindre indice sur ce qui a échoué.
+            */}
+          {invitationRefusee && (
+            <div
+              role="alert"
+              className="mb-6 flex items-start gap-3 rounded-xl border border-gold-deep/40 bg-gold-soft p-4 text-sm text-gold-deep"
+            >
+              <Icone nom="alerte" className="mt-0.5 h-4 w-4 shrink-0" />
+              <div className="min-w-0">
+                <p className="font-bold">Ce lien d&apos;invitation n&apos;est plus valable.</p>
+                <p className="mt-0.5 text-xs leading-relaxed">
+                  Il a expiré, ou le vendeur l&apos;a remplacé. Demandez-lui un
+                  nouveau lien. Vous pouvez créer votre compte dès maintenant —
+                  il faudra simplement le rattacher ensuite.
+                </p>
+              </div>
+            </div>
+          )}
+
           <form onSubmit={handleSubmit} className="space-y-6">
             {/* Choix du role — `radiogroup` et `aria-checked` : l'etat
                 selectionne n'etait signale que par la couleur, donc invisible
-                pour un lecteur d'ecran comme pour un daltonien (§69). */}
-            <div>
+                pour un lecteur d'ecran comme pour un daltonien (§69).
+
+                Masque entierement sous invitation : le lien decide du role, et
+                trois boutons dont deux sont interdits posent une question dont
+                la reponse est deja prise. */}
+            <div hidden={Boolean(invitation)}>
               <span
                 id="libelle-role"
                 className="block text-xs font-semibold text-brand dark:text-slate-300 uppercase tracking-wider mb-3"
@@ -278,6 +366,42 @@ export function FormulaireInscription({
                   placeholder="Ex: Moto Yamaha YBR - AB-999-CI"
                   className="w-full px-4 py-3 rounded-xl border border-hairline dark:border-slate-700 bg-white dark:bg-slate-800 text-brand dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand-border transition-all text-sm"
                 />
+
+                {/*
+                  * La zone, demandée à l'inscription et non plus tard.
+                  *
+                  * C'est le seul moment où on est sûr d'avoir l'attention du
+                  * livreur. Renvoyée au profil, elle serait restée vide chez la
+                  * plupart — et le vendeur aurait eu une liste de noms sans la
+                  * seule information dont il a besoin pour choisir.
+                  *
+                  * Facultative malgré tout : un livreur qui ne sait pas encore
+                  * où il tournera ne doit pas être bloqué à l'inscription.
+                  */}
+                <label
+                  htmlFor="zone"
+                  className="mt-4 block text-xs font-semibold uppercase tracking-wider text-brand dark:text-slate-300 mb-1.5"
+                >
+                  Où livrez-vous ?{" "}
+                  <span className="font-normal normal-case tracking-normal text-ink-muted">
+                    (facultatif)
+                  </span>
+                </label>
+                <input
+                  id="zone"
+                  name="zone"
+                  type="text"
+                  maxLength={80}
+                  value={zone}
+                  onChange={(e) => setZone(e.target.value)}
+                  placeholder="Ex: Yopougon, Adjamé et Plateau"
+                  aria-describedby="aide-zone"
+                  className="w-full px-4 py-3 rounded-xl border border-hairline dark:border-slate-700 bg-white dark:bg-slate-800 text-brand dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand-border transition-all text-sm"
+                />
+                <p id="aide-zone" className="mt-1 text-xs text-ink-muted">
+                  Les vendeurs de votre équipe le verront pour savoir quelles
+                  courses vous confier.
+                </p>
               </div>
             )}
 

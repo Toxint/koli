@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { assignDriverAction, type DriverOption } from "@/lib/deliveries/assign";
+import Link from "next/link";
 import { Icone } from "@/components/ui/Icone";
 
 interface AssignerLivreurProps {
@@ -38,10 +39,25 @@ export function AssignerLivreur({
     );
   }
 
+  /*
+   * Equipe vide — on dit QUOI FAIRE, pas seulement qu il n y a personne.
+   *
+   * « Aucun livreur disponible » laissait croire a une panne passagere, alors
+   * que depuis le §5.3 la cause est toujours la meme et l action toujours la
+   * meme : le vendeur n a encore invite personne. Un message qui ne mene nulle
+   * part fait chercher le probleme au mauvais endroit.
+   */
   if (drivers.length === 0) {
     return (
       <p className="text-xs text-ink-muted">
-        Aucun livreur disponible pour le moment.
+        Aucun livreur dans votre équipe.{" "}
+        <Link
+          href="/vendeur/livreurs"
+          className="font-semibold text-brand underline underline-offset-2"
+        >
+          Invitez votre livreur
+        </Link>{" "}
+        pour pouvoir lui confier cette course.
       </p>
     );
   }
@@ -88,10 +104,25 @@ export function AssignerLivreur({
           className="flex-1 w-full min-w-0 min-h-[44px] px-3 rounded-xl border border-hairline bg-white text-sm"
         >
           <option value="">Choisir…</option>
+          {/*
+             La ZONE plutot que le vehicule, et la disponibilite en toutes
+             lettres.
+
+             Le vehicule ne decide de rien : le vendeur sait deja que son
+             livreur est a moto. Ce qu il cherche, c est OU celui-ci tourne
+             (§5.3) — la seule information qui fasse choisir entre deux noms.
+             Le vehicule reste en fin de ligne, entre parentheses.
+
+             `disabled` sur les indisponibles plutot que de les RETIRER de la
+             liste : un livreur qui disparait se lit comme un compte supprime,
+             et le vendeur va chercher la panne ailleurs. La, il lit la raison,
+             et il sait qu il n a qu a l appeler. */}
           {drivers.map((d) => (
-            <option key={d.id} value={d.id}>
+            <option key={d.id} value={d.id} disabled={!d.available}>
               {d.name}
-              {d.vehicle ? ` — ${d.vehicle}` : ""}
+              {d.zone ? ` — ${d.zone}` : ""}
+              {d.vehicle ? ` (${d.vehicle})` : ""}
+              {d.available ? "" : " — indisponible"}
             </option>
           ))}
         </select>
