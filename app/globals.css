@@ -1,25 +1,66 @@
 @import "tailwindcss";
 
 /**
- * Identite KOLI — creme, bordeaux profond, or.
+ * Identite KOLI — VIOLET sur VERT, l'or en accent.
  *
- * Le fond n'est PAS blanc : c'est une creme chaude (#FBF7E9). Sur un ecran de
- * telephone en plein soleil, le blanc pur eblouit et fatigue ; la creme garde
- * la clarte sans la brulure, et fait ressortir les cartes blanches posees
- * dessus. C'est ce contraste creme/blanc qui donne le relief de l'interface —
- * il disparait entierement si le fond redevient blanc.
+ * Trois couleurs, et chacune a un role qu'elle ne partage pas :
  *
- * L'or est somptueux mais illisible en texte sur clair (#E0A82E ne donne que
- * 2,0:1 sur creme). Il est donc reserve aux APLATS et au texte pose SUR le
- * bordeaux, ou il atteint 7,0:1. Pour un or lisible sur creme, --color-gold-deep.
+ *   VIOLET  porte les lettres. Titres, texte important, liens, appels a
+ *           l'action. Deux jeux cohabitent — un CLAIR (actif) et un FONCE en
+ *           commentaire —, basculer c'est echanger trois lignes.
+ *   VERT    est le sol. Fond de page, degrade de la vitrine, courbes des
+ *           tableaux de bord.
+ *   OR      est l'accent, et rien d'autre. Il ne s'ecrit jamais sur clair :
+ *           1,2:1 sur le vert. Il remplit, ou il se pose sur le violet sombre
+ *           du menu, ou il atteint 10,4:1.
  *
- * Contrastes mesures sur la creme #FBF7E9 :
- *   --color-brand         12,9:1  ✓  titres, texte important, CTA
- *   --color-brand-strong  15,7:1  ✓  survol, emphase
- *   --color-brand-accent   9,0:1  ✓  boutons secondaires, liens
- *   --color-ink-muted      5,7:1  ✓  texte secondaire
- *   --color-gold           2,0:1  ✗  JAMAIS en couleur de texte sur creme
- *   --color-gold  sur --color-menu  7,0:1  ✓  accent du menu lateral
+ * **Vert et violet ne sont pas voisins par hasard** : ils sont proches des
+ * complementaires, et c'est ce qui fait qu'ils se tiennent au lieu de se
+ * disputer l'oeil. Le vert est aussi choisi FRANC — canal bleu sous le rouge —
+ * parce qu'un vert trop desature vire au bleu-gris a l'ecran.
+ *
+ * **Le fond a ete creme (#FBF7E9), puis blanc, avant ce vert.** Ce qu'on a
+ * appris au passage, et qui vaut pour tout fond futur : les cartes de
+ * l'application sont BLANCHES, et c'est le contraste fond/blanc qui leur donne
+ * leur relief. Le vert le donne (1,2:1) ; le blanc ne le donnait pas, et il
+ * fallait alors assombrir le filet et ajouter un degrade pour compenser.
+ *
+ * Contrastes mesures sur le vert #DCECD2 — jeu CLAIR actif, jeu FONCE entre
+ * parentheses :
+ *   --color-brand         10,4:1  (13,8)  ✓  titres, texte important, liens
+ *   --color-brand-strong  13,0:1  (15,4)  ✓  survol, emphase
+ *   --color-brand-accent   6,5:1   (8,6)  ✓  boutons secondaires
+ *   --color-brand-light    2,1:1          ✗  JAMAIS en texte : aplats seuls
+ *   --color-ink           13,4:1          ✓  texte courant
+ *   --color-ink-muted      5,9:1          ✓  texte secondaire — voir sa note
+ *   --color-gold-deep      5,1:1          ✓  l'or, en version lisible
+ *   --color-gold           1,2:1          ✗  JAMAIS en texte sur clair
+ *
+ * Texte pose SUR les aplats :
+ *   blanc sur --color-brand                12,9:1  ✓  ← les appels a l'action
+ *   --color-gold sur --color-menu          10,4:1  ✓  ← l'accent du menu
+ *   blanc sur --color-menu-deep            18,6:1  ✓
+ *   --color-ink-muted sur --color-hairline  5,4:1  ✓  (le badge neutre)
+ *
+ * Les courbes des tableaux de bord sont dans le VIOLET DE LA MARQUE, et il n'y
+ * en a qu'une teinte : `lib/finance/teintes-courbes.ts`. Elles ont ete vertes,
+ * a deux profondeurs, une par role — c'est fini. Le trace, son remplissage et
+ * sa grille lisent tous les trois la meme constante.
+ *
+ * ┌────────────────────────────────────────────────────────────────────────┐
+ * │  UNE SEULE FAMILLE DE COULEUR PAR ECRAN. Le violet porte, le vert est   │
+ * │  le sol, l'or PONCTUE — mode test, mention « exemple », accent du menu. │
+ * │  Un pictogramme, une pastille, une courbe, une grille : violet.         │
+ * └────────────────────────────────────────────────────────────────────────┘
+ *
+ * Cette regle a ete ecrite parce qu'elle se defaisait toute seule. Les quatre
+ * pastilles de « Comment ca marche » portaient quatre couleurs — bordeaux,
+ * violet, violet clair, or — pour figurer une progression ; les trois roles de
+ * la pastille « mode test » en portaient trois. Chaque choix se defendait pris
+ * isolement, et l'ensemble se lisait comme un assortiment.
+ *
+ * L'or reste une EXCEPTION assumee, et seulement dans son role d'accent : une
+ * mention « exemple » violette se fondrait dans la carte qu'elle avertit.
  */
 @theme {
   /* Police d'interface. */
@@ -31,47 +72,141 @@
   /* Un seul mot, en serif italique. */
   --font-accent: var(--font-accent-source), Georgia, serif;
 
-  /* Bordeaux KOLI — titres, textes importants, appels a l'action. */
-  --color-brand: #4a0f30;
-  --color-brand-strong: #300a20;
-  --color-brand-accent: #7b2350;
+  /* ═══════════════════════════════════════════════════════════════════
+   *  Violet KOLI — DEUX JEUX, un seul actif
+   * ═══════════════════════════════════════════════════════════════════
+   *
+   * Le violet d'origine (#4A0F30) venait d'ailleurs. Ces deux jeux le decalent
+   * vers le violet franc plutot que le rouge : la marque garde sa famille sans
+   * etre la copie de personne.
+   *
+   * POUR BASCULER : echanger les trois lignes actives avec les trois lignes
+   * commentees. Rien d'autre a toucher — tout le reste de l'application passe
+   * par ces jetons, et les deux jeux ont ete mesures de la meme facon.
+   *
+   * Chaque valeur porte son contraste en commentaire. Ce ne sont pas des
+   * decorations : c'est ce qui permet de choisir en connaissance de cause
+   * plutot qu'a l'oeil. */
+
+  /* ── Jeu CLAIR (actif) ── plus lumineux, se remarque sur le vert. */
+  --color-brand: #5b1348; /* 11,0:1 sur le vert */
+  --color-brand-strong: #3e0d33; /* 13,7:1 */
+  --color-brand-accent: #8a2a63; /* 6,9:1 */
+
+  /* ── Jeu FONCE ── plus sobre, plus dense. Pour l'activer, echanger avec les
+   *    trois lignes ci-dessus.
+   *
+   *    --color-brand: #340b2e;         14,7:1
+   *    --color-brand-strong: #200619;  16,4:1
+   *    --color-brand-accent: #6b1d5e;   9,2:1
+   */
+
+  /* Le violet clair. APLATS SEULEMENT : 2,1:1 sur le vert, il ne porte de
+     texte dans aucun sens. Commun aux deux jeux, et teinte de la lueur qui
+     marie le violet au vert dans le degrade de la vitrine. */
+  --color-brand-light: #c98fb4;
+
+  /* Les roses-violets tres dilues : pastilles et fonds de section. */
   --color-brand-soft: #f7eaf1;
   --color-brand-border: #e6cedc;
 
-  /* Menu lateral : bordeaux plus sombre encore, pour que la zone de
-     navigation se distingue nettement de la zone de travail. */
-  --color-menu: #3e0c28;
-  --color-menu-deep: #2b0619;
+  /* Menu lateral et pied de page : violet plus sombre que la marque, pour que
+   * la zone de navigation se distingue nettement de la zone de travail. C'est
+   * aussi le seul endroit ou l'or est a son avantage — 10,4:1 dessus. */
+  --color-menu: #3e0d33;
+  --color-menu-deep: #260819;
 
-  /* Fond de page. La creme est une couleur a part entiere, pas un blanc
-     sali : les cartes blanches ne se detachent que grace a elle. */
-  --color-cream: #fbf7e9;
+  /* Fond de page — VERT SAUGE.
+   *
+   * Choisi POUR le violet, et non a cote de lui : vert et violet sont voisins
+   * des complementaires, et c'est ce qui fait qu'ils se tiennent au lieu de se
+   * disputer l'oeil. Le violet y garde 10,4:1.
+   *
+   * Il est FRANC, et c'est un reglage, pas un hasard : le canal bleu est sous
+   * le rouge (R220 G236 B210). Une premiere version plus desaturee (#E6F0E8)
+   * avait le bleu AU-DESSUS du rouge, et virait au bleu-gris a l'ecran — on
+   * voyait un fond froid la ou on avait choisi un vert.
+   *
+   * Comme la creme avant lui, ce vert TRAVAILLE : les cartes de l'application
+   * sont BLANCHES et s'en detachent d'elles-memes, a 1,24:1 — mieux que ce que
+   * donnait la creme. Le blanc, lui, les faisait dependre de leur seul filet.
+   *
+   * Le jeton garde son nom : `bg-cream` est ecrit dans une cinquantaine
+   * d'endroits, et le renommer melangerait un changement de couleur avec un
+   * remaniement mecanique. A renommer en `--color-fond` a l'occasion. */
+  --color-cream: #dcecd2;
 
-  /* Or : aplats, pastilles, accents du menu. */
-  --color-gold: #e0a82e;
-  --color-gold-soft: #fdf3dc;
-  /* Seule teinte doree lisible en texte sur fond clair. */
-  --color-gold-deep: #8a6110;
+  /* Le meme vert, en plus dense : c'est le HAUT du degrade de la vitrine. Il
+     descend vers le vert de base puis disparait — voir le halo de
+     app/(public)/page.tsx. */
+  --color-fond-profond: #c6e2bd;
 
-  /* Texte courant : encre chaude, accordee a la creme. Une encre bleutee sur
-     un fond chaud donne un rendu terne. */
+  /* ═══════════════════════════════════════════════════════════════════
+   *  Le jaune VIF — celui qui remplit
+   * ═══════════════════════════════════════════════════════════════════
+   *
+   * Releve a l'oeil sur une capture d'ecran (le bandeau d'economie d'energie
+   * d'Android) et CONFIRME comme exact par l'utilisateur le 28 aout 2026.
+   *
+   * ┌────────────────────────────────────────────────────────────────────┐
+   * │  IL NE S'ECRIT PAS. Il se REMPLIT.                                  │
+   * └────────────────────────────────────────────────────────────────────┘
+   *
+   * En texte sur le vert du fond, ce jaune donne 1,2:1 — moins qu'un gris tres
+   * pale. Un libelle ecrit avec disparait, purement et simplement.
+   *
+   * Mais dans l'autre sens il est excellent, et c'est exactement ce que
+   * montre la photo dont il vient : une pastille JAUNE avec un pictogramme
+   * SOMBRE dessus, et du texte jaune sur du noir. Jamais l'inverse.
+   *
+   *   --color-ink       pose dessus  10,8:1  ✓   ← le sens de la photo
+   *   sur --color-menu               10,4:1  ✓   ← l'accent du menu lateral
+   *   EN TEXTE sur le vert            1,2:1  ✗   ← jamais
+   *
+   * D'ou son emploi : pastilles, accents du menu, mention du mode test sur le
+   * violet sombre. Il ponctue, il ne porte pas — ce sont le violet et l'encre
+   * qui portent.
+   */
+  --color-gold: #ffc93c;
+  --color-gold-soft: #fff4d6;
+  /* Le meme jaune assombri — la SEULE forme lisible en texte sur clair. Pour
+     un « 20 % » ou un libelle dore sur le vert, c'est celle-ci, pas l'autre.
+     5,1:1. */
+  --color-gold-deep: #7d5a12;
+
+  /* Texte courant, legerement violace pour s'accorder a la marque — une encre
+     franchement froide a cote d'un ambre parait grise et sale.
+   *
+   * `--color-ink-muted` est plus sombre qu'on ne l'attendrait d'un texte
+   * « secondaire », et ce n'est pas un exces de prudence : il sert AUSSI de
+   * couleur de texte au badge neutre (`bg-hairline text-ink-muted`,
+   * `lib/orders/statusLabels.ts`). Une valeur plus claire passe sur le blanc
+   * et echoue sur le filet — c'est exactement ce que `verif:responsive` a
+   * releve, quarante-deux fois, sur le mot « Remboursee ». */
   --color-ink: #241c22;
-  --color-ink-muted: #6a6055;
-  /* Filet teinte de la marque, tres dilue. Le gris neutre precedent
-     disparaissait sur la creme : les blocs flottaient sans limite lisible.
-     Teinter le JETON plutot que chaque carte donne un contour coherent dans
-     toute l'application sans toucher au balisage. */
-  --color-hairline: #ebe1db;
+  --color-ink-muted: #5c5364;
+
+  /* Filet teinte de la marque, tres dilue.
+   *
+   * Il borde les cartes sans les enfermer : sur la creme, une carte blanche se
+   * detache deja d'elle-meme, et le filet ne fait que preciser sa limite. (Sur
+   * fond blanc il devenait la SEULE limite et devait etre assombri — voir la
+   * note du fond de page.)
+   *
+   * Il est aussi le FOND du badge neutre (`bg-hairline text-ink-muted`,
+   * `lib/orders/statusLabels.ts`) : trop sombre, et son texte ne passe plus.
+   * C'est la contrainte qui fixe `--color-ink-muted`. */
+  --color-hairline: #d2e2c9;
   /* Noir des sous-titres. #1A1016 plutot que #000 : a l'ecran, le noir pur
      provoque un leger halo qui fatigue la lecture. */
   --color-heading: #1a1016;
 
   /* Mode test. */
-  --color-test-mode: #8a6110;
-  --color-test-mode-surface: #fdf3dc;
+  --color-test-mode: #7d5a12;
+  --color-test-mode-surface: #fff4d6;
 
   --color-danger: #b91c1c;
-  --color-warning: #8a6110;
+  --color-warning: #7d5a12;
   --color-success: #15803d;
 
   /* Largeur du menu lateral : reprise par les pages via lg:pl-[15.5rem]. */
@@ -121,7 +256,7 @@ html {
   background-color: var(--color-cream);
 }
 
-/* Fond creme, encre chaude. */
+/* Fond blanc, encre froide. */
 body {
   background-color: var(--color-cream);
   color: var(--color-ink);
@@ -132,7 +267,7 @@ body {
 
 /* Hierarchie typographique — dans `@layer base`, contrairement aux regles
    ci-dessus : ce sont des valeurs par DEFAUT, qu'un `text-white` doit pouvoir
-   surcharger (un titre pose sur un aplat bordeaux doit rester blanc).
+   surcharger (un titre pose sur un aplat bleu doit rester blanc).
    Le code abusait de `font-black` (900) : a l'ecran, une graisse extreme
    ecrase la hierarchie au lieu de la creer. On plafonne a 700 et c'est la
    couleur, non la graisse, qui porte l'importance. */
@@ -145,13 +280,14 @@ body {
     text-wrap: balance;
   }
 
-  /* Le titre principal en bordeaux : un seul point d'ancrage par page. */
+  /* Le titre principal dans la couleur de marque : un seul point d'ancrage
+     par page. */
   h1 {
     color: var(--color-brand-strong);
     font-weight: 700;
   }
 
-  /* Sous-titres en noir sur toute l'application : le bordeaux perdrait de sa
+  /* Sous-titres en noir sur toute l'application : le bleu perdrait de sa
      force a se repeter a chaque section. */
   h2,
   h3,
@@ -205,9 +341,9 @@ label[class*="rounded"][class*="border"] {
    `a[class*="rounded"][class*="bg-"]:hover` compte deux selecteurs d'attribut
    contre un seul pour la regle des CTA, qui restait donc sans effet. */
 @media (hover: hover) {
-  button:not(:disabled):not([class~="bg-brand"]):not([class~="bg-brand-strong"]):not([class~="bg-brand-accent"]):hover,
-  a[class*="rounded"][class*="bg-"]:not([class~="bg-brand"]):not([class~="bg-brand-strong"]):not([class~="bg-brand-accent"]):hover,
-  a[class*="rounded"][class*="border"]:not([class~="bg-brand"]):not([class~="bg-brand-strong"]):not([class~="bg-brand-accent"]):hover,
+  button:not(:disabled):not([class~="bg-brand"]):not([class~="bg-brand-strong"]):not([class~="bg-brand-accent"]):not([class~="bg-gold"]):hover,
+  a[class*="rounded"][class*="bg-"]:not([class~="bg-brand"]):not([class~="bg-brand-strong"]):not([class~="bg-brand-accent"]):not([class~="bg-gold"]):hover,
+  a[class*="rounded"][class*="border"]:not([class~="bg-brand"]):not([class~="bg-brand-strong"]):not([class~="bg-brand-accent"]):not([class~="bg-gold"]):hover,
   label[class*="rounded"][class*="border"]:hover {
     transform: translateY(-1px);
   }
@@ -234,7 +370,7 @@ label[class*="rounded"][class*="border"]:active {
  * soulevait que d'un pixel au lieu de deux.
  *
  * L'ombre est teintee de la marque, pas grise : une ombre neutre sous un
- * bouton bordeaux donne un rendu sale.
+ * bouton bleu donne un rendu sale.
  *
  * Le reflet (`::after`) balaie le bouton au survol. Animation DECLENCHEE et
  * non perpetuelle : une boucle infinie sur chaque appel a l'action userait la
@@ -245,7 +381,9 @@ a[class~="bg-brand"],
 button[class~="bg-brand-strong"],
 a[class~="bg-brand-strong"],
 button[class~="bg-brand-accent"],
-a[class~="bg-brand-accent"] {
+a[class~="bg-brand-accent"],
+button[class~="bg-gold"],
+a[class~="bg-gold"] {
   position: relative;
   overflow: hidden;
   box-shadow: 0 4px 14px -6px color-mix(in srgb, var(--color-brand) 55%, transparent);
@@ -256,7 +394,9 @@ a[class~="bg-brand"]::after,
 button[class~="bg-brand-strong"]::after,
 a[class~="bg-brand-strong"]::after,
 button[class~="bg-brand-accent"]::after,
-a[class~="bg-brand-accent"]::after {
+a[class~="bg-brand-accent"]::after,
+button[class~="bg-gold"]::after,
+a[class~="bg-gold"]::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -277,7 +417,9 @@ a[class~="bg-brand-accent"]::after {
   button[class~="bg-brand-strong"]:hover,
   a[class~="bg-brand-strong"]:hover,
   button[class~="bg-brand-accent"]:hover,
-  a[class~="bg-brand-accent"]:hover {
+  a[class~="bg-brand-accent"]:hover,
+button[class~="bg-gold"]:hover,
+a[class~="bg-gold"]:hover {
     transform: translateY(-2px);
     box-shadow: 0 10px 22px -8px
       color-mix(in srgb, var(--color-brand) 65%, transparent);
@@ -288,7 +430,9 @@ a[class~="bg-brand-accent"]::after {
   button[class~="bg-brand-strong"]:hover::after,
   a[class~="bg-brand-strong"]:hover::after,
   button[class~="bg-brand-accent"]:hover::after,
-  a[class~="bg-brand-accent"]:hover::after {
+  a[class~="bg-brand-accent"]:hover::after,
+button[class~="bg-gold"]:hover::after,
+a[class~="bg-gold"]:hover::after {
     transform: translateX(120%);
   }
 }
@@ -299,19 +443,21 @@ a[class~="bg-brand"]:active,
 button[class~="bg-brand-strong"]:active,
 a[class~="bg-brand-strong"]:active,
 button[class~="bg-brand-accent"]:active,
-a[class~="bg-brand-accent"]:active {
+a[class~="bg-brand-accent"]:active,
+button[class~="bg-gold"]:active,
+a[class~="bg-gold"]:active {
   box-shadow: 0 2px 6px -3px color-mix(in srgb, var(--color-brand) 60%, transparent);
 }
 
 /**
  * Petits boutons secondaires — contour fin de la marque.
  *
- * Beaucoup n'avaient AUCUNE limite : un libelle bordeaux pose sur du blanc,
+ * Beaucoup n'avaient AUCUNE limite : un libelle bleu pose sur du blanc,
  * sans rien qui indique la zone cliquable. Sur un telephone, ou l'on vise au
  * doigt, la cible etait invisible tant qu'on ne l'avait pas touchee.
  *
  * On ne vise que les boutons sans fond et les pastilles a fond doux : un
- * contour bordeaux sur le vert WhatsApp ou sur le rouge d'une action
+ * contour bleu sur le vert WhatsApp ou sur le rouge d'une action
  * destructrice jurerait.
  */
 :where(button, a)[class*="rounded"]:not([class*="bg-"]),
@@ -320,7 +466,7 @@ a[class~="bg-brand-accent"]:active {
   border: 1px solid color-mix(in srgb, var(--color-brand) 20%, transparent);
 }
 
-/* Le menu lateral est sombre : un contour bordeaux y serait invisible, et la
+/* Le menu lateral est sombre : un contour bleu y serait invisible, et la
    liste des entrees a deja son propre langage visuel. */
 [data-menu-koli] :where(button, a) {
   border-color: transparent;
@@ -330,8 +476,8 @@ a[class~="bg-brand-accent"]:active {
  * Carte KOLI — contour fin dans la couleur de marque, et reponse au survol.
  *
  * Les cartes portaient un filet gris neutre (`--color-hairline`) qui, sur la
- * creme, ne se voyait presque plus : les blocs flottaient sans limite lisible.
- * Le contour reprend donc le bordeaux de la marque, mais tres dilue (12 %) —
+ * blanc, ne se voyait presque plus : les blocs flottaient sans limite lisible.
+ * Le contour reprend donc le bleu de la marque, mais tres dilue (12 %) —
  * assez pour dessiner la carte, pas assez pour crier. Au survol il se densifie
  * et une ombre teintee de la meme couleur apparait : l'animation dit « ceci est
  * un bloc a part » sans deplacer la mise en page.
@@ -363,7 +509,7 @@ a[class~="bg-brand-accent"]:active {
  * Pas de generation de PDF : l'impression du navigateur suffit, fonctionne
  * partout et n'ajoute aucune dependance a telecharger sur un reseau lent. On
  * retire seulement ce qui n'a rien a faire sur une piece comptable : les
- * elements de navigation, le decor, et le fond creme qui gaspillerait de
+ * elements de navigation, le decor, et le fond blanc qui gaspillerait de
  * l'encre.
  */
 @media print {
@@ -417,7 +563,7 @@ svg[data-icone] {
   outline-offset: 2px;
 }
 
-/* Le menu lateral est sombre : un contour bordeaux y serait invisible. */
+/* Le menu lateral est sombre : un contour bleu y serait invisible. */
 [data-menu-koli] :focus-visible {
   outline: 2px solid var(--color-gold);
   outline-offset: 2px;
@@ -568,6 +714,240 @@ svg[data-icone] {
     }
   }
 
+  /* ═══════════════════════════════════════════════════════════════════
+     Courbes de performance
+     ═══════════════════════════════════════════════════════════════════ */
+
+  @keyframes revelationCourbe {
+    from {
+      transform: scaleX(0);
+    }
+    to {
+      transform: scaleX(1);
+    }
+  }
+
+  @keyframes apparitionAire {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  /**
+   * La ligne se devoile de gauche a droite — par un rectangle de decoupe qui
+   * s'ouvre, et non en se dessinant elle-meme.
+   *
+   * Elle se dessinait bien par `stroke-dasharray` sur un trace normalise
+   * (`pathLength="1"`), ce qui evitait de mesurer quoi que ce soit en
+   * JavaScript. C'etait juste sur le papier et FAUX a l'ecran : combine a
+   * `vector-effect: non-scaling-stroke`, le navigateur compte les pointilles
+   * en pixels d'ecran, pas en unites du repere. Le tiret couvrait donc 640
+   * pixels d'une courbe qui en occupe 918, et le dernier tiers n'etait jamais
+   * trace — sur tous les ecrans, sans message, sans erreur : la courbe avait
+   * simplement l'air de s'arreter.
+   *
+   * Un rectangle qui s'ouvre ne depend d'aucune longueur, ni du trace ni de
+   * l'echelle. `transform-box: fill-box` ancre l'ouverture sur le bord gauche
+   * du rectangle lui-meme, et non sur l'origine du repere SVG.
+   *
+   * Sans animation du tout, le rectangle reste entier : la courbe est la,
+   * complete. C'est aussi ce que fait la regle globale
+   * `prefers-reduced-motion`, qui ramene la duree a zero.
+   */
+  .animate-revelation {
+    transform-box: fill-box;
+    transform-origin: left center;
+    animation: revelationCourbe 900ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+
+  /* L'aire suit la ligne, un peu apres : remplir avant d'avoir trace donnerait
+     une tache qui attend son contour. */
+  .animate-aire {
+    animation: apparitionAire 700ms ease-out 350ms both;
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════
+     Vocabulaire de mouvement repris de saspay.me
+     ═══════════════════════════════════════════════════════════════════
+
+     Les courbes d'acceleration et les durees sont RELEVEES sur leur feuille
+     de style (/assets/index-CCDrHkgZ.css), pas approchees a l'oeil :
+
+       count-up   .35s ease-out
+       toast-in   .4s  cubic-bezier(.16, 1, .3, 1)
+       marquee    22s  linear infinite
+
+     Ce qui fait la difference n'est pas l'idee — tout le monde fait monter un
+     chiffre — c'est ce `cubic-bezier(.16, 1, .3, 1)` : une detente qui depasse
+     legerement puis se pose. C'est ce qui donne au mouvement l'air d'obeir a
+     une matiere plutot qu'a une horloge.
+
+     La regle globale `prefers-reduced-motion` ramene toutes ces durees a zero.
+     Les elements sont alors simplement la, en place. */
+
+  /* Un chiffre qui se pose au lieu d'apparaitre. Pour les compteurs des
+     tableaux de bord : le montant monte de quelques pixels en se revelant, ce
+     qui attire l'oeil sur la valeur sans la faire clignoter. */
+  @keyframes monteeChiffre {
+    from {
+      opacity: 0.4;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-compteur {
+    animation: monteeChiffre 350ms ease-out both;
+  }
+
+  /* Une chose qui SURGIT : elle arrive de dessous, un peu trop grande, et se
+     pose. Pour ce qui apparait apres coup — confirmation, bandeau, panneau. */
+  @keyframes surgissement {
+    from {
+      opacity: 0;
+      transform: translateY(12px) scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .animate-surgit {
+    animation: surgissement 400ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  /**
+   * Bandeau defilant.
+   *
+   * Le contenu est double dans le balisage et la piste glisse de la moitie de
+   * sa largeur : arrivee au bout, elle se retrouve exactement dans sa position
+   * de depart et la boucle ne se voit pas. Doubler le contenu n'est donc pas
+   * une facilite, c'est la condition pour qu'il n'y ait aucun saut.
+   *
+   * Le conteneur DOIT porter `overflow-hidden` : sans lui, la piste depasse et
+   * la page gagne un defilement horizontal, ce que le §8 interdit et que
+   * `verif:responsive` refuse.
+   */
+  @keyframes defilementBandeau {
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
+  }
+
+  .animate-bandeau {
+    animation: defilementBandeau 22s linear infinite;
+  }
+
+  /* Le survol s'arrete sur demande : un mouvement perpetuel qu'on ne peut pas
+     figer empeche de lire ce qu'il transporte. */
+  @media (hover: hover) {
+    .animate-bandeau:hover {
+      animation-play-state: paused;
+    }
+  }
+
+  /* ═══════════════════════════════════════════════════════════════════
+     Orbites du haut de page
+     ═══════════════════════════════════════════════════════════════════
+
+     Deux anneaux pointilles qui tournent lentement derriere le titre.
+
+     Ce n'est pas un ornement pris au hasard : KOLI EST un cycle. Commande,
+     paiement, sequestre, livraison, code de reception, liberation — l'argent
+     fait un tour complet et revient au vendeur une fois le client servi. Un
+     anneau qui tourne dit cela sans une ligne de texte, la ou une forme
+     abstraite n'aurait rien dit du tout.
+
+     Les deux tournent en SENS OPPOSES : c'est ce qui evite l'effet « roue de
+     chargement ». Deux mouvements contraires se lisent comme un mecanisme,
+     un seul comme une attente.
+
+     COUT : deux animations infinies, et le §70 vise des telephones d'entree de
+     gamme. C'est tenable parce qu'il s'agit de deux `transform` pures, que le
+     compositeur traite sans repeindre, et que les durees sont tres longues —
+     90 et 140 secondes. Ne pas en ajouter une troisieme sans y regarder.
+
+     `transform-box: fill-box` ancre la rotation sur le centre du cercle
+     lui-meme ; sans lui elle se ferait autour de l'origine du repere SVG et
+     l'anneau partirait en vrille hors du cadre. */
+  @keyframes rotationOrbite {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  .animate-orbite {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: rotationOrbite 90s linear infinite;
+  }
+
+  .animate-orbite-inverse {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: rotationOrbite 140s linear infinite reverse;
+  }
+
+  /**
+   * L'aurore — la tache de couleur qui derive derriere le titre.
+   *
+   * C'est le geste des vitrines qui animent le mieux (Stripe, Linear, Vercel) :
+   * une masse floue tres diluee qui se deplace si lentement qu'on ne la voit
+   * pas bouger, mais qui empeche le haut de page d'etre une image fixe. On
+   * percoit que la page est VIVANTE sans jamais etre distrait par ce qui bouge.
+   *
+   * Trois details font la difference entre cet effet et une tache qui glisse :
+   *
+   *   `alternate`   elle revient sur ses pas au lieu de sauter a son point de
+   *                 depart. Une boucle qui se referme brutalement se remarque,
+   *                 et c'est tout ce qu'on cherche a eviter.
+   *   `ease-in-out` elle ralentit aux extremites, comme une masse qui a de
+   *                 l'inertie. En lineaire, on lit un objet tire par un fil.
+   *   l'echelle     elle respire en meme temps qu'elle derive — sans cela, le
+   *                 deplacement seul trahit une image qu'on promene.
+   *
+   * 26 secondes : assez lent pour rester sous le seuil de l'attention.
+   */
+  @keyframes deriveAurore {
+    from {
+      transform: translate3d(-4%, 0, 0) scale(1);
+    }
+    to {
+      transform: translate3d(4%, 3%, 0) scale(1.12);
+    }
+  }
+
+  .animate-aurore {
+    animation: deriveAurore 26s ease-in-out infinite alternate;
+    will-change: transform;
+  }
+
+  /**
+   * Ombre portee TEINTEE, et non grise.
+   *
+   * Relevee chez eux : `0 20px 60px -15px` de la marque a 25 %, doublee d'une
+   * ombre courte plus dense. Une ombre grise sous un aplat colore donne un
+   * rendu sale ; teintee de la meme couleur, elle passe pour de la lumiere.
+   */
+  .ombre-flottante {
+    box-shadow:
+      0 20px 60px -15px color-mix(in srgb, var(--color-brand) 25%, transparent),
+      0 8px 20px -8px color-mix(in srgb, var(--color-brand) 12%, transparent);
+  }
+
   /**
    * Carte de la vitrine.
    *
@@ -583,17 +963,39 @@ svg[data-icone] {
   }
 
   @media (hover: hover) {
+    /*
+     * Le soulevement et l'ombre sont repris de saspay.me : `-translate-y-1.5`
+     * (6 px) et une ombre en DEUX couches — une longue et diffuse qui detache
+     * la carte du fond, une courte et dense qui la pose. Une seule couche
+     * donne un halo flottant ; deux donnent un objet.
+     *
+     * L'ombre est teintee de la marque, jamais grise : un gris sous une carte
+     * posee sur un fond colore se lit comme de la salissure.
+     */
     .carte-vitrine:hover {
-      transform: translateY(-4px);
-      border-color: color-mix(in srgb, var(--color-brand) 26%, transparent);
-      box-shadow: 0 18px 40px -24px color-mix(in srgb, var(--color-brand) 55%, transparent);
+      transform: translateY(-6px);
+      border-color: color-mix(in srgb, var(--color-brand) 30%, transparent);
+      box-shadow:
+        0 20px 60px -15px color-mix(in srgb, var(--color-brand) 25%, transparent),
+        0 8px 20px -8px color-mix(in srgb, var(--color-brand) 14%, transparent);
+    }
+
+    /* L'icone grossit avec la carte — `group-hover:scale-110` chez eux. Le
+       mouvement part du CENTRE de la pastille, sinon elle glisse au lieu de
+       respirer. */
+    .carte-vitrine .pastille-icone {
+      transition: transform 220ms cubic-bezier(0.2, 0, 0.2, 1);
+    }
+
+    .carte-vitrine:hover .pastille-icone {
+      transform: scale(1.1);
     }
   }
 
   /**
    * Barre de defilement du menu lateral.
    *
-   * Celle du systeme est large, grise et a bouts carres : posee sur le bordeaux
+   * Celle du systeme est large, grise et a bouts carres : posee sur le bleu
    * du menu, elle donnait l'impression d'un morceau d'interface etranger colle
    * au bord arrondi du panneau, et son extremite semblait coupee par l'arrondi.
    *

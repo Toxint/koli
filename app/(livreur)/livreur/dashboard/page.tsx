@@ -7,6 +7,10 @@ import { JalonLivraison } from "@/components/domain/JalonLivraison";
 import { prochainJalonLivreur, JALONS } from "@/lib/deliveries/jalons";
 import { pluriel, formatCFA } from "@/lib/format";
 import { chargerRevenusLivreur } from "@/lib/finance/revenus-livreur";
+import { chargerCourbeLivreur } from "@/lib/finance/courbes";
+import { mettreEnForme } from "@/lib/finance/jours";
+import { TEINTE_COURBE } from "@/lib/finance/teintes-courbes";
+import { CourbePerformance } from "@/components/domain/CourbePerformance";
 import { Icone } from "@/components/ui/Icone";
 
 export default async function DriverDashboardPage() {
@@ -18,6 +22,7 @@ export default async function DriverDashboardPage() {
   const driverProfileId = user.driverProfile.id;
 
   const revenus = await chargerRevenusLivreur(driverProfileId);
+  const courbe = mettreEnForme(await chargerCourbeLivreur(driverProfileId));
 
   const deliveries = await prisma.delivery.findMany({
     where: { driverId: driverProfileId },
@@ -146,6 +151,29 @@ export default async function DriverDashboardPage() {
                 Mode test — aucun versement réel
               </p>
             </div>
+          </div>
+
+          {/* Courbe des revenus. UNE mesure : ce qui lui revient. Le nombre de
+              courses est deja porte par les compteurs ci-dessus — l ajouter ici
+              aurait demande une seconde echelle verticale. */}
+          <div className="carte-koli rounded-2xl bg-white p-6">
+            <div className="mb-5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+              <div>
+                <h3 className="text-base font-bold">Vos revenus, jour par jour</h3>
+                <p className="text-xs text-ink-muted">
+                  Quatorze derniers jours · frais de livraison acquis
+                </p>
+              </div>
+              <span className="text-sm font-bold text-brand">
+                {formatCFA(courbe.reduce((s, p) => s + p.valeur, 0))} sur la période
+              </span>
+            </div>
+
+            <CourbePerformance
+              points={courbe}
+              couleur={TEINTE_COURBE}
+              libelle="Frais de livraison acquis par jour"
+            />
           </div>
 
           <p className="text-xs leading-relaxed text-ink-muted">

@@ -4,6 +4,10 @@ import { prisma } from "@/lib/db/prisma";
 import { MenuEspace } from "@/components/ui/MenuEspace";
 import { formatCFA } from "@/lib/format";
 import { chargerSoldeVendeur } from "@/lib/finance/solde";
+import { chargerCourbeVendeur } from "@/lib/finance/courbes";
+import { mettreEnForme } from "@/lib/finance/jours";
+import { TEINTE_COURBE } from "@/lib/finance/teintes-courbes";
+import { CourbePerformance } from "@/components/domain/CourbePerformance";
 import { libelleStatut, classesBadgeStatut } from "@/lib/orders/statusLabels";
 import Link from "next/link";
 import { Icone } from "@/components/ui/Icone";
@@ -43,6 +47,7 @@ export default async function SellerDashboardPage() {
   // commission, si bien que les deux ecrans annonceraient desormais deux
   // soldes differents.
   const solde = await chargerSoldeVendeur(sellerProfileId);
+  const courbe = mettreEnForme(await chargerCourbeVendeur(sellerProfileId));
   const securedAmount = solde.fondsSecurises;
   const releasedAmount = solde.soldeDisponible;
 
@@ -76,13 +81,21 @@ export default async function SellerDashboardPage() {
           </div>
         </div>
 
-        {/* KPI Cards */}
+        {/*
+         * Les compteurs — `animate-compteur`, repris du vocabulaire de
+         * saspay.me : le chiffre monte de quelques pixels en se révélant.
+         *
+         * Sur le MONTANT, pas sur la carte : c'est la valeur qu'on vient
+         * chercher en ouvrant cette page, et animer le cadre autour d'elle
+         * attirerait l'œil sur le cadre. Le libellé, lui, ne bouge pas — il
+         * doit être lisible avant que le chiffre se pose.
+         */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-hairline/80 dark:border-slate-800 shadow-sm hover:border-amber-400/50 transition-all">
             <span className="text-[11px] font-semibold text-brand dark:text-amber-400 uppercase tracking-wider block mb-1">
               Fonds sécurisés (test)
             </span>
-            <div className="text-2xl font-bold text-brand dark:text-amber-400">
+            <div className="animate-compteur text-2xl font-bold text-brand dark:text-amber-400">
               {formatCFA(securedAmount)}
             </div>
             <p className="text-[11px] text-ink-muted mt-1">
@@ -94,7 +107,7 @@ export default async function SellerDashboardPage() {
             <span className="text-[11px] font-semibold text-brand dark:text-emerald-400 uppercase tracking-wider block mb-1">
               Solde disponible (test)
             </span>
-            <div className="text-2xl font-bold text-brand dark:text-emerald-400">
+            <div className="animate-compteur text-2xl font-bold text-brand dark:text-emerald-400">
               {formatCFA(releasedAmount)}
             </div>
             <p className="text-[11px] text-ink-muted mt-1">
@@ -108,7 +121,7 @@ export default async function SellerDashboardPage() {
             <span className="text-xs font-bold text-ink-muted uppercase tracking-wider block mb-1">
               Total Commandes
             </span>
-            <div className="text-2xl font-bold text-brand dark:text-white">
+            <div className="animate-compteur text-2xl font-bold text-brand dark:text-white">
               {totalOrdersCount}
             </div>
             <p className="text-[11px] text-ink-muted mt-1">
@@ -120,13 +133,41 @@ export default async function SellerDashboardPage() {
             <span className="text-xs font-bold text-ink-muted uppercase tracking-wider block mb-1">
               Produits en Catalogue
             </span>
-            <div className="text-2xl font-bold text-brand dark:text-white">
+            <div className="animate-compteur text-2xl font-bold text-brand dark:text-white">
               {productsCount}
             </div>
             <p className="text-[11px] text-ink-muted mt-1">
               Articles actifs dans votre stock
             </p>
           </div>
+        </div>
+
+        {/*
+         * Courbe des encaissements.
+         *
+         * UNE mesure : ce qui est réellement acquis, net de commission. Le
+         * nombre de commandes est déjà porté par les compteurs au-dessus ;
+         * l'ajouter ici aurait demandé une seconde échelle verticale, et deux
+         * échelles font dire à un graphique ce qu'on veut.
+         */}
+        <div className="rounded-2xl border border-hairline bg-white p-6 shadow-sm">
+          <div className="mb-5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+            <div>
+              <h2 className="text-lg font-bold">Vos encaissements</h2>
+              <p className="text-xs text-ink-muted">
+                Quatorze derniers jours, net de commission KOLI
+              </p>
+            </div>
+            <span className="text-sm font-bold text-brand">
+              {formatCFA(courbe.reduce((s, p) => s + p.valeur, 0))} sur la période
+            </span>
+          </div>
+
+          <CourbePerformance
+            points={courbe}
+            couleur={TEINTE_COURBE}
+            libelle="Encaissements nets par jour"
+          />
         </div>
 
         {/* Recent Orders Section */}
