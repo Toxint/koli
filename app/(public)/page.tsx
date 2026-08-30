@@ -1,9 +1,8 @@
 import Link from "next/link";
 import { Icone } from "@/components/ui/Icone";
-import {
-  raccourcisDemoActifs,
-  exemplesTemoignagesAutorises,
-} from "@/lib/config/demonstration";
+import { LogoKoli } from "@/components/ui/LogoKoli";
+import { exemplesTemoignagesAutorises } from "@/lib/config/demonstration";
+import { AnnoncesActivite } from "@/components/domain/AnnoncesActivite";
 
 const etapes = [
   {
@@ -11,10 +10,28 @@ const etapes = [
     titre: "Commandez",
     texte: "Le vendeur vous envoie un lien de paiement KOLI sur WhatsApp, Instagram ou ailleurs.",
     icone: "boutique" as const,
-    // Progression de teintes qui suit le trajet de l'argent : du bordeaux
-    // profond de la commande a l'or du versement final. La couleur porte
-    // l'etape, elle ne decore pas.
-    pastille: "bg-brand-strong",
+    /*
+     * LES QUATRE PASTILLES ONT LA MÊME COULEUR, et c’est le violet de la
+     * marque. Le champ reste — il porte la règle, et une valeur en dur
+     * recopiée quatre fois se serait remise à diverger.
+     *
+     * Elles formaient une progression : bordeaux profond, violet, violet
+     * clair, or. L’idée était que la teinte suive le trajet de l’argent. Elle
+     * ne tenait pas. D’une part le rang est déjà dit deux fois — par le
+     * chiffre géant en fond et par l’ordre de lecture —, si bien que la
+     * couleur ne répétait qu’une information acquise. D’autre part une
+     * gradation ne se LIT comme telle que si on la cherche : quatre cartes
+     * côte à côte, chacune d’une couleur, se lisent comme quatre catégories
+     * séparées, pas comme une seule chose qui avance.
+     *
+     * Le pire était la quatrième : l’or. C’est la couleur d’ACCENT de KOLI
+     * (voir l’en-tête de `app/globals.css`), réservée à ce qui ponctue. Posée
+     * sur la dernière étape, elle ne disait pas « aboutissement » : elle
+     * disait « cette carte n’est pas de la même famille que les trois
+     * autres ». Une seule teinte partout, et les quatre étapes redeviennent
+     * un même parcours.
+     */
+    pastille: "bg-brand",
   },
   {
     numero: "2",
@@ -28,18 +45,57 @@ const etapes = [
     titre: "Recevez",
     texte: "Le livreur vous remet le colis et vous demande votre code de réception.",
     icone: "colis" as const,
-    pastille: "bg-brand-accent",
+    pastille: "bg-brand",
   },
   {
     numero: "4",
     titre: "Validez",
     texte: "Vous confirmez avoir bien reçu votre commande. C'est seulement là que le vendeur est payé.",
     icone: "valide" as const,
-    pastille: "bg-gold-deep",
+    pastille: "bg-brand",
   },
 ];
 
 const canaux = ["WhatsApp", "Facebook", "TikTok", "Instagram", "Votre site"];
+
+/**
+ * Les colonnes du pied de page.
+ *
+ * Chaque lien pointe une page qui EXISTE — c'est la seule règle, et elle a
+ * besoin d'être écrite. Un pied de page est l'endroit où l'on range les liens
+ * qu'on n'ose pas retirer : « Mentions légales », « Presse », « Carrières ».
+ * Personne ne les clique, donc personne ne signale qu'ils sont morts, et ils
+ * restent des mois. Un lien mort dans un pied de page en dit long sur le soin
+ * apporté au reste — et ce site vend précisément de la confiance.
+ *
+ * Rien ici n'est donc ajouté « pour remplir la colonne ». La rubrique légale
+ * en compte deux au lieu de trois : c'est ce que le site possède.
+ */
+const colonnesPied = [
+  {
+    titre: "Produit",
+    liens: [
+      { texte: "Comment ça marche", href: "/comment-ca-marche" },
+      { texte: "Pour les vendeurs", href: "/pour-les-vendeurs" },
+      { texte: "Aide", href: "/aide" },
+    ],
+  },
+  {
+    titre: "Compte",
+    liens: [
+      { texte: "Créer un compte", href: "/inscription" },
+      { texte: "Se connecter", href: "/connexion" },
+      { texte: "Mot de passe oublié", href: "/mot-de-passe-oublie" },
+    ],
+  },
+  {
+    titre: "Légal",
+    liens: [
+      { texte: "Conditions d'utilisation", href: "/conditions" },
+      { texte: "Confidentialité", href: "/confidentialite" },
+    ],
+  },
+];
 
 /**
  * Fonctionnalites annoncees sur la vitrine.
@@ -305,9 +361,9 @@ export default function AccueilPage() {
               aria-label="Accueil KOLI"
               className="flex min-h-[44px] shrink-0 items-center gap-2"
             >
-              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-brand text-lg font-bold text-white sm:h-9 sm:w-9">
-                K
-              </span>
+              {/* 36 px sur tous les ecrans : la marque ne change pas de
+                  taille selon la fenetre, seul le MOT s'efface sous 360px. */}
+              <LogoKoli taille={36} className="shrink-0" />
               {/* Sous 360px, le mot cede la place aux deux actions : le carre
                   « K » suffit a identifier la marque, et perdre « Connexion »
                   aurait ete plus couteux. */}
@@ -365,21 +421,93 @@ export default function AccueilPage() {
         </header>
 
         <main>
-          {/* Halo dore tres dilue derriere le titre : rechauffe le centre sans
-              jamais concurrencer le texte. Rogne par son propre conteneur —
-              un `overflow-hidden` pose plus haut neutraliserait la barre
-              collante. */}
+          {/*
+           * Le degrade du haut de page — le vert qui s'approfondit sous
+           * l'en-tete, et une lueur violette derriere le titre.
+           *
+           * DEUX couches, et c'est ce qui le distingue d'un aplat :
+           *
+           *   1. un voile vertical de vert plus dense, qui meurt vers le bas —
+           *      seul, il donnerait une bande, et une bande se voit ;
+           *   2. une ellipse VIOLETTE tres diluee derriere le titre.
+           *
+           * La seconde n'est pas un ornement : c'est elle qui marie les deux
+           * couleurs. Sans elle, le vert du fond et le violet du titre se
+           * regardent en chiens de faience ; avec elle, le violet est deja
+           * present dans l'air autour du mot avant d'etre dans le mot.
+           *
+           * Rogne par son propre conteneur — un `overflow-hidden` pose plus
+           * haut neutraliserait la barre collante.
+           */}
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 top-0 h-[520px] overflow-hidden"
+            className="pointer-events-none absolute inset-x-0 top-0 h-[760px] overflow-hidden"
           >
             <div
-              className="absolute left-1/2 top-0 h-[420px] w-[860px] max-w-none -translate-x-1/2 opacity-70"
+              className="absolute inset-0"
               style={{
                 background:
-                  "radial-gradient(ellipse at center, color-mix(in srgb, var(--color-gold) 22%, transparent) 0%, transparent 68%)",
+                  "linear-gradient(to bottom, var(--color-fond-profond) 0%, color-mix(in srgb, var(--color-fond-profond) 55%, transparent) 34%, transparent 82%)",
               }}
             />
+            {/* L'aurore — voir `.animate-aurore`. C'est l'ancienne lueur fixe,
+                mise en mouvement : elle derive et respire sur 26 secondes. */}
+            <div
+              className="animate-aurore absolute left-1/2 top-0 h-[560px] w-[1200px] max-w-none -translate-x-1/2"
+              style={{
+                background:
+                  "radial-gradient(ellipse at center, color-mix(in srgb, var(--color-brand-light) 42%, transparent) 0%, transparent 68%)",
+              }}
+            />
+
+            {/*
+             * Les orbites — le cycle KOLI, en fond.
+             *
+             * Commande, paiement, sequestre, livraison, code, liberation :
+             * l'argent fait un tour complet et revient au vendeur une fois le
+             * client servi. Les trois points de l'anneau exterieur sont les
+             * trois roles du parcours — client, vendeur, livreur — et ils
+             * tournent avec lui.
+             *
+             * Volontairement TRES pale : c'est une texture, pas une
+             * illustration. Si on la remarque en lisant le titre, elle est
+             * trop forte.
+             */}
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 600 600"
+              className="absolute left-1/2 top-[-40px] h-[600px] w-[600px] -translate-x-1/2 opacity-[0.17] sm:h-[680px] sm:w-[680px]"
+            >
+              <g className="animate-orbite">
+                <circle
+                  cx="300"
+                  cy="300"
+                  r="230"
+                  fill="none"
+                  stroke="var(--color-brand)"
+                  strokeWidth="1.5"
+                  strokeDasharray="2 14"
+                  strokeLinecap="round"
+                />
+                {/* Les trois roles, a 120 degres l'un de l'autre. */}
+                <circle cx="300" cy="70" r="6" fill="var(--color-brand)" />
+                <circle cx="499" cy="415" r="6" fill="var(--color-brand)" />
+                <circle cx="101" cy="415" r="6" fill="var(--color-brand)" />
+              </g>
+
+              <g className="animate-orbite-inverse">
+                <circle
+                  cx="300"
+                  cy="300"
+                  r="162"
+                  fill="none"
+                  stroke="var(--color-brand-accent)"
+                  strokeWidth="1"
+                  strokeDasharray="1 11"
+                  strokeLinecap="round"
+                />
+              </g>
+            </svg>
           </div>
 
           <section className="relative mx-auto max-w-5xl px-4 pb-16 pt-12 text-center sm:px-6 sm:pb-24 sm:pt-16 lg:pt-20">
@@ -394,15 +522,29 @@ export default function AccueilPage() {
              *
              * Les trois pastilles rappellent les trois roles du parcours :
              * client, vendeur, livreur.
+             *
+             * Elles sont TOUTES DU MEME VIOLET. Elles ont porte trois couleurs
+             * — violet, violet clair, or — pour distinguer les roles. Ce n'est
+             * pas ce qu'on lisait : trois pastilles de trois couleurs, hautes
+             * de vingt-quatre pixels et a moitie superposees, ne se lisent pas
+             * comme trois roles. Elles se lisent comme un assortiment, juste
+             * au-dessus d'un titre qui est, lui, d'une seule couleur.
+             *
+             * Ce qui les separe reellement, c'est l'anneau blanc et la forme de
+             * chaque pictogramme — et cela fonctionne quelle que soit la
+             * vision, ce qu'un ecart de teinte ne garantissait pas.
              */}
-            <div className="apparait-au-chargement inline-flex max-w-full items-center gap-2.5 rounded-full border border-brand-border/70 bg-white/80 py-1.5 pl-2 pr-4 shadow-sm backdrop-blur-sm">
+            {/* `animate-float` — repris de saspay.me, 5 s aller-retour sur six
+                pixels. Assez lent pour ne pas distraire de la lecture, assez
+                present pour que la pastille paraisse posee sur la page plutot
+                qu'imprimee dedans. La regle globale `prefers-reduced-motion`
+                l'annule pour qui l'a demande. */}
+            <div className="apparait-au-chargement animate-float inline-flex max-w-full items-center gap-2.5 rounded-full border border-brand-border/70 bg-white/80 py-1.5 pl-2 pr-4 shadow-sm backdrop-blur-sm">
               <span aria-hidden="true" className="flex shrink-0 -space-x-2">
-                {(["client", "boutique", "livreur"] as const).map((nom, i) => (
+                {(["client", "boutique", "livreur"] as const).map((nom) => (
                   <span
                     key={nom}
-                    className={`flex h-6 w-6 items-center justify-center rounded-full ring-2 ring-white ${
-                      ["bg-brand", "bg-brand-accent", "bg-gold-deep"][i]
-                    }`}
+                    className="flex h-6 w-6 items-center justify-center rounded-full bg-brand ring-2 ring-white"
                   >
                     <Icone nom={nom} className="h-3.5 w-3.5 text-white" />
                   </span>
@@ -497,7 +639,7 @@ export default function AccueilPage() {
 
                   <span
                     aria-hidden="true"
-                    className={`relative flex h-12 w-12 items-center justify-center rounded-2xl ${etape.pastille}`}
+                    className={`pastille-icone relative flex h-12 w-12 items-center justify-center rounded-2xl ${etape.pastille}`}
                   >
                     <Icone nom={etape.icone} className="h-5 w-5 text-white" />
                   </span>
@@ -571,7 +713,7 @@ export default function AccueilPage() {
                 >
                   <span
                     aria-hidden="true"
-                    className="flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-soft"
+                    className="pastille-icone flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-soft"
                   >
                     <Icone nom={f.icone} className="h-5 w-5 text-brand" />
                   </span>
@@ -772,7 +914,7 @@ export default function AccueilPage() {
             <div className="mt-12 text-center">
               <Link
                 href="/inscription"
-                className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full bg-cream px-8 font-bold text-brand-strong transition-colors hover:bg-white"
+                className="inline-flex min-h-[52px] items-center justify-center gap-2 rounded-full bg-cream px-8 font-bold text-ink transition-colors hover:bg-white"
               >
                 Créer un compte gratuitement
                 <Icone nom="fleche-droite" className="h-4 w-4" />
@@ -794,16 +936,48 @@ export default function AccueilPage() {
             vous êtes déjà — KOLI sécurise le paiement et la livraison.
           </p>
 
-          <ul className="mt-8 flex flex-wrap gap-2 justify-center">
-            {canaux.map((canal) => (
-              <li
-                key={canal}
-                className="px-4 py-2 rounded-full bg-brand-soft dark:bg-slate-800 text-sm font-semibold"
-              >
-                {canal}
-              </li>
-            ))}
-          </ul>
+          {/*
+           * Bandeau défilant — le mouvement dit « il y en a d'autres ».
+           *
+           * Une liste figée de cinq pastilles se lit comme une liste FERMÉE :
+           * on vend sur ces cinq canaux et pas ailleurs. La même liste qui
+           * glisse doucement se lit comme un échantillon, ce qui est la vérité
+           * — KOLI se pose par-dessus n'importe quel canal.
+           *
+           * Le contenu est écrit DEUX FOIS, et la piste glisse de la moitié de
+           * sa largeur : arrivée au bout, elle se retrouve exactement à son
+           * point de départ et la boucle est invisible. Le second exemplaire
+           * est `aria-hidden` — un lecteur d'écran n'a pas à entendre
+           * « WhatsApp » deux fois pour un effet qu'il ne voit pas.
+           *
+           * `overflow-hidden` n'est pas décoratif : sans lui la piste déborde
+           * et la page gagne un défilement horizontal, que le §8 interdit.
+           *
+           * Les voiles blancs aux deux bords évitent que les pastilles se
+           * coupent net : elles s'effacent au lieu d'être tranchées.
+           */}
+          <div className="relative mt-8 overflow-hidden">
+            <ul className="animate-bandeau flex w-max gap-2">
+              {[...canaux, ...canaux].map((canal, i) => (
+                <li
+                  key={`${canal}-${i}`}
+                  aria-hidden={i >= canaux.length ? "true" : undefined}
+                  className="whitespace-nowrap rounded-full bg-brand-soft px-4 py-2 text-sm font-semibold"
+                >
+                  {canal}
+                </li>
+              ))}
+            </ul>
+
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-y-0 left-0 w-16 bg-gradient-to-r from-cream to-transparent"
+            />
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-y-0 right-0 w-16 bg-gradient-to-l from-cream to-transparent"
+            />
+          </div>
 
           <div className="mt-8">
             <Link
@@ -816,31 +990,104 @@ export default function AccueilPage() {
         </section>
       </main>
 
-      <footer className="border-t border-hairline dark:border-slate-800">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-ink-muted">
-          <span>© {new Date().getFullYear()} KOLI — Mode test</span>
-          <nav className="flex flex-wrap gap-x-2 gap-y-1 justify-center">
-            <Link
-              href="/aide"
-              className="inline-flex items-center min-h-[44px] px-2 hover:text-brand dark:hover:text-emerald-400"
-            >
-              Aide
-            </Link>
-            <Link
-              href="/conditions"
-              className="inline-flex items-center min-h-[44px] px-2 hover:text-brand dark:hover:text-emerald-400"
-            >
-              Conditions
-            </Link>
-            <Link
-              href="/confidentialite"
-              className="inline-flex items-center min-h-[44px] px-2 hover:text-brand dark:hover:text-emerald-400"
-            >
-              Confidentialité
-            </Link>
-          </nav>
+      {/*
+       * Le pied de page — un aplat bordeaux à coins hauts arrondis.
+       *
+       * Il FERME la page au lieu de s'y ajouter. La vitrine est crème du haut
+       * jusqu'ici ; ce bloc sombre dit que la lecture est finie. Le filet gris
+       * qui tenait ce rôle avant ne le disait à personne : la page s'arrêtait
+       * sans qu'on sache si l'on avait tout vu, et un visiteur qui doute
+       * continue de faire défiler dans le vide.
+       *
+       * Les coins arrondis reprennent ceux des cartes de la vitrine : c'est la
+       * même famille de formes du haut en bas.
+       */}
+      {/* `bg-menu` et non `bg-brand` : le violet plein de la marque est trop
+          clair pour porter l'or du « Mode test » — 3,3:1, releve par
+          `verif:responsive`. Sur le violet profond, le meme or tient 8,4:1, et
+          la mention la plus importante du bloc redevient lisible. */}
+      <footer className="mt-16 rounded-t-[2rem] bg-menu text-cream sm:mt-24 sm:rounded-t-[3rem]">
+        <div className="mx-auto max-w-6xl px-6 py-14 sm:px-8 sm:py-16">
+          <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-[1.7fr_1fr_1fr_1fr] lg:gap-8">
+            {/* La marque, et ce que fait KOLI en deux phrases. Quelqu'un qui
+                arrive ici par un lien profond n'a peut-être rien lu d'autre. */}
+            <div>
+              <div className="flex items-center gap-2">
+                {/* 40 et non 36 : le mot y est en `font-titre` extra-gras, et la
+                    marque paraissait legere a cote. La taille se regle sur ce
+                    qui l accompagne, pas sur une valeur uniforme. */}
+                <LogoKoli taille={40} variante="claire" className="shrink-0" />
+                <span className="font-titre text-xl font-extrabold tracking-[-0.03em]">
+                  KOLI
+                </span>
+              </div>
+
+              <p className="mt-4 max-w-xs text-sm leading-relaxed text-cream/70">
+                L&apos;argent du client est mis de côté jusqu&apos;à ce
+                qu&apos;il confirme avoir reçu. Le vendeur expédie sans risque,
+                l&apos;acheteur paie sans crainte.
+              </p>
+
+              <Link
+                href="/inscription"
+                className="mt-6 inline-flex min-h-[48px] items-center gap-2 rounded-2xl bg-cream px-6 font-bold text-brand transition-colors hover:bg-gold-soft"
+              >
+                Créer mon compte
+                <Icone nom="fleche-droite" className="h-4 w-4" />
+              </Link>
+            </div>
+
+            {colonnesPied.map((colonne) => (
+              <nav key={colonne.titre} aria-label={colonne.titre}>
+                <h2 className="text-xs font-bold uppercase tracking-[0.12em] text-cream/50">
+                  {colonne.titre}
+                </h2>
+                <ul className="mt-2">
+                  {colonne.liens.map((lien) => (
+                    <li key={lien.href}>
+                      {/* 44 px de haut : c'est la taille d'un doigt, et un pied
+                          de page se touche au pouce, en bas de l'écran. */}
+                      <Link
+                        href={lien.href}
+                        className="inline-flex min-h-[44px] items-center text-sm text-cream/80 transition-colors hover:text-gold"
+                      >
+                        {lien.texte}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </nav>
+            ))}
+          </div>
+
+          <div className="mt-10 flex flex-col gap-3 border-t border-cream/15 pt-6 text-sm text-cream/60 sm:flex-row sm:items-center sm:justify-between">
+            <span>© {new Date().getFullYear()} KOLI — Tous droits réservés</span>
+
+            {/* Le mode test se dit ICI, en clair, et pas en petits caractères
+                sur une page annexe : personne ne doit croire avoir confié de
+                l'argent réel. C'est la ligne la plus importante du bloc. */}
+            <span className="font-semibold text-gold">
+              Mode test — aucun argent réel ne circule
+            </span>
+          </div>
         </div>
       </footer>
+
+      {/*
+       * Les vignettes d’activité — EXEMPLES, donc jamais en ligne.
+       *
+       * Même garde que les témoignages, et pour la même raison : ce sont des
+       * faits affirmés (untel s’est inscrit, untel a été payé) sur un service
+       * qui n’a pas encore d’utilisateur. `exemplesTemoignagesAutorises`
+       * contrôle AUSSI `VERCEL`, parce que cette page est pré-rendue à la
+       * construction : `RACCOURCIS_DEMO` seule serait lue au build et figée
+       * dans le HTML servi. Le détail est dans `lib/config/demonstration.ts`.
+       *
+       * Le composant est monté en dernier et se positionne en `fixed` : sa
+       * place dans le balisage ne décide de rien, sinon de l’ordre de
+       * tabulation, où elle a justement sa place — après le contenu.
+       */}
+      {exemplesTemoignagesAutorises() && <AnnoncesActivite />}
     </div>
   );
 }

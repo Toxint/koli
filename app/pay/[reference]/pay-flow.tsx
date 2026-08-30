@@ -10,6 +10,7 @@ import { FormulaireLitige } from "@/components/domain/FormulaireLitige";
 import { FriseLivraison } from "@/components/domain/FriseLivraison";
 import { JALONS, indiceJalon } from "@/lib/deliveries/jalons";
 import type { OrderStatus } from "@prisma/client";
+import { LogoKoli } from "@/components/ui/LogoKoli";
 
 interface PayFlowProps {
   order: {
@@ -308,9 +309,7 @@ export function PayFlow({
       {/* Header */}
       <div className="text-center space-y-2">
         <div className="inline-flex items-center gap-2 mb-2">
-          <div className="w-11 h-11 rounded-2xl bg-brand flex items-center justify-center text-white font-bold text-2xl shadow-lg shadow-brand/25 border border-brand-border/40 animate-float">
-            K
-          </div>
+          <LogoKoli taille={44} className="animate-float shrink-0" />
           <span className="font-bold text-2xl tracking-tight text-brand dark:text-white">
             KOLI <span className="text-amber-500 font-mono text-sm uppercase tracking-widest font-semibold">PAY</span>
           </span>

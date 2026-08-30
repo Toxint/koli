@@ -5,6 +5,7 @@ import { libelleStatut } from "@/lib/orders/statusLabels";
 import { getCurrentUser } from "@/lib/auth/actions";
 import { BarreCompte } from "@/components/ui/BarreCompte";
 import { PartagerFacture } from "@/components/domain/PartagerFacture";
+import { LogoKoli } from "@/components/ui/LogoKoli";
 
 const DATE_FR = new Intl.DateTimeFormat("fr-FR", {
   dateStyle: "long",
@@ -82,9 +83,7 @@ export default async function PageFacture({
         <article className="carte-koli bg-white rounded-2xl p-6 sm:p-8 space-y-6">
           <header className="flex flex-wrap justify-between items-start gap-4 pb-5 border-b border-hairline">
             <div className="flex items-center gap-2.5">
-              <span className="w-10 h-10 rounded-xl bg-brand flex items-center justify-center text-white font-bold text-lg">
-                K
-              </span>
+              <LogoKoli taille={40} className="shrink-0" />
               <span>
                 <span className="block font-bold text-xl tracking-tight">
                   KOLI

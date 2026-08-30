@@ -11,6 +11,7 @@ import { usePathname } from "next/navigation";
 import { Icone } from "@/components/ui/Icone";
 import { BoutonDeconnexion } from "@/components/ui/BoutonDeconnexion";
 import type { NavItem } from "@/lib/navigation";
+import { LogoKoli } from "@/components/ui/LogoKoli";
 
 export type { NavItem };
 
@@ -174,9 +175,13 @@ export function DashboardNav({
           onClick={() => setTiroirOuvert(false)}
           className="flex items-center gap-2.5 min-h-[44px] group"
         >
-          <span className="w-9 h-9 shrink-0 rounded-xl bg-gold flex items-center justify-center text-menu-deep font-bold text-lg group-hover:scale-105 transition-transform">
-            K
-          </span>
+          {/* Variante CLAIRE : le menu est en violet profond, une marque
+              violette y disparaitrait. */}
+          <LogoKoli
+            taille={36}
+            variante="claire"
+            className="shrink-0 transition-transform group-hover:scale-105"
+          />
           {!compact && (
             <span className="font-bold text-xl tracking-tight text-white">
               KOLI
@@ -270,7 +275,7 @@ export function DashboardNav({
                     compact ? "justify-center px-2" : "px-3"
                   } ${
                     actif
-                      ? "bg-white text-brand-strong shadow-sm"
+                      ? "bg-white text-ink shadow-sm"
                       : "text-white/75 hover:bg-white/10 hover:text-white"
                   }`}
                 >
@@ -306,7 +311,7 @@ export function DashboardNav({
             compact ? "justify-center px-2" : "px-3"
           } ${
             chemin === "/notifications"
-              ? "bg-white text-brand-strong shadow-sm"
+              ? "bg-white text-ink shadow-sm"
               : "text-white/75 hover:bg-white/10 hover:text-white"
           }`}
         >
@@ -404,9 +409,7 @@ export function DashboardNav({
             aria-label="Accueil de mon espace KOLI"
             className="flex items-center gap-2 min-h-[44px]"
           >
-            <span className="w-8 h-8 rounded-lg bg-gold flex items-center justify-center text-menu-deep font-bold">
-              K
-            </span>
+            <LogoKoli taille={32} variante="claire" className="shrink-0" />
             <span className="font-bold text-lg tracking-tight text-white">
               KOLI
             </span>

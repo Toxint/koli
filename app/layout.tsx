@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans, Inter, Instrument_Serif } from "next/font/google";
 import "./globals.css";
+import { DefinitionsLogoKoli } from "@/components/ui/LogoKoli";
 
 /**
  * Plus Jakarta Sans — dessinee pour les interfaces : elegante aux grandes
@@ -97,7 +98,21 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <head>
         <script dangerouslySetInnerHTML={{ __html: RETABLIR_MENU }} />
       </head>
-      <body className="bg-cream text-ink antialiased">{children}</body>
+      <body className="bg-cream text-ink antialiased">
+        {/*
+         * Les degrades de la marque, definis UNE FOIS pour toute
+         * l'application. Voir `LogoKoli` : un degrade SVG se designe par
+         * identifiant, et les repeter a chaque instance ferait soit du
+         * JavaScript sur chaque page, soit des identifiants dupliques dont
+         * seule la premiere occurrence compte.
+         *
+         * En tete du `body` et non en pied : un `<defs>` rendu APRES le
+         * premier logo laisse celui-ci sans remplissage le temps d'une image
+         * — un clignotement bref, mais bien visible au chargement.
+         */}
+        <DefinitionsLogoKoli />
+        {children}
+      </body>
     </html>
   );
 }

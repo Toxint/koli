@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { LogoKoli } from "@/components/ui/LogoKoli";
 
 interface AuthHeaderProps {
   title: string;
@@ -9,9 +10,10 @@ export function AuthHeader({ title, subtitle }: AuthHeaderProps) {
   return (
     <div className="text-center mb-8">
       <Link href="/" className="inline-flex items-center gap-2 mb-4 group">
-        <div className="w-12 h-12 rounded-xl bg-brand flex items-center justify-center text-white font-semibold text-2xl shadow-lg shadow-brand/25 group-hover:scale-105 transition-transform">
-          K
-        </div>
+        <LogoKoli
+          taille={48}
+          className="shrink-0 transition-transform group-hover:scale-105"
+        />
         <div className="text-left">
           <span className="font-semibold text-2xl tracking-tight text-brand dark:text-white">
             KOLI
