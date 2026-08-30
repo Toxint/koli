@@ -254,21 +254,65 @@ if (!PAR_LE_POOLER) {
   ok("schema applique par le pooler");
 }
 
-// ═══════════ 5. Jeu de donnees
-etape(5, "Jeu de donnees de demonstration");
+// ═══════════ 5. Amorce
+//
+// ┌────────────────────────────────────────────────────────────────────────┐
+// │  L AMORCE, PAS LE JEU DE DEMONSTRATION.                                 │
+// └────────────────────────────────────────────────────────────────────────┘
+//
+// Cette etape lancait `prisma/seed.ts`, c est-a-dire le jeu COMPLET : quatre
+// comptes de demonstration avec leur mot de passe commun, des produits, des
+// commandes, des paiements, des factures et des transactions.
+//
+// Contre la base de DEPLOIEMENT, la consequence etait directe et muette : le
+// tout premier vendeur a ouvrir son tableau de bord y aurait lu des
+// encaissements, une courbe et un solde qui ne sont ceux de personne. Et
+// `admin@koli.ci` / `Password123!` aurait ouvert l administration de la
+// plateforme a quiconque a lu le depot.
+//
+// `prisma/amorce.ts` ne pose que ce sans quoi l application ne demarre pas :
+// reglages, taux de commission, et un administrateur dont le mot de passe vient
+// de `ADMIN_PASSWORD` — sans valeur de repli. Aucune commande, aucun mouvement.
+// Les tableaux de bord partent de zero, et affichent leurs etats vides.
+//
+// `--avec-demonstration` retablit l ancien comportement, pour une base de
+// preproduction dont on sait qu elle ne sert a personne.
+const AVEC_DEMONSTRATION = process.argv.includes("--avec-demonstration");
+
+etape(
+  5,
+  AVEC_DEMONSTRATION
+    ? "Jeu de donnees de DEMONSTRATION (--avec-demonstration)"
+    : "Amorce — reglages, commission, administrateur"
+);
+
+if (AVEC_DEMONSTRATION) {
+  console.log(
+    "   ! Cette base recevra des commandes et des comptes FICTIFS.\n" +
+      "     A ne faire que sur une base qui ne sert a aucun utilisateur reel."
+  );
+}
 
 try {
-  // Le jeu de donnees prefere DIRECT_URL — c est justement le port hors
-  // d atteinte ici. On lui presente le pooler sous ce nom : il n a pas a
-  // connaitre la contrainte reseau, et le mode transaction suffit a des
-  // suppressions et des insertions.
-  execSync("npx tsx prisma/seed.ts", {
-    stdio: "inherit",
-    env: PAR_LE_POOLER ? { ...process.env, DIRECT_URL: libpq(POOLER) } : process.env,
-  });
-  ok("comptes et commandes de demonstration crees");
+  // L amorce comme le jeu preferent DIRECT_URL — c est justement le port hors
+  // d atteinte ici. On leur presente le pooler sous ce nom : ils n ont pas a
+  // connaitre la contrainte reseau, et le mode transaction suffit.
+  execSync(
+    AVEC_DEMONSTRATION ? "npx tsx prisma/seed.ts" : "npx tsx prisma/amorce.ts",
+    {
+      stdio: "inherit",
+      env: PAR_LE_POOLER
+        ? { ...process.env, DIRECT_URL: libpq(POOLER) }
+        : process.env,
+    }
+  );
+  ok(AVEC_DEMONSTRATION ? "comptes et commandes de demonstration crees" : "amorce posee");
 } catch {
-  arreter("Le jeu de donnees a echoue.");
+  arreter(
+    AVEC_DEMONSTRATION
+      ? "Le jeu de donnees a echoue."
+      : "L amorce a echoue. ADMIN_EMAIL, ADMIN_PASSWORD et ADMIN_PHONE sont-ils renseignes ?"
+  );
 }
 
 // ═══════════ 6. Controle final
@@ -290,9 +334,29 @@ const { rows: compte } = await verif.query(
 const c = compte[0];
 ok(`${c.tables} tables · ${c.utilisateurs} comptes · ${c.commandes} commandes`);
 
-if (Number(c.utilisateurs) === 0) {
+if (Number(c.tables) === 0) {
   await verif.end();
-  arreter("Aucun compte cree : le jeu de donnees n a pas abouti.");
+  arreter("Aucune table : les migrations n ont pas abouti.");
+}
+
+/*
+ * Le controle qui compte : une base de deploiement ne porte AUCUNE commande.
+ *
+ * Il ne peut pas echouer sur une amorce reussie — l amorce n en cree pas une
+ * seule. Il attrape le cas ou la base avait deja recu le jeu de demonstration
+ * lors d une preparation precedente : les tables sont la, les migrations
+ * passent, tout parait sain, et les premiers vrais utilisateurs lisent des
+ * chiffres inventes. C est exactement le genre de defaut qu on ne voit pas en
+ * regardant si « ca marche ».
+ */
+if (!AVEC_DEMONSTRATION && Number(c.commandes) > 0) {
+  console.log(
+    `\n   ! ATTENTION — ${c.commandes} commande(s) deja en base.\n` +
+      "     Cette base a probablement recu le jeu de DEMONSTRATION.\n" +
+      "     Les tableaux de bord afficheront des chiffres qui ne sont ceux\n" +
+      "     de personne. Pour repartir de zero sans perdre les comptes :\n" +
+      "       DATABASE_URL=<supabase> npm run base:vider"
+  );
 }
 
 await verif.end();

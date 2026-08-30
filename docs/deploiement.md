@@ -12,10 +12,39 @@ parce qu'il a une conséquence, et la conséquence est écrite à côté.
 
 | | État |
 |---|---|
-| Base Supabase | schéma appliqué, jeu de données en place |
+| Base Supabase | schéma appliqué. ⚠ **le jeu de DÉMONSTRATION y a été poussé** — voir l'encadré ci-dessous |
 | Seau de stockage KYC | créé, **privé**, aller-retour vérifié |
 | Construction | `npm run build` régénère le client Prisma et compile |
+| Amorce de production | `prisma/amorce.ts` — réglages, commission, administrateur. **Aucune commande.** |
 | Vérification | `npm run verif:tout` passe intégralement en local |
+
+> ### ⚠ La base Supabase contient des données de DÉMONSTRATION
+>
+> `scripts/preparer-supabase.mjs` lançait `prisma/seed.ts` — le jeu complet :
+> quatre comptes au mot de passe publié dans ce dépôt, des produits, des
+> commandes, des paiements, des factures et des transactions.
+>
+> La conséquence est directe et muette : **le premier vrai vendeur à ouvrir son
+> tableau de bord y lirait des encaissements, une courbe et un solde qui ne sont
+> ceux de personne.** Sur une application dont le sujet est la confiance, ce
+> n'est pas un détail de mise en route.
+>
+> Avant d'ouvrir le site à qui que ce soit :
+>
+> ```bash
+> # 1. Retirer les mouvements fabriqués, en gardant les comptes
+> DATABASE_URL="<adresse Supabase>" npm run base:vider
+>
+> # 2. Ou tout retirer, comptes de démonstration compris
+> DATABASE_URL="<adresse Supabase>" npm run base:vider -- --comptes
+>
+> # 3. Puis reposer ce sans quoi l'application ne démarre pas
+> DATABASE_URL="<adresse Supabase>" npm run base:amorcer
+> ```
+>
+> `preparer-supabase.mjs` lance désormais l'**amorce** et non le jeu de
+> démonstration. Ce dernier ne part que sur `--avec-demonstration`, et le script
+> prévient alors en toutes lettres.
 
 ---
 
@@ -51,6 +80,9 @@ dépôt.
 | `PAYMENT_MODE` | `test` | le MVP ne manipule aucun argent réel (§1, §84) |
 | `SUPABASE_URL` | `https://<référence>.supabase.co` | stockage des pièces KYC |
 | `SUPABASE_SERVICE_ROLE_KEY` | la **secret key** Supabase | idem |
+| `ADMIN_EMAIL` | l'adresse de l'administrateur | `prisma/amorce.ts` crée ce compte. Sans lui, personne ne peut vérifier un vendeur ni trancher un litige — et l'inscription ne propose pas ce rôle |
+| `ADMIN_PHONE` | son numéro | la connexion accepte l'un ou l'autre |
+| `ADMIN_PASSWORD` | **12 caractères minimum**, tiré au sort | aucune valeur de repli, et l'amorce refuse en dessous de 12 : ce compte administre la plateforme entière |
 
 > ### ⚠ `AUTH_SECRET` doit être RÉGÉNÉRÉ
 >
