@@ -3,6 +3,7 @@ import { Icone } from "@/components/ui/Icone";
 import { LogoKoli } from "@/components/ui/LogoKoli";
 import { exemplesTemoignagesAutorises } from "@/lib/config/demonstration";
 import { AnnoncesActivite } from "@/components/domain/AnnoncesActivite";
+import { VisagesRoles } from "@/components/ui/VisagesRoles";
 
 const etapes = [
   {
@@ -527,8 +528,11 @@ export default function AccueilPage() {
              * bord superieur est confondu avec un avertissement de navigateur
              * et saute aux yeux sans etre vu.
              *
-             * Les trois pastilles rappellent les trois roles du parcours :
-             * client, vendeur, livreur.
+             * Les trois VISAGES rappellent les trois roles du parcours :
+             * client, vendeur, livreur. Ce sont des dessins et non des
+             * photographies — voir `components/ui/VisagesRoles.tsx` : des
+             * photos de personnes reelles affirmeraient que ces gens-la
+             * utilisent KOLI, ce qui n est vrai de personne.
              *
              * Elles sont TOUTES DU MEME VIOLET. Elles ont porte trois couleurs
              * — violet, violet clair, or — pour distinguer les roles. Ce n'est
@@ -547,16 +551,7 @@ export default function AccueilPage() {
                 qu'imprimee dedans. La regle globale `prefers-reduced-motion`
                 l'annule pour qui l'a demande. */}
             <div className="apparait-au-chargement animate-float inline-flex max-w-full items-center gap-2.5 rounded-full border border-brand-border/70 bg-white/80 py-1.5 pl-2 pr-4 shadow-sm backdrop-blur-sm">
-              <span aria-hidden="true" className="flex shrink-0 -space-x-2">
-                {(["client", "boutique", "livreur"] as const).map((nom) => (
-                  <span
-                    key={nom}
-                    className="flex h-6 w-6 items-center justify-center rounded-full bg-brand ring-2 ring-white"
-                  >
-                    <Icone nom={nom} className="h-3.5 w-3.5 text-white" />
-                  </span>
-                ))}
-              </span>
+              <VisagesRoles />
               <span className="min-w-0 text-left text-[11px] font-semibold leading-tight text-brand sm:text-xs">
                 Mode test — aucun paiement réel n&apos;est effectué
               </span>
@@ -720,9 +715,21 @@ export default function AccueilPage() {
                 >
                   <span
                     aria-hidden="true"
-                    className="pastille-icone flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-soft"
+                    /*
+                     * Violet PLEIN, comme les pastilles de « Comment ca
+                     * marche ». Elles etaient en `bg-brand-soft` — un rose
+                     * tres pale — sur une carte `bg-cream/70`, elle-meme vert
+                     * pale. Deux teintes claires l'une sur l'autre : la
+                     * pastille ne se voyait plus, et le pictogramme flottait
+                     * sans support.
+                     *
+                     * Le contraste se mesure entre la PASTILLE et la CARTE,
+                     * pas entre le pictogramme et la pastille : c'est la forme
+                     * pleine qui porte, et elle doit exister d'abord.
+                     */
+                    className="pastille-icone flex h-12 w-12 items-center justify-center rounded-2xl bg-brand"
                   >
-                    <Icone nom={f.icone} className="h-5 w-5 text-brand" />
+                    <Icone nom={f.icone} className="h-5 w-5 text-white" />
                   </span>
                   <h3 className="mt-5 text-lg font-bold text-heading">
                     {f.titre}

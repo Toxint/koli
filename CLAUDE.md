@@ -136,6 +136,14 @@ vrai vendeur y aurait lu des encaissements qui ne sont ceux de personne, et
 `admin@koli.ci` / `Password123!` ouvrait l'administration. Deux fichiers
 séparent maintenant les deux besoins — voir plus bas.
 
+**Trois visages remplacent trois pictogrammes** dans la pastille d'accueil
+(`components/ui/VisagesRoles.tsx`). Une silhouette dit « un rôle » ; un visage
+dit « quelqu'un ». Ce sont des **dessins, pas des photographies** : des photos
+de personnes réelles affirmeraient que ces gens-là utilisent KOLI — le même
+problème que les faux avis. Et les pastilles des « Fonctionnalités » sont
+passées du rose très pâle au violet plein : deux teintes claires l'une sur
+l'autre, la pastille ne se voyait plus.
+
 **Les anneaux de l'accueil se voient enfin.** Ils tournaient en 90 et 140
 secondes à 17 % d'opacité — assez lents pour rester sous le seuil de
 l'attention, ce qui était l'intention et ratait l'effet : on ne voyait pas que
