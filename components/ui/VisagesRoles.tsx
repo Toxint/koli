@@ -1,155 +1,95 @@
 /**
  * Les trois visages de la pastille d'accueil — client, vendeur, livreur.
  *
- * Ils remplacent trois pictogrammes. Une silhouette abstraite dit « un rôle » ;
- * un visage dit « quelqu'un ». Sur une page dont le sujet est la confiance
- * entre personnes qui ne se connaissent pas, la différence n'est pas
- * décorative.
+ * Ce sont de VRAIES photographies. Une version précédente les dessinait, par
+ * prudence : des portraits illustrés n'affirment rien de personne. Le choix a
+ * été tranché dans l'autre sens, et il se défend — trois visages posés à côté
+ * d'une mention « mode test » ne prétendent pas que ces gens sont clients, pas
+ * plus que les visages d'une affiche ne prétendent l'être. Ce qui serait
+ * malhonnête, c'est d'attacher une photo à un avis signé d'un nom inventé.
  *
  * ┌──────────────────────────────────────────────────────────────────────────┐
- * │  CE SONT DES DESSINS, PAS DES PHOTOGRAPHIES. Volontairement.             │
+ * │  D'OÙ ELLES VIENNENT, et pourquoi c'est écrit ici                        │
+ * │                                                                          │
+ * │  cliente.jpg    pexels.com/photo/2661255   (Adrienne Andersen)           │
+ * │  vendeuse.jpg   pexels.com/photo/3769022   (Andrea Piacquadio)           │
+ * │  livreur.jpg    pexels.com/photo/6999225   (Monstera Production)         │
+ * │                                                                          │
+ * │  Licence Pexels : usage commercial autorisé, aucune attribution exigée,  │
+ * │  modification permise. La provenance est notée quand même : le jour où   │
+ * │  quelqu'un demande d'où viennent ces visages — un partenaire, un         │
+ * │  juriste, un repreneur —, « je ne sais plus » n'est pas une réponse.     │
  * └──────────────────────────────────────────────────────────────────────────┘
  *
- * Des photos de personnes réelles posées ici affirmeraient quelque chose de
- * faux : que ces gens-là utilisent KOLI. C'est exactement le problème des avis
- * clients inventés et des vignettes d'activité — et le service n'a pas encore
- * d'utilisateur. Une banque d'images ajouterait par-dessus une question de
- * licence et plusieurs centaines de kilo-octets à télécharger, sur un public
- * visé qui est sur réseau mobile lent (§70).
+ * ── Ce qui a décidé du choix des photos ─────────────────────────────────────
  *
- * Un dessin, lui, n'affirme rien. Il représente les trois rôles du parcours,
- * ce qui est vrai et ce que faisaient déjà les pictogrammes.
+ * **Jugées à 28 px avant de l'être en grand.** Onze candidates ont été rendues
+ * côte à côte, aux deux tailles. Presque toutes sont superbes en grand et
+ * illisibles en petit : dès que le cadrage est large — quelqu'un à son bureau,
+ * quelqu'un en pied —, le visage occupe trois pixels et il ne reste qu'une
+ * tache. Les trois retenues sont les seules dont le VISAGE remplit le cadre.
  *
- * ── Comment ils sont construits ─────────────────────────────────────────────
+ * **Le fond compte autant que le sujet.** Deux photos sur fond très sombre
+ * deviennent deux disques noirs côte à côte ; et une photo sur fond BLANC
+ * disparaît dans la pastille, qui est blanche elle aussi — c'est ce qui a fait
+ * écarter le second choix, pourtant excellent en grand. Les trois retenues ont
+ * trois fonds de clartés franchement différentes : chaud, turquoise, gris.
  *
- * La coiffure n'est PAS un tracé : c'est un cercle un peu plus grand que la
- * tête, posé dessous. La tête le recouvre, et il n'en dépasse qu'un croissant.
- * Deux cercles suffisent donc à faire des cheveux, un foulard ou un casque —
- * là où un vrai contour aurait été illisible à vingt-huit pixels et
- * impossible à retoucher.
+ * ── Le poids ────────────────────────────────────────────────────────────────
  *
- * ── Ce qui a décidé des valeurs ─────────────────────────────────────────────
+ * 128 px de côté, moins de 4 Ko chacune, 12 Ko pour les trois. Elles
+ * s'affichent à 28 px : 128 couvre les écrans à trois fois la densité, et
+ * au-delà on paierait des octets que personne ne voit. Le §70 vise des
+ * téléphones sur réseau mobile lent, et c'est le genre d'endroit où une page
+ * gagne trois mégaoctets sans que personne s'en aperçoive.
  *
- * **Jugés à 24 px avant de l'être en grand.** Trois jeux ont été rendus côte à
- * côte. Le fond violet PLEIN, le plus élégant en grand, noyait les visages :
- * à cette taille il ne restait qu'un disque sombre. Les trois fonds différents
- * étaient jolis et ramenaient le mélange de couleurs qu'on venait de retirer
- * partout ailleurs. Il reste celui-ci : un seul fond, clair, pour les trois.
+ * `<img>` et non `next/image` : ces fichiers sont déjà à leur taille finale et
+ * pèsent moins que la requête d'optimisation qu'ils déclencheraient. `width` et
+ * `height` sont posés en attributs — sans eux, la pastille se réajuste à
+ * l'arrivée des images et la ligne saute sous les yeux du lecteur.
  */
 
-/** Un rôle, et ce qui le distingue au premier coup d'œil. */
-interface Portrait {
-  /** Ce qu'il représente — pour la relecture, jamais affiché. */
+/* eslint-disable @next/next/no-img-element */
+
+interface Visage {
+  /** Le rôle représenté — pour la relecture, jamais affiché. */
   role: string;
-  peau: string;
-  /** Cheveux, foulard ou casque : c'est le cercle du dessous. */
-  coiffe: string;
-  vetement: string;
-  /** Le nœud du foulard, ou la visière du casque. */
-  detail: "foulard" | "casque" | null;
+  fichier: string;
 }
 
-/**
- * Un seul fond pour les trois.
- *
- * Trois fonds différents donnaient plus de relief, et ramenaient exactement ce
- * qu'on a retiré partout ailleurs : une couleur par élément. Ce qui distingue
- * les trois, ce sont les VISAGES — c'est bien le moins.
- */
-const FOND = "#e6cedc";
-
-const PORTRAITS: Portrait[] = [
-  {
-    role: "cliente",
-    peau: "#7a4a24",
-    coiffe: "#8a2a63",
-    vetement: "#5b1348",
-    detail: "foulard",
-  },
-  {
-    role: "vendeur",
-    peau: "#5e3416",
-    coiffe: "#2a1020",
-    vetement: "#3e0d33",
-    detail: null,
-  },
-  {
-    role: "livreur",
-    peau: "#8a5a2b",
-    coiffe: "#5b1348",
-    vetement: "#3e0d33",
-    detail: "casque",
-  },
+const VISAGES: Visage[] = [
+  { role: "cliente", fichier: "/visages/cliente.jpg" },
+  { role: "vendeuse", fichier: "/visages/vendeuse.jpg" },
+  { role: "livreur", fichier: "/visages/livreur.jpg" },
 ];
-
-/** Le cercle de la coiffe, selon ce qu'elle est. */
-const COIFFE = {
-  foulard: { cy: 15.6, r: 10.2 },
-  casque: { cy: 16.4, r: 10.4 },
-  simple: { cy: 16.4, r: 9.6 },
-};
-
-function Visage({ portrait, taille, cle }: { portrait: Portrait; taille: number; cle: string }) {
-  const c = COIFFE[portrait.detail ?? "simple"];
-
-  return (
-    <svg
-      width={taille}
-      height={taille}
-      viewBox="0 0 40 40"
-      aria-hidden="true"
-      focusable="false"
-      className="shrink-0 rounded-full ring-2 ring-white"
-    >
-      <defs>
-        {/*
-         * Le disque de découpe. Les épaules débordent volontairement du cadre
-         * en bas — c'est ce qui donne un buste plutôt qu'une tête flottante —
-         * et c'est lui qui les coupe net au bord du cercle.
-         */}
-        <clipPath id={`visage-${cle}`}>
-          <circle cx="20" cy="20" r="20" />
-        </clipPath>
-      </defs>
-
-      <g clipPath={`url(#visage-${cle})`}>
-        <circle cx="20" cy="20" r="20" fill={FOND} />
-        <path d="M3 40C3 30.5 10.5 26 20 26C29.5 26 37 30.5 37 40Z" fill={portrait.vetement} />
-        {/* Le cou, arrondi : un rectangle net donnait un menton carré. */}
-        <rect x="16.6" y="21" width="6.8" height="7" rx="3" fill={portrait.peau} />
-        <circle cx="20" cy={c.cy} r={c.r} fill={portrait.coiffe} />
-        <circle cx="20" cy="18.2" r="8.4" fill={portrait.peau} />
-
-        {portrait.detail === "foulard" && (
-          /* Le nœud, sur le côté. C'est lui qui fait lire un foulard plutôt
-             qu'une chevelure — sans lui, les deux se ressemblent à 28 px. */
-          <circle cx="12.5" cy="10" r="3.6" fill={portrait.coiffe} />
-        )}
-
-        {portrait.detail === "casque" && (
-          /* La visière. Assombrie plutôt que noire : un trait pur découpait le
-             visage en deux au lieu de se poser dessus. */
-          <rect x="9" y="16.5" width="22" height="3" rx="1.5" fill="#2a1020" opacity="0.55" />
-        )}
-      </g>
-    </svg>
-  );
-}
 
 /**
  * Les trois, empilés.
  *
- * `aria-hidden` sur l'ensemble : le texte de la pastille dit déjà ce qu'il y a
- * à savoir, et « image image image » n'apprendrait rien à personne.
+ * `aria-hidden` sur l'ensemble, et `alt=""` sur chacune : le texte de la
+ * pastille dit déjà ce qu'il y a à savoir. Décrire trois portraits
+ * décoratifs — « photo d'une femme », « photo d'un homme » — n'apprendrait
+ * rien et allongerait la lecture d'un écran qui commence par là.
  *
- * 28 px et non 24 : à 24, le nœud du foulard et la visière du casque se
- * confondaient, et les trois portraits devenaient trois taches identiques.
+ * 28 px et non 24 : à 24, les trois visages deviennent trois taches, et le
+ * bénéfice de mettre des personnes disparaît avec eux.
  */
 export function VisagesRoles({ taille = 28 }: { taille?: number }) {
   return (
     <span aria-hidden="true" className="flex shrink-0 -space-x-2">
-      {PORTRAITS.map((p) => (
-        <Visage key={p.role} cle={p.role} portrait={p} taille={taille} />
+      {VISAGES.map((v) => (
+        <img
+          key={v.role}
+          src={v.fichier}
+          alt=""
+          width={taille}
+          height={taille}
+          loading="eager"
+          /* `object-cover` : les fichiers sont carrés, mais un cadrage qui
+             changerait un jour déformerait les visages sans cette ligne. */
+          className="shrink-0 rounded-full object-cover ring-2 ring-white"
+          style={{ width: taille, height: taille }}
+        />
       ))}
     </span>
   );

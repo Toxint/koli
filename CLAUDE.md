@@ -137,12 +137,16 @@ vrai vendeur y aurait lu des encaissements qui ne sont ceux de personne, et
 séparent maintenant les deux besoins — voir plus bas.
 
 **Trois visages remplacent trois pictogrammes** dans la pastille d'accueil
-(`components/ui/VisagesRoles.tsx`). Une silhouette dit « un rôle » ; un visage
-dit « quelqu'un ». Ce sont des **dessins, pas des photographies** : des photos
-de personnes réelles affirmeraient que ces gens-là utilisent KOLI — le même
-problème que les faux avis. Et les pastilles des « Fonctionnalités » sont
-passées du rose très pâle au violet plein : deux teintes claires l'une sur
-l'autre, la pastille ne se voyait plus.
+(`components/ui/VisagesRoles.tsx`) — de **vraies photographies**, sous licence
+Pexels, provenance notée dans le fichier. Et les pastilles des
+« Fonctionnalités » sont passées du rose très pâle au violet plein : deux
+teintes claires l'une sur l'autre, la pastille ne se voyait plus.
+
+**Les vignettes d'activité ne sont plus inventées.** Elles lisent le registre
+(`lib/notifications/activite.ts`) : une inscription affichée est une
+inscription qui a eu lieu. La garde `exemplesTemoignagesAutorises` et la
+mention « exemple » ont disparu — non par décision, mais parce que ce qu'elles
+protégeaient n'existe plus. S'il ne s'est rien passé, rien ne s'affiche.
 
 **Les anneaux de l'accueil se voient enfin.** Ils tournaient en 90 et 140
 secondes à 17 % d'opacité — assez lents pour rester sous le seuil de
@@ -367,6 +371,7 @@ lib/                     La logique métier. C'est ici que tout se décide.
 components/
   ui/                    composants génériques
     LogoKoli.tsx         LA marque — anneau ouvert, comma, sans contenant
+    VisagesRoles.tsx     les trois visages de la pastille d’accueil
   domain/                composants métier
   driver/                l'espace livreur
 
@@ -584,6 +589,56 @@ dans un état par un effet. La règle `react-hooks/set-state-in-effect` l'interd
 et elle a raison deux fois : c'est un rendu de plus, et surtout la copie ne se
 serait jamais mise à jour pour quelqu'un qui active la réduction de mouvement
 pendant qu'il lit la page.
+
+### Les visages sont de vraies photos, les annonces de vrais faits
+
+Deux décisions liées, prises le 31 août 2026, et qui vont dans le même sens :
+la vitrine ne dit plus rien qu'elle ne puisse tenir.
+
+**Les trois visages de la pastille** (`components/ui/VisagesRoles.tsx`) sont
+de vraies photographies sous licence Pexels — usage commercial autorisé,
+aucune attribution exigée. La provenance est notée dans le fichier quand même :
+le jour où quelqu'un demande d'où viennent ces visages, « je ne sais plus »
+n'est pas une réponse.
+
+Trois visages posés à côté d'une mention « mode test » ne prétendent pas que
+ces gens sont clients. Ce qui serait malhonnête, c'est d'attacher une photo à
+un avis signé d'un nom inventé — et c'est précisément ce qu'on n'a pas fait.
+
+Trois choses qui se déferaient sans être écrites :
+
+- **Jugées à 28 px avant de l'être en grand**, comme la marque. Onze
+  candidates ont été rendues côte à côte : presque toutes sont superbes en
+  grand et illisibles en petit, parce que le cadrage est large et que le
+  visage occupe trois pixels.
+- **Le fond compte autant que le sujet.** Une photo sur fond BLANC disparaît
+  dans la pastille, qui est blanche — c'est ce qui a fait écarter le second
+  choix, pourtant excellent en grand. Les trois retenues ont trois fonds de
+  clartés franchement différentes.
+- **12 Ko pour les trois**, en 128 px. Elles s'affichent à 28 : 128 couvre les
+  écrans à trois fois la densité, au-delà on paie des octets que personne ne
+  voit. C'est le genre d'endroit où une page gagne trois mégaoctets sans que
+  personne s'en aperçoive (§70).
+
+**Les vignettes d'activité lisent le registre** (`lib/notifications/activite.ts`).
+Elles annonçaient six phrases écrites à la main. Elles disent maintenant les
+vraies inscriptions et les vrais versements des quatorze derniers jours.
+
+- **Les noms sont ABRÉGÉS** — « Awa K. », jamais le nom complet. Ce sont de
+  vraies personnes et cette page est publique. `verif:annonces` vérifie
+  qu'aucun nom de famille ne s'affiche en entier : si quelqu'un retire
+  l'abréviation, c'est ce contrôle qui le dira, et personne d'autre.
+- **L'accueil est passé en `revalidate = 60`.** Il était pré-rendu à la
+  construction — servi identique jusqu'au déploiement suivant. Il aurait
+  annoncé les inscriptions du jour du BUILD, indéfiniment.
+- **Le retour anticipé est APRÈS les hooks.** Une première version le posait
+  en tête de fonction en se disant que la liste vient du serveur et ne change
+  jamais. React n'exige pas que les données soient stables, il exige que le
+  NOMBRE de hooks le soit.
+
+`verif:annonces` a changé de nature : il ne vérifie plus que six chaînes
+connues s'affichent, il confronte l'écran au registre. C'est le seul contrôle
+qui puisse encore attraper le retour d'un texte inventé.
 
 ### La marque : un anneau ouvert, et un comma dedans
 

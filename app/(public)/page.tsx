@@ -4,6 +4,7 @@ import { LogoKoli } from "@/components/ui/LogoKoli";
 import { exemplesTemoignagesAutorises } from "@/lib/config/demonstration";
 import { AnnoncesActivite } from "@/components/domain/AnnoncesActivite";
 import { VisagesRoles } from "@/components/ui/VisagesRoles";
+import { annoncesActivite } from "@/lib/notifications/activite";
 
 const etapes = [
   {
@@ -315,7 +316,23 @@ const exemplesTemoignages: Temoignage[] = [
  * Elle est portee par la page entiere, et non par le bloc d'accroche, pour que
  * la barre flottante puisse en etre l'enfant direct — voir plus bas.
  */
-export default function AccueilPage() {
+/**
+ * Regeneree au plus une fois par minute.
+ *
+ * L'accueil etait PRE-RENDU A LA CONSTRUCTION : servi tel quel, identique pour
+ * tout le monde, jusqu'au deploiement suivant. C'etait le bon choix tant que
+ * rien n'y bougeait — et c'est devenu faux le jour ou les vignettes d'activite
+ * ont commence a lire le registre. Elles auraient annonce les inscriptions du
+ * jour du BUILD, indefiniment.
+ *
+ * Une minute, et non `force-dynamic` : une vitrine consultee par du public sur
+ * reseau mobile lent (§70) doit rester servie depuis le cache. Personne
+ * n'attend de voir une inscription apparaitre a la seconde ; tout le monde
+ * remarque une page qui met deux secondes a s'afficher.
+ */
+export const revalidate = 60;
+
+export default async function AccueilPage() {
   /*
    * Les vrais temoignages d'abord ; a defaut, les exemples — et seulement sur
    * un poste qui les demande expressement.
@@ -326,6 +343,13 @@ export default function AccueilPage() {
    */
   const exemples = temoignages.length === 0 && exemplesTemoignagesAutorises();
   const aAfficher = temoignages.length > 0 ? temoignages : exemples ? exemplesTemoignages : [];
+
+  /*
+   * Ce qui vient reellement de se passer. Liste vide = la vignette ne rend
+   * rien : une vitrine qui annonce une activite qu'elle n'a pas se paie au
+   * premier client.
+   */
+  const annonces = await annoncesActivite();
 
   return (
     <div
@@ -1088,20 +1112,18 @@ export default function AccueilPage() {
       </footer>
 
       {/*
-       * Les vignettes d’activité — EXEMPLES, donc jamais en ligne.
+       * Les vignettes d’activité — LUES DANS LE REGISTRE.
        *
-       * Même garde que les témoignages, et pour la même raison : ce sont des
-       * faits affirmés (untel s’est inscrit, untel a été payé) sur un service
-       * qui n’a pas encore d’utilisateur. `exemplesTemoignagesAutorises`
-       * contrôle AUSSI `VERCEL`, parce que cette page est pré-rendue à la
-       * construction : `RACCOURCIS_DEMO` seule serait lue au build et figée
-       * dans le HTML servi. Le détail est dans `lib/config/demonstration.ts`.
+       * Elles étaient inventées, et retenues hors ligne par la même garde que
+       * les témoignages. Elles disent maintenant ce qui s’est réellement passé
+       * (`lib/notifications/activite.ts`) : la garde n’a plus d’objet, et le
+       * composant ne rend rien quand il n’y a rien à annoncer.
        *
-       * Le composant est monté en dernier et se positionne en `fixed` : sa
-       * place dans le balisage ne décide de rien, sinon de l’ordre de
-       * tabulation, où elle a justement sa place — après le contenu.
+       * Monté en dernier et positionné en `fixed` : sa place dans le balisage
+       * ne décide de rien, sinon de l’ordre de tabulation — où elle a
+       * justement sa place, après le contenu.
        */}
-      {exemplesTemoignagesAutorises() && <AnnoncesActivite />}
+      <AnnoncesActivite annonces={annonces} />
     </div>
   );
 }

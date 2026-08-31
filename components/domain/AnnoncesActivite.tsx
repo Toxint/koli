@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { Icone, type NomIcone } from "@/components/ui/Icone";
-import { formatCFA } from "@/lib/format";
 
 /**
  * Les annonces d'activité — la vignette qui se pose dans le coin bas-gauche.
@@ -14,9 +13,18 @@ import { formatCFA } from "@/lib/format";
  * parce qu'on ne croit pas une page qui parle d'elle-même.
  *
  * ┌──────────────────────────────────────────────────────────────────────┐
- * │  ELLE NE S'AFFICHE PAS EN LIGNE. La page d'accueil ne la monte que    │
- * │  sous `exemplesTemoignagesAutorises()` — voir la note d'`ANNONCES`.   │
+ * │  ELLE DIT DES CHOSES VRAIES. Les annonces viennent du REGISTRE —      │
+ * │  `lib/notifications/activite.ts` —, plus d'une liste écrite à la main.│
  * └──────────────────────────────────────────────────────────────────────┘
+ *
+ * Elles ont été inventées, retenues hors ligne par une garde et marquées
+ * « exemple ». C'était la seule façon honnête de les afficher tant qu'elles ne
+ * correspondaient à rien. Elles correspondent maintenant à quelque chose : la
+ * garde et la mention n'ont plus d'objet — non parce qu'on a décidé de s'en
+ * passer, mais parce que ce qu'elles protégeaient a disparu.
+ *
+ * **S'il ne s'est rien passé, rien ne s'affiche.** La liste arrive vide et le
+ * composant ne rend rien.
  *
  * Deux annonces alternent, et ce sont les deux extrémités du parcours du §59 :
  * quelqu'un rejoint KOLI, et un vendeur touche son argent. Elles ne sont pas
@@ -24,65 +32,13 @@ import { formatCFA } from "@/lib/format";
  * voir tomber toute seule pendant qu'on lit vaut le paragraphe qui l'explique.
  */
 
-interface Annonce {
+export interface Annonce {
   icone: NomIcone;
   /** Le fait, en deux mots. */
   titre: string;
   /** Qui, et combien. La ligne du dessous. */
   detail: string;
 }
-
-/**
- * Les exemples — INVENTÉS, et c'est tout le problème.
- *
- * Une vignette d'activité est un TÉMOIGNAGE au même titre qu'un avis client :
- * elle affirme des faits — telle personne s'est inscrite, tel vendeur a été
- * payé. Sur un site qui n'a pas encore d'utilisateur, ce seraient des faits
- * fabriqués. Et KOLI vend précisément la confiance : se faire prendre à
- * simuler une activité coûterait bien plus que ce que la vignette rapporte.
- *
- * Elle passe donc par la MÊME garde que les témoignages d'exemple
- * (`exemplesTemoignagesAutorises`, `lib/config/demonstration.ts`) : visible sur
- * le poste pour juger du rendu, absente de l'hébergeur. Le jour où de vraies
- * inscriptions et de vrais versements existent, cette liste laisse la place à
- * une requête — la forme du composant, elle, ne bouge pas.
- *
- * Les prénoms sont ivoiriens et le nom réduit à son initiale : c'est l'usage
- * pour ce genre de vignette, et un nom complet exposerait un vrai client le
- * jour où la source deviendra la base.
- */
-const ANNONCES: Annonce[] = [
-  {
-    icone: "client",
-    titre: "Nouveau compte",
-    detail: "Awa K. vient de s'inscrire",
-  },
-  {
-    icone: "argent",
-    titre: "Fonds libérés",
-    detail: `Kouadio B. a reçu ${formatCFA(42500)}`,
-  },
-  {
-    icone: "client",
-    titre: "Nouveau compte",
-    detail: "Mariam T. vient de s'inscrire",
-  },
-  {
-    icone: "argent",
-    titre: "Fonds libérés",
-    detail: `Fatou D. a reçu ${formatCFA(18000)}`,
-  },
-  {
-    icone: "client",
-    titre: "Nouveau compte",
-    detail: "Yao N. vient de s'inscrire",
-  },
-  {
-    icone: "argent",
-    titre: "Fonds libérés",
-    detail: `Aïcha S. a reçu ${formatCFA(75000)}`,
-  },
-];
 
 /**
  * Le rythme.
@@ -127,10 +83,10 @@ function lireLeMouvement() {
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
-export function AnnoncesActivite() {
+export function AnnoncesActivite({ annonces }: { annonces: Annonce[] }) {
   /**
    * On démarre sur la DERNIÈRE : le premier passage incrémente, et la première
-   * annonce montrée est donc bien `ANNONCES[0]`.
+   * annonce montrée est donc bien `annonces[0]`.
    *
    * Le détour évite un `index` à −1 — la vignette est rendue AVANT d'être
    * visible (c'est la condition pour que sa transition d'entrée ait un état de
@@ -140,7 +96,7 @@ export function AnnoncesActivite() {
    * même carte, invisible, avec la même annonce. Aucun désaccord d'hydratation
    * possible — ce qui compte, l'accueil étant PRÉ-RENDU À LA CONSTRUCTION.
    */
-  const [index, setIndex] = useState(ANNONCES.length - 1);
+  const [index, setIndex] = useState(annonces.length - 1);
   const [visible, setVisible] = useState(false);
   const [ferme, setFerme] = useState(false);
   const [enPause, setEnPause] = useState(false);
@@ -187,14 +143,28 @@ export function AnnoncesActivite() {
         return;
       }
       premierPassage.current = false;
-      setIndex((i) => (i + 1) % ANNONCES.length);
+      setIndex((i) => (i + 1) % annonces.length);
       setVisible(true);
     }, delai);
 
     return () => clearTimeout(minuterie);
-  }, [ferme, visible, enPause, sansMouvement]);
+    // `annonces.length` sert au modulo de l'incrément : sans lui dans les
+    // dépendances, une liste qui change de taille ferait tourner l'index sur
+    // l'ancienne longueur, et une annonce ne s'afficherait jamais.
+  }, [ferme, visible, enPause, sansMouvement, annonces.length]);
 
-  if (ferme) return null;
+  /*
+   * Rien a dire, rien a montrer — et ce retour est APRES tous les hooks.
+   *
+   * Une premiere version le posait en tete de fonction, avant les `useState`,
+   * en se disant que la liste vient du serveur et ne change jamais. Le
+   * raisonnement est faux : React n'exige pas que les donnees soient stables,
+   * il exige que le NOMBRE de hooks le soit a chaque rendu. Un retour place
+   * avant eux en saute une partie, et le jour ou la liste se met a pouvoir
+   * changer — un rafraichissement, une navigation — l'etat des hooks glisse
+   * d'un cran sans rien signaler.
+   */
+  if (ferme || annonces.length === 0) return null;
 
   /**
    * En mouvement réduit, ce qui s'affiche est DÉDUIT et non stocké : la
@@ -206,7 +176,7 @@ export function AnnoncesActivite() {
    * seule la mesure l'a montré. D'où le contrôle qui vérifie que c'est bien la
    * première (`npm run verif:annonces`).
    */
-  const annonce = sansMouvement ? ANNONCES[0] : ANNONCES[index];
+  const annonce = sansMouvement ? annonces[0] : annonces[index];
   const affichee = sansMouvement || visible;
 
   return (
@@ -280,26 +250,6 @@ export function AnnoncesActivite() {
         <div aria-hidden="true" className="min-w-0 flex-1">
           <p className="flex items-center gap-1.5 text-xs font-bold leading-tight text-heading">
             <span className="truncate">{annonce.titre}</span>
-            {/*
-             * La mention « exemple », même sur le poste.
-             *
-             * La garde d'environnement empêche déjà la publication. Mais un
-             * garde-fou qu'on ne voit pas n'en est pas un : pendant une
-             * démonstration l'écran est partagé, et personne ne doit prendre
-             * ces lignes pour de vraies inscriptions. C'est la règle déjà posée
-             * pour les témoignages d'exemple, et elle vaut ici pour la même
-             * raison.
-             *
-             * DORÉE, et c'est la seule chose de cette vignette qui ne soit pas
-             * violette. Ce n'est pas une entorse à l'unité de teinte : l'or est
-             * la couleur d'ACCENT de KOLI, celle des mentions « mode test » et
-             * de la pastille « exemple » des témoignages (même page, plus bas).
-             * Une pastille violette se fondrait dans la carte — et un
-             * avertissement qui se fond dans ce qu'il avertit n'avertit plus.
-             */}
-            <span className="shrink-0 rounded-full bg-gold-soft px-1.5 py-px text-[9px] font-bold uppercase tracking-wider text-gold-deep">
-              exemple
-            </span>
           </p>
           <p className="mt-0.5 truncate text-[11px] leading-tight text-ink-muted">
             {annonce.detail}
