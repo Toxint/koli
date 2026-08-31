@@ -38,6 +38,7 @@ const {
   jetonAleatoire,
   urlAutorisation,
   echangerCodeContreIdentite,
+  adresseDeRappel,
 } = await import("@/lib/auth/google");
 const { terminerInscriptionGoogleAction } = await import(
   "@/lib/auth/googleInscription"
@@ -96,6 +97,49 @@ describe("configuration", () => {
 
   it("se déclare configurée quand les deux valeurs sont présentes", () => {
     expect(googleEstConfigure()).toBe(true);
+  });
+});
+
+describe("l'adresse de rappel en production", () => {
+  /**
+   * Le défaut que ces trois tests interdisent est SILENCIEUX et TOTAL.
+   *
+   * `NEXT_PUBLIC_APP_URL` vaut `http://localhost:3000` sur le poste. Déployée
+   * telle quelle, elle fait renvoyer l'utilisateur par Google sur SA propre
+   * machine, où il n'y a rien : le bouton s'affiche, Google accepte, et le
+   * visiteur atterrit dans le vide. Aucune erreur serveur, aucune trace.
+   */
+  // `vi.stubEnv` et non `Object.defineProperty` : `process.env` n'accepte
+  // qu'un descripteur complet, et Vitest sait par ailleurs tout remettre en
+  // place — un NODE_ENV laissé à « production » contaminerait les fichiers
+  // de test suivants.
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  const enProduction = () => vi.stubEnv("NODE_ENV", "production");
+
+  it("se rabat sur le domaine de l'hébergeur quand l'adresse déclarée est locale", () => {
+    enProduction();
+    vi.stubEnv("VERCEL_PROJECT_PRODUCTION_URL", "koli.vercel.app");
+    expect(adresseDeRappel()).toBe("https://koli.vercel.app/api/auth/google/callback");
+  });
+
+  it("préfère TOUJOURS une adresse déclarée qui n'est pas locale", () => {
+    enProduction();
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://koli.ci");
+    vi.stubEnv("VERCEL_PROJECT_PRODUCTION_URL", "koli.vercel.app");
+    // Le domaine choisi par l'utilisateur l'emporte sur celui de l'hébergeur :
+    // sinon, poser un vrai domaine ne servirait à rien.
+    expect(adresseDeRappel()).toBe("https://koli.ci/api/auth/google/callback");
+  });
+
+  it("ne se rabat PAS hors production — le poste garde localhost", () => {
+    // `next start` impose NODE_ENV=production sur ce poste (§5 de CLAUDE.md),
+    // mais aucune variable VERCEL_* n'y existe : le repli ne peut pas mordre.
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("VERCEL_PROJECT_PRODUCTION_URL", "koli.vercel.app");
+    expect(adresseDeRappel()).toBe("http://localhost:3000/api/auth/google/callback");
   });
 });
 

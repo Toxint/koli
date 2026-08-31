@@ -476,7 +476,7 @@ export default function AccueilPage() {
             <svg
               aria-hidden="true"
               viewBox="0 0 600 600"
-              className="absolute left-1/2 top-[-40px] h-[600px] w-[600px] -translate-x-1/2 opacity-[0.17] sm:h-[680px] sm:w-[680px]"
+              className="absolute left-1/2 top-[-40px] h-[600px] w-[600px] -translate-x-1/2 opacity-30 sm:h-[680px] sm:w-[680px]"
             >
               <g className="animate-orbite">
                 <circle
@@ -485,14 +485,21 @@ export default function AccueilPage() {
                   r="230"
                   fill="none"
                   stroke="var(--color-brand)"
-                  strokeWidth="1.5"
-                  strokeDasharray="2 14"
+                  strokeWidth="2.5"
+                  strokeDasharray="4 12"
                   strokeLinecap="round"
                 />
-                {/* Les trois roles, a 120 degres l'un de l'autre. */}
-                <circle cx="300" cy="70" r="6" fill="var(--color-brand)" />
-                <circle cx="499" cy="415" r="6" fill="var(--color-brand)" />
-                <circle cx="101" cy="415" r="6" fill="var(--color-brand)" />
+                {/*
+                  Les trois roles, a 120 degres l'un de l'autre.
+
+                  Ce sont EUX qu'on voit tourner, pas les pointilles : un
+                  pointille en rotation ressemble a un pointille immobile, il
+                  faut un repere isole pour que l'oeil suive le mouvement.
+                  D'ou leur taille — 9 et non 6.
+                */}
+                <circle cx="300" cy="70" r="9" fill="var(--color-brand)" />
+                <circle cx="499" cy="415" r="9" fill="var(--color-brand)" />
+                <circle cx="101" cy="415" r="9" fill="var(--color-brand)" />
               </g>
 
               <g className="animate-orbite-inverse">
@@ -502,8 +509,8 @@ export default function AccueilPage() {
                   r="162"
                   fill="none"
                   stroke="var(--color-brand-accent)"
-                  strokeWidth="1"
-                  strokeDasharray="1 11"
+                  strokeWidth="1.8"
+                  strokeDasharray="3 10"
                   strokeLinecap="round"
                 />
               </g>

@@ -63,14 +63,55 @@ export function googleEstConfigure(): boolean {
   );
 }
 
+/** Une adresse de développement ne peut jamais servir de rappel en ligne. */
+function estAdresseLocale(url: string | undefined): boolean {
+  if (!url) return true;
+  return /^https?:\/\/(localhost|127\.0\.0\.1)(:|\/|$)/i.test(url);
+}
+
+/**
+ * L'origine qui sert à bâtir l'adresse de rappel Google.
+ *
+ * `NEXT_PUBLIC_APP_URL` d'abord — c'est la valeur déclarée, et elle fait foi
+ * dès qu'elle est utilisable.
+ *
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │  MAIS elle vaut `http://localhost:3000` sur le poste de développement,   │
+ * │  et cette valeur PART AVEC LE DÉPLOIEMENT si personne ne la remplace.    │
+ * └──────────────────────────────────────────────────────────────────────────┘
+ *
+ * La conséquence est silencieuse et totale : le bouton s'affiche, Google
+ * accepte la demande, puis renvoie l'utilisateur sur `localhost` — c'est-à-dire
+ * sur SA propre machine, où il n'y a rien. Aucune erreur côté serveur, aucune
+ * trace, et un visiteur qui conclut que le service est cassé.
+ *
+ * On se rabat donc sur l'adresse que l'hébergeur connaît de lui-même.
+ * `VERCEL_PROJECT_PRODUCTION_URL` est le domaine stable de production ;
+ * `VERCEL_URL` désigne le déploiement courant, et ne sert que de dernier
+ * recours — il change à chaque envoi, et une adresse de rappel qui change ne
+ * peut pas être déclarée chez Google.
+ *
+ * Ce repli ne s'arme QU'EN PRODUCTION et QUE si l'adresse déclarée est locale.
+ * Sur ce poste, `next start` impose pourtant `NODE_ENV=production` (voir §5 de
+ * CLAUDE.md) — mais aucune variable `VERCEL_*` n'y existe, et la fonction
+ * retombe donc sur `localhost`, ce qui est exactement ce qu'on veut en
+ * développement.
+ */
 function baseApplication(): string {
-  const base = process.env.NEXT_PUBLIC_APP_URL;
-  if (!base) {
+  const declaree = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/+$/, "");
+
+  if (process.env.NODE_ENV === "production" && estAdresseLocale(declaree)) {
+    const hebergeur =
+      process.env.VERCEL_PROJECT_PRODUCTION_URL ?? process.env.VERCEL_URL;
+    if (hebergeur) return `https://${hebergeur.replace(/^https?:\/\//, "")}`;
+  }
+
+  if (!declaree) {
     throw new Error(
       "NEXT_PUBLIC_APP_URL doit être défini : c'est lui qui construit l'adresse de rappel Google."
     );
   }
-  return base.replace(/\/+$/, "");
+  return declaree;
 }
 
 /**

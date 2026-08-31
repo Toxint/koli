@@ -872,10 +872,21 @@ svg[data-icone] {
      chargement ». Deux mouvements contraires se lisent comme un mecanisme,
      un seul comme une attente.
 
+     VITESSE : 42 et 66 secondes. Elles ont ete de 90 et 140 — assez lentes
+     pour rester SOUS le seuil de l'attention, ce qui etait l'intention. A
+     l'usage l'effet etait manque : on ne voyait pas que la page etait vivante,
+     on ne voyait rien du tout. Un mouvement doit se remarquer pour dire
+     quelque chose ; en dessous, il ne reste que son cout.
+
+     Accelerer ne coute RIEN de plus, et c'est ce qui rend l'arbitrage facile :
+     le prix d'une animation se paie par IMAGE AFFICHEE, pas par tour effectue.
+     Deux fois plus vite, c'est le meme nombre d'images et le meme travail du
+     compositeur.
+
      COUT : deux animations infinies, et le §70 vise des telephones d'entree de
      gamme. C'est tenable parce qu'il s'agit de deux `transform` pures, que le
-     compositeur traite sans repeindre, et que les durees sont tres longues —
-     90 et 140 secondes. Ne pas en ajouter une troisieme sans y regarder.
+     compositeur traite sans repeindre. Ce qui coute, c'est le NOMBRE
+     d'animations — ne pas en ajouter une troisieme sans y regarder.
 
      `transform-box: fill-box` ancre la rotation sur le centre du cercle
      lui-meme ; sans lui elle se ferait autour de l'origine du repere SVG et
@@ -892,13 +903,13 @@ svg[data-icone] {
   .animate-orbite {
     transform-box: fill-box;
     transform-origin: center;
-    animation: rotationOrbite 90s linear infinite;
+    animation: rotationOrbite 42s linear infinite;
   }
 
   .animate-orbite-inverse {
     transform-box: fill-box;
     transform-origin: center;
-    animation: rotationOrbite 140s linear infinite reverse;
+    animation: rotationOrbite 66s linear infinite reverse;
   }
 
   /**

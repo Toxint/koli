@@ -91,7 +91,7 @@ possible, même par une route d'API.
 
 ---
 
-## 4. État au 30 août 2026
+## 4. État au 31 août 2026
 
 ### Fait
 
@@ -135,6 +135,13 @@ n'a désormais que **son** équipe, remplie par un **lien d'invitation**.
 vrai vendeur y aurait lu des encaissements qui ne sont ceux de personne, et
 `admin@koli.ci` / `Password123!` ouvrait l'administration. Deux fichiers
 séparent maintenant les deux besoins — voir plus bas.
+
+**Les anneaux de l'accueil se voient enfin.** Ils tournaient en 90 et 140
+secondes à 17 % d'opacité — assez lents pour rester sous le seuil de
+l'attention, ce qui était l'intention et ratait l'effet : on ne voyait pas que
+la page était vivante, on ne voyait rien. 42 et 66 secondes, 30 % d'opacité,
+traits épaissis et repères à 9 px. Accélérer ne coûte rien de plus : le prix
+d'une animation se paie par image affichée, pas par tour effectué.
 
 **La marque a un dessin** (`components/ui/LogoKoli.tsx`). Sept carrés recopiés
 à la main — trois couleurs, trois rayons, cinq tailles — sont devenus un
@@ -619,6 +626,36 @@ une seule marque : c'est le prix d'icônes autonomes, et toute retouche doit
 être reportée dans les trois. L'icône Apple est à plein bord, sans coins
 arrondis : iOS applique son propre masque, et les arrondir les arrondirait deux
 fois.
+
+### L'adresse de rappel Google ne dépend plus d'une variable oubliée
+
+`NEXT_PUBLIC_APP_URL` vaut `http://localhost:3000` sur le poste, et c'est
+elle qui construit l'adresse où Google renvoie l'utilisateur. Déployée telle
+quelle, elle produit le pire type de panne : **silencieuse et totale**. Le
+bouton s'affiche, Google accepte la demande, puis renvoie le visiteur sur
+`localhost` — c'est-à-dire sur SA propre machine, où il n'y a rien. Aucune
+erreur côté serveur, aucune trace, et un visiteur qui conclut que le service
+est cassé.
+
+`lib/auth/google.ts` se rabat désormais sur ce que l'hébergeur sait de
+lui-même : `VERCEL_PROJECT_PRODUCTION_URL`, à défaut `VERCEL_URL`.
+
+Trois choses qui se déferaient sans être écrites :
+
+- **Le repli ne s'arme QU'EN PRODUCTION et QUE si l'adresse déclarée est
+  locale.** Une adresse déclarée non locale l'emporte toujours : sinon, poser
+  un vrai domaine ne servirait à rien.
+- **Sur ce poste, `next start` impose pourtant `NODE_ENV=production`** (§5).
+  Le repli ne mord pas quand même, parce qu'aucune variable `VERCEL_*` n'y
+  existe — mais c'est un équilibre, pas une garantie, et le contrôle
+  « ne se rabat PAS hors production » existe pour ça.
+- **`VERCEL_URL` n'est qu'un dernier recours.** Il désigne le déploiement
+  courant et change à chaque envoi ; une adresse de rappel qui change ne peut
+  pas être déclarée chez Google.
+
+⚠ Le code ne peut pas tout : l'URI de redirection doit être **déclarée dans la
+console Google Cloud**, sans quoi Google répond `redirect_uri_mismatch`. C'est
+un geste manuel, dans un navigateur.
 
 ### Un vendeur n'a que SES livreurs, et ils entrent par un lien
 
