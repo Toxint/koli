@@ -167,16 +167,35 @@ vérifié ; adaptateur `magasin-supabase` éprouvé contre le vrai seau ;
 `npm run build` régénère le client Prisma (sans quoi la construction échouerait
 sur Vercel, le client n'étant pas versionné).
 
-⚠ **La base Supabase porte le jeu de DÉMONSTRATION** — elle a été préparée avant
-que l'amorce n'existe. À vider avant d'ouvrir le site :
-`DATABASE_URL="<supabase>" npm run base:vider -- --comptes`, puis
-`npm run base:amorcer`. Sans quoi le premier vrai vendeur lira des
-encaissements qui ne sont ceux de personne, et `admin@koli.ci` /
-`Password123!` — publié dans ce dépôt — ouvrira l'administration.
+**La base Supabase est propre depuis le 31 août 2026.** Elle a porté le jeu de
+démonstration pendant six jours — 15 commandes, 36 transactions, et
+`admin@koli.ci` / `Password123!`, publié dans ce dépôt, qui ouvrait
+l'administration. Tout est retiré :
 
-Le dépôt distant existe : `github.com/Toxint/koli`, branche `master`.
+- migration des équipes de livraison appliquée (`npm run supabase:migrer -- --appliquer`) ;
+- mouvements et cinq comptes de démonstration supprimés en une transaction
+  (`npm run supabase:nettoyer`) ;
+- administrateur recréé avec un mot de passe tiré au sort (`prisma/amorce.ts`).
 
-Reste à faire : connecter Vercel et renseigner les variables.
+Il reste **4 comptes** : les trois inscrits depuis le site, et l'administrateur.
+Zéro commande, zéro transaction, commission à 5 % conservée.
+
+⚠ **Ne jamais relancer `prisma/seed.ts` contre Supabase.** C'est ce qui a mis la
+démonstration en ligne. `supabase:preparer` pose désormais l'amorce, et la
+démonstration exige `--avec-demonstration`.
+
+Le dépôt distant existe : `github.com/Toxint/koli`, branche `master`. Le projet
+Vercel existe aussi et le poste y est lié (`.vercel/`, projet `koli`) —
+`npm run vercel:variables` et `npm run vercel:redeployer`.
+
+⚠ **Une migration appliquée à Supabase ne suffit pas** : le code déployé doit
+suivre, sinon il tourne contre un schéma qu'il ne connaît pas. Après
+`supabase:migrer`, redéployer.
+
+⚠ `NEXT_PUBLIC_APP_URL` vaut encore `http://localhost:3000` dans `.env`. Cette
+valeur sert aux **liens de paiement partagés** : telle quelle, un lien envoyé à
+un client pointerait vers sa propre machine. À renseigner côté Vercel avec
+l'adresse réelle du site.
 
 ⚠ `AUTH_SECRET` vaut `koli-dev-…` : ce n'est pas un tirage aléatoire. Il signe
 les jetons de session — en production, une valeur devinable permettrait de

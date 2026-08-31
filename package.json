@@ -55,6 +55,7 @@
     "base:amorcer": "npx tsx prisma/amorce.ts",
     "base:vider": "npx tsx prisma/vider.ts",
     "supabase:preparer": "node scripts/preparer-supabase.mjs",
+    "supabase:nettoyer": "node scripts/nettoyer-supabase.mjs",
     "supabase:stockage": "node scripts/preparer-stockage.mjs",
     "supabase:securiser": "node scripts/securiser-demonstration.mjs",
     "supabase:migrer": "node scripts/migrer-supabase.mjs",

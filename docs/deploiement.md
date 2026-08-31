@@ -12,39 +12,39 @@ parce qu'il a une conséquence, et la conséquence est écrite à côté.
 
 | | État |
 |---|---|
-| Base Supabase | schéma appliqué. ⚠ **le jeu de DÉMONSTRATION y a été poussé** — voir l'encadré ci-dessous |
+| Base Supabase | schéma à jour, **nettoyée le 31 août 2026** : zéro commande, zéro donnée fabriquée |
 | Seau de stockage KYC | créé, **privé**, aller-retour vérifié |
 | Construction | `npm run build` régénère le client Prisma et compile |
 | Amorce de production | `prisma/amorce.ts` — réglages, commission, administrateur. **Aucune commande.** |
 | Vérification | `npm run verif:tout` passe intégralement en local |
 
-> ### ⚠ La base Supabase contient des données de DÉMONSTRATION
+> ### Ne relancez JAMAIS `prisma/seed.ts` contre Supabase
 >
-> `scripts/preparer-supabase.mjs` lançait `prisma/seed.ts` — le jeu complet :
-> quatre comptes au mot de passe publié dans ce dépôt, des produits, des
-> commandes, des paiements, des factures et des transactions.
+> C'est exactement ce que faisait `scripts/preparer-supabase.mjs`, et la base
+> en ligne a porté le jeu complet pendant six jours : cinq comptes au mot de
+> passe publié dans ce dépôt, 15 commandes, 36 transactions, 14 factures.
 >
 > La conséquence est directe et muette : **le premier vrai vendeur à ouvrir son
 > tableau de bord y lirait des encaissements, une courbe et un solde qui ne sont
-> ceux de personne.** Sur une application dont le sujet est la confiance, ce
-> n'est pas un détail de mise en route.
+> ceux de personne.** Et `admin@koli.ci` / `Password123!` ouvrait
+> l'administration à quiconque a lu le dépôt.
 >
-> Avant d'ouvrir le site à qui que ce soit :
+> **Corrigé le 31 août 2026.** La base ne porte plus aucune donnée fabriquée, et
+> `preparer-supabase.mjs` pose désormais l'amorce — la démonstration exige
+> `--avec-demonstration`, avec un avertissement.
+>
+> Si la situation se reproduisait :
 >
 > ```bash
-> # 1. Retirer les mouvements fabriqués, en gardant les comptes
-> DATABASE_URL="<adresse Supabase>" npm run base:vider
->
-> # 2. Ou tout retirer, comptes de démonstration compris
-> DATABASE_URL="<adresse Supabase>" npm run base:vider -- --comptes
->
-> # 3. Puis reposer ce sans quoi l'application ne démarre pas
-> DATABASE_URL="<adresse Supabase>" npm run base:amorcer
+> npm run supabase:nettoyer                    # état, sans rien toucher
+> npm run supabase:nettoyer -- --mouvements    # vide les mouvements
+> npm run supabase:nettoyer -- --mouvements --comptes=a@b,c@d
 > ```
 >
-> `preparer-supabase.mjs` lance désormais l'**amorce** et non le jeu de
-> démonstration. Ce dernier ne part que sur `--avec-demonstration`, et le script
-> prévient alors en toutes lettres.
+> Il supprime en **une transaction** — tout passe ou rien —, et ne touche que
+> les comptes qu'on lui nomme. Il ne devine jamais lesquels sont jetables : une
+> règle fondée sur le domaine de l'adresse effacerait un vrai client le jour où
+> quelqu'un s'inscrira avec une adresse qui y ressemble.
 
 ---
 
@@ -52,9 +52,9 @@ parce qu'il a une conséquence, et la conséquence est écrite à côté.
 
 Vercel se branche sur un dépôt Git (GitHub, GitLab, Bitbucket).
 
-> **Le projet n'existe aujourd'hui que sur un seul portable.** Aucun dépôt
-> distant. C'est un risque à traiter pour lui-même, indépendamment du
-> déploiement : une panne de disque effacerait tout le travail.
+Le dépôt est en place : **`github.com/Toxint/koli`**, branche `master`. Le
+projet Vercel existe et ce poste y est lié (dossier `.vercel/`, projet
+`koli`).
 
 Le dépôt peut être **privé** — Vercel s'y connecte sans difficulté. Rien
 n'oblige à publier le code.
@@ -173,13 +173,34 @@ des raisons de réseau et non de code — voir `CLAUDE.md`, section 5.
 
 - **Aucun argent ne circule.** `PAYMENT_MODE=test`. Le site est utilisable de
   bout en bout, mais chaque paiement est simulé (§1, §84).
-- **Les migrations ne s'exécutent pas automatiquement.** Le schéma est déjà
-  appliqué sur Supabase. Pour une migration future :
-  `npm run supabase:preparer -- --par-le-pooler` depuis un poste.
-- **Le jeu de données de démonstration n'est pas rejoué.** Les comptes de
-  démonstration présents en base restent tels quels.
+- **Les migrations ne s'exécutent pas automatiquement.** Pour une migration
+  future, depuis un poste :
 
-> Les comptes de démonstration ont un mot de passe connu et publié dans ce
-> dépôt (`Password123!`). Sur un site accessible publiquement, ils constituent
-> une porte d'entrée — dont un compte **administrateur**. À supprimer ou à
-> changer avant de communiquer l'adresse à qui que ce soit.
+  ```bash
+  npm run supabase:migrer                  # dit ce qui manque, sans rien faire
+  npm run supabase:migrer -- --appliquer   # applique
+  npm run vercel:redeployer                # le code doit suivre le schéma
+  ```
+
+  **Et surtout pas `supabase:preparer`.** Il ne sert qu'à la mise en route : il
+  REFUSE une base déjà peuplée, et son option `--ecraser` supprime le schéma
+  public entier — donc toutes les données réelles. Ce document a longtemps
+  recommandé l'inverse.
+
+  Appliquer une migration sans redéployer laisse le code tourner contre un
+  schéma qu'il ne connaît pas.
+- **Aucun jeu de données n'est rejoué.** La base garde ce qu'elle a.
+
+> **Les comptes de démonstration ont été supprimés de la base en ligne le
+> 31 août 2026.** Leur mot de passe, `Password123!`, est publié dans ce dépôt —
+> et l'un d'eux était **administrateur**.
+>
+> L'administrateur a été recréé avec un mot de passe tiré au sort, remis à
+> l'utilisateur une seule fois. Si vous n'y avez plus accès, régénérez-le :
+> supprimez la ligne et relancez `prisma/amorce.ts` avec un `ADMIN_PASSWORD`
+> neuf.
+>
+> `npm run supabase:securiser` existe pour le cas où des comptes de
+> démonstration se retrouveraient à nouveau en ligne : il tire un mot de passe
+> au sort pour chacun plutôt que de les supprimer, et les dépose dans un
+> fichier local ignoré par git.
