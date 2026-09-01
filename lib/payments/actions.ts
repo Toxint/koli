@@ -296,3 +296,35 @@ class ConcurrentPaymentError extends Error {
     this.name = "ConcurrentPaymentError";
   }
 }
+
+/**
+ * L'état actuel d'une commande, pour l'écran de paiement.
+ *
+ * Après un paiement iKeePay, le tunnel poste `ikeepay-success` au navigateur —
+ * un message CLIENT, que n'importe qui peut émettre depuis la console. Il ne
+ * conclut donc rien : il indique seulement qu'il est temps de **demander au
+ * serveur** où en est la commande. Le verdict, lui, arrive par le rappel signé
+ * (`/api/paiements/rappel`), et c'est la base qui fait foi.
+ *
+ * Ne renvoie que le STATUT. Pas le montant, pas l'acheteur, pas la référence
+ * du fournisseur : l'écran a déjà tout cela, et un point d'entrée qui en dit
+ * plus que nécessaire finit par en dire trop.
+ *
+ * La référence fait office de capacité — c'est elle qui circule dans le lien
+ * de paiement (`lib/orders/reference.ts`). Qui l'a peut déjà voir cette page ;
+ * lire le statut n'ajoute donc aucun accès.
+ */
+export async function etatDeLaCommandeAction(
+  reference: string
+): Promise<{ status: OrderStatus } | null> {
+  if (typeof reference !== "string" || reference.trim().length === 0) {
+    return null;
+  }
+
+  const commande = await prisma.order.findUnique({
+    where: { reference: reference.trim() },
+    select: { status: true },
+  });
+
+  return commande ? { status: commande.status } : null;
+}

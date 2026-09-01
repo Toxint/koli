@@ -801,6 +801,42 @@ Il en a trouve **neuf que j'avais manquees**, dont « Mode Test MVP » sur la
 page de connexion. Falsifie en retirant une garde : il la voit et sort en
 echec.
 
+### Le tunnel iKeePay, et le rattrapage qui n'existait pas
+
+**Le tunnel** (`components/domain/TunnelIkeePay.tsx`) remplace les boutons de
+simulation en mode réel. C'est iKeePay qui demande le numéro, l'opérateur,
+l'OTP et gère Wave et Orange : aucun numéro de payeur ne transite par KOLI.
+
+Quatre choses qui se déferaient sans être écrites :
+
+- **`event.origin` est vérifié.** Leur documentation montre un écouteur qui ne
+  le fait pas : sans ce contrôle, TOUTE page capable de nous poster un message
+  est crue.
+- **`ikeepay-success` ne conclut RIEN.** C'est un `postMessage` : n'importe
+  qui l'émet depuis la console. Il sert d'une seule chose — savoir qu'il est
+  temps de DEMANDER AU SERVEUR. Le verdict vient du rappel, et c'est la base
+  qui fait foi.
+- **Au bout de deux minutes sans confirmation, l'écran ne dit PAS « échec ».**
+  Le paiement a peut-être abouti chez eux et le rappel s'est perdu. Annoncer un
+  échec ferait payer deux fois quelqu'un qui a déjà payé.
+- **Les boutons de simulation ne sont pas rendus** en mode réel, pas seulement
+  masqués : un bouton caché se réaffiche en une ligne dans les outils de
+  développement.
+
+Le montant part du SERVEUR, recalculé depuis les lignes de la commande. Le
+prendre du navigateur reviendrait à laisser quelqu'un choisir combien il paie.
+
+**Le rattrapage.** `rapprocherPaiements()` existait, éprouvée, et n'était
+appelée par RIEN — ni route, ni tâche. En mode test c'était sans conséquence :
+le paiement simulé répond tout de suite. `/api/paiements/rapprochement` et
+`vercel.json` la déclenchent désormais toutes les dix minutes.
+
+⚠ Le forfait **Hobby** de Vercel ramène toute tâche à UNE PAR JOUR, sans
+avertissement.
+
+⚠ Avec iKeePay elle ne fait qu'expirer les paiements abandonnés : sans point
+d'entrée de consultation, un rappel PERDU n'est pas rattrapable.
+
 ### iKeePay ne signe pas ses rappels
 
 Le partenaire financier est choisi : **iKeePay**, agrégateur Mobile Money. La

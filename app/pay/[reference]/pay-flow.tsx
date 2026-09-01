@@ -6,6 +6,7 @@ import { formatCFA } from "@/lib/format";
 import { simulatePaymentAction } from "@/lib/payments/actions";
 import { confirmReceptionAction } from "@/lib/orders/actions";
 import { Icone } from "@/components/ui/Icone";
+import { TunnelIkeePay } from "@/components/domain/TunnelIkeePay";
 import { FormulaireLitige } from "@/components/domain/FormulaireLitige";
 import { FriseLivraison } from "@/components/domain/FriseLivraison";
 import { JALONS, indiceJalon } from "@/lib/deliveries/jalons";
@@ -48,6 +49,14 @@ interface PayFlowProps {
    * besoin de dire la vérité sur ce qui arrive à son argent.
    */
   modeTest?: boolean;
+  /**
+   * L'adresse du tunnel iKeePay, batie par le serveur.
+   *
+   * Absente en mode test — il n'y a rien a ouvrir. Absente aussi si la
+   * configuration du fournisseur est incomplete : l'ecran le dit alors, plutot
+   * que d'afficher un bouton qui ne mene nulle part.
+   */
+  checkoutUrl?: string | null;
 }
 
 export function PayFlow({
@@ -55,6 +64,7 @@ export function PayFlow({
   estLeClient = false,
   codeReception = null,
   modeTest = true,
+  checkoutUrl = null,
 }: PayFlowProps) {
   const [status, setStatus] = useState(order.status);
   const [loading, setLoading] = useState(false);
@@ -414,6 +424,43 @@ export function PayFlow({
             </p>
           </div>
 
+          {/*
+            * En mode RÉEL, le tunnel iKeePay remplace les boutons de scénario.
+            *
+            * Les deux ne coexistent jamais : proposer « simuler un paiement
+            * réussi » à côté d'un vrai encaissement serait un bouton pour
+            * s'offrir un colis.
+            */}
+          {!modeTest && checkoutUrl && (
+            <TunnelIkeePay
+              reference={order.reference}
+              checkoutUrl={checkoutUrl}
+              onAbouti={(s) => setStatus(s as typeof status)}
+            />
+          )}
+
+          {!modeTest && !checkoutUrl && (
+            <p role="alert" className="text-xs font-semibold text-danger">
+              Le paiement est momentanément indisponible. Prévenez le vendeur —
+              aucun montant n&apos;a été engagé.
+            </p>
+          )}
+
+          {/*
+            * NON RENDUS en mode réel, et pas seulement masqués.
+            *
+            * Une première version les gardait dans le DOM avec `hidden`. Deux
+            * raisons de ne pas s'en contenter : un bouton masqué se réaffiche
+            * en une ligne dans les outils de développement, et surtout il
+            * reste lisible par un lecteur d'écran mal configuré — « simuler un
+            * paiement réussi » sur un écran qui prélève vraiment.
+            *
+            * `simulatePaymentAction` ne pourrait de toute façon rien conclure :
+            * `IkeePayProvider.confirm()` ignore `simulateOutcome`. Mais une
+            * garde qui repose sur le fait qu'une autre tiendra n'en est pas
+            * une.
+            */}
+          {modeTest && (
           <div className="space-y-3">
             <button
               type="button"
@@ -437,6 +484,7 @@ export function PayFlow({
               <Icone nom="fermer" className="w-4 h-4" /> Simuler un paiement échoué
             </button>
           </div>
+          )}
 
           <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 text-xs">
             <Icone nom="bouclier" className="w-4 h-4 inline-block" /> <strong>Garantie KOLI :</strong> le vendeur n&apos;est payé qu&apos;après que vous ayez confirmé avoir reçu votre commande.

@@ -7,7 +7,7 @@ import { chargerPreuveLivraison } from "@/lib/deliveries/preuve";
 import { PreuveLivraison } from "@/components/domain/PreuveLivraison";
 import { Icone } from "@/components/ui/Icone";
 import { BarreCompte } from "@/components/ui/BarreCompte";
-import { isTestMode } from "@/lib/config/mode";
+import { isTestMode, getPaymentProvider } from "@/lib/config/mode";
 
 export default async function PayReferencePage({
   params,
@@ -70,6 +70,16 @@ export default async function PayReferencePage({
       })),
     };
 
+    /*
+     * Le total, recalcule ICI, cote serveur, a partir des lignes de la
+     * commande : c'est lui qui part chez l'agregateur. Le prendre d'un champ
+     * calcule ailleurs, ou pire du navigateur, reviendrait a laisser quelqu'un
+     * choisir combien il paie.
+     */
+    const montantTotal =
+      dbOrder.items.reduce((s, i) => s + i.unitPrice * i.quantity, 0) +
+      dbOrder.deliveryFee;
+
     // §28 : la preuve existait en base depuis la premiere livraison, sans
     // jamais etre montree a personne. Elle est visible par quiconque detient
     // le lien — client, vendeur, livreur : c'est ce qui en fait une preuve
@@ -95,6 +105,10 @@ export default async function PayReferencePage({
           estLeClient={estLeClient}
           codeReception={codeReception}
           modeTest={isTestMode()}
+          checkoutUrl={await adresseDuTunnel(
+            dbOrder.reference,
+            montantTotal
+          )}
         />
 
         {(facture || preuve) && (
@@ -126,4 +140,39 @@ export default async function PayReferencePage({
   // Reference inconnue : un vrai 404, et non une page « introuvable »
   // renvoyee avec un code de succes. L ecran vit dans not-found.tsx.
   notFound();
+}
+
+/**
+ * L'adresse du tunnel de paiement, ou `null`.
+ *
+ * `null` en mode test — il n'y a rien a ouvrir — et `null` aussi si la
+ * configuration d'iKeePay est incomplete. Dans ce second cas l'ecran le DIT,
+ * plutot que d'afficher un bouton qui ne mene nulle part : le constructeur du
+ * fournisseur jette quand une clef manque, et cette page ne doit pas tomber
+ * avec lui. Un acheteur ne doit jamais voir une page d'erreur a l'instant de
+ * payer.
+ *
+ * `initiate()` ne deplace aucun argent et n'appelle personne : pour le tunnel
+ * iframe, il ne fait que batir une adresse. On peut donc l'appeler a chaque
+ * affichage sans effet de bord.
+ */
+async function adresseDuTunnel(
+  reference: string,
+  montant: number
+): Promise<string | null> {
+  if (isTestMode()) return null;
+
+  try {
+    const intention = await getPaymentProvider().initiate({
+      orderReference: reference,
+      amount: montant,
+      currency: "XOF",
+      // La reference tient lieu de clef : deux affichages de la meme commande
+      // batissent la meme adresse, donc le meme `order_id` chez iKeePay.
+      idempotencyKey: reference,
+    });
+    return intention.checkoutUrl ?? null;
+  } catch {
+    return null;
+  }
 }

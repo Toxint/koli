@@ -83,6 +83,7 @@ dépôt.
 | `ADMIN_EMAIL` | l'adresse de l'administrateur | `prisma/amorce.ts` crée ce compte. Sans lui, personne ne peut vérifier un vendeur ni trancher un litige — et l'inscription ne propose pas ce rôle |
 | `ADMIN_PHONE` | son numéro | la connexion accepte l'un ou l'autre |
 | `ADMIN_PASSWORD` | **12 caractères minimum**, tiré au sort | aucune valeur de repli, et l'amorce refuse en dessous de 12 : ce compte administre la plateforme entière |
+| `CRON_SECRET` | tiré au sort | protège `/api/paiements/rapprochement`, qui écrit en base. Sans lui la route répond 503 et le rattrapage ne tourne pas |
 
 > ### ⚠ `AUTH_SECRET` doit être RÉGÉNÉRÉ
 >
@@ -166,6 +167,27 @@ prouve que le déploiement fonctionne réellement.
 
 Attention : lancé depuis une liaison dégradée, ce contrôle peut échouer pour
 des raisons de réseau et non de code — voir `CLAUDE.md`, section 5.
+
+---
+
+## 5 bis. La tâche planifiée
+
+`vercel.json` déclare une tâche toutes les dix minutes sur
+`/api/paiements/rapprochement`. Elle ferme les paiements restés en suspens :
+quelqu'un ouvre le tunnel, ne valide pas, ferme l'onglet — sans elle, sa
+commande reste « en attente » pour toujours, et le stock avec elle.
+
+> ⚠ **Le forfait Hobby de Vercel limite les tâches à UNE PAR JOUR.** La
+> déclaration `*/10 * * * *` y sera ramenée au quotidien sans avertissement, et
+> un paiement abandonné le matin resterait ouvert jusqu'au lendemain. Sur un
+> forfait Pro, elle s'exécute bien toutes les dix minutes.
+
+Elle exige `CRON_SECRET`. Sans lui, la route répond 503 et ne fait rien — c'est
+voulu : elle écrit en base.
+
+⚠ Avec iKeePay, elle ne fait qu'expirer ce qui a dépassé son échéance. Ils
+n'exposent aucun point d'entrée pour relire l'état d'une transaction, donc un
+rappel PERDU n'est pas rattrapable — voir §8 de `CLAUDE.md`.
 
 ---
 
