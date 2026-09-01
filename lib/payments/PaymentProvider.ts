@@ -72,6 +72,19 @@ export interface PaymentIntent {
   payerOperator?: string;
   /** Fin de la fenêtre de validation, quand le fournisseur en impose une. */
   expiresAt?: Date;
+
+  /**
+   * Adresse du tunnel de paiement, quand le fournisseur en expose un.
+   *
+   * Ajoutée pour iKeePay, dont l'encaissement passe par une iframe : il n'y a
+   * pas d'appel serveur à l'initiation, seulement une adresse à charger. Un
+   * agrégateur qui prend le numéro par API la laisse vide.
+   *
+   * Elle est ici et non dans un type à part parce que c'est bien le même
+   * objet : l'état d'une intention de paiement, et ce qu'il reste à faire
+   * pour qu'elle aboutisse.
+   */
+  checkoutUrl?: string;
 }
 
 export interface InitiatePaymentInput {

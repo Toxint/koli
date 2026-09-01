@@ -223,10 +223,17 @@ régénérer avant la mise en ligne.**
 
 ### Ensuite
 
-**Phase 30 — intégration du partenaire financier.** Bloquée sur une décision
-métier : le partenaire n'est pas choisi. Trois points restent ouverts et en
-dépendent, documentés en fin de `docs/architecture.md` : le versement au
-vendeur, le remboursement automatique, le séquestre réglementaire.
+**Phase 30 — intégration du partenaire financier.** Le partenaire est choisi :
+**iKeePay**. Le fournisseur est écrit et éprouvé (`lib/payments/IkeePayProvider.ts`,
+`lib/__tests__/ikeepay.test.ts`), mais **il n'est pas activé** :
+`PAYMENT_MODE` reste sur `test`, aucun argent ne bouge.
+
+Trois réponses manquent, et elles sont d'eux : une **signature** de leurs
+rappels, un **point d'entrée de consultation**, un **sandbox** pour
+l'encaissement. Voir §8. Tant qu'elles manquent, ne pas basculer.
+
+Restent ouverts et dépendent aussi d'eux : le versement au vendeur, le
+remboursement automatique.
 
 ---
 
@@ -765,6 +772,59 @@ attendait ce basculement et lisait la base pendant que l'action écrivait encore
 Il faut attendre le **message**, qui n'apparaît qu'au retour. Et si le serveur
 refuse, l'écran revient en arrière : il ne doit jamais affirmer un état que la
 base ne porte pas.
+
+### iKeePay ne signe pas ses rappels
+
+Le partenaire financier est choisi : **iKeePay**, agrégateur Mobile Money. La
+phase 30 est donc débloquée, et la garde `PAYMENT_MODE` peut s'ouvrir — parce
+que **les fonds dorment sur LEUR compte**. C'est l'agrégateur qui porte
+l'agrément ; KOLI ne détient jamais l'argent de personne, et le §84 est
+satisfait plutôt que contourné. Si un jour les fonds transitent par un compte
+KOLI, cette garde doit se refermer.
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│  LEURS RAPPELS NE SONT SIGNÉS PAR RIEN. Leur documentation montre un        │
+│  exemple PHP qui croit l'événement sur parole.                             │
+└────────────────────────────────────────────────────────────────────────────┘
+
+Conséquence : qui connaît l'adresse de rappel **et** une référence de commande
+peut marquer cette commande payée. L'attaquant naturel est **l'acheteur** — il
+ouvre le lien de paiement, il y lit la référence.
+
+Faute de signature, l'adresse de rappel porte un **jeton secret** :
+`/api/paiements/rappel?jeton=…`. Ce n'est PAS équivalent, et la différence est
+écrite dans `IkeePayProvider` : une signature prouve que le corps vient d'eux
+et n'a pas été modifié ; un jeton prouve seulement que l'appelant connaît un
+secret. Il protège de l'acheteur — le scénario réel — mais pas d'un
+intermédiaire qui verrait passer l'adresse.
+
+**Trois choses leur restent à demander**, et les trois sont écrites dans le
+fichier : une signature, un point d'entrée pour relire l'état d'une
+transaction (sans lui, `consulter()` renvoie `null` et le rapprochement est
+aveugle), et un sandbox pour l'encaissement — le seul documenté concerne les
+cartes.
+
+Quatre décisions qui se déferaient sans être écrites :
+
+- **Le tunnel iframe, pas le H2H.** C'est iKeePay qui demande le numéro,
+  l'opérateur, l'OTP, et qui gère les redirections Wave et Orange. Aucun
+  numéro de payeur ne transite par KOLI.
+- **`ikeepay-success` ne conclut RIEN.** C'est un message posté au navigateur :
+  n'importe qui peut l'émettre depuis la console. `confirm()` renvoie donc
+  l'état inchangé, et un test le vérifie explicitement.
+- **Un statut inconnu n'est jamais un succès.** Le défaut penche du côté qui ne
+  fait expédier aucun colis.
+- **`providerRef` = notre propre référence de commande.** Le tunnel n'a pas
+  d'appel serveur à l'initiation : iKeePay ne connaît la commande qu'au
+  rappel. Notre référence est le seul identifiant commun aux deux côtés dès le
+  départ, et elle est déjà imprévisible.
+
+**Le contrôle du forgeage ne s'exerçait pas.** `verif:rappel` cherchait un
+paiement EN ATTENTE, que le jeu de données ne crée jamais — il dépendait donc
+d'un autre test en ayant laissé un. Il pose désormais sa propre fixture, et
+l'efface. La note du `aNettoyer` se fait AVANT les insertions : notée après,
+un échec sur la seconde laissait une commande orpheline que le ménage ignorait
+— et c'est arrivé.
 
 ### Les identifiants SQL sont guillemetés
 

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { PaymentStatus } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { getPaymentProvider } from "@/lib/config/mode";
+import { ENTETE_JETON_RAPPEL } from "@/lib/payments/IkeePayProvider";
 
 /**
  * Rappel du fournisseur de paiement (webhook) — §29, §52.
@@ -52,6 +53,26 @@ export async function POST(requete: Request) {
   requete.headers.forEach((valeur, nom) => {
     entetes[nom.toLowerCase()] = valeur;
   });
+
+  /*
+   * Le jeton de l'adresse, versé parmi les en-têtes.
+   *
+   * iKeePay ne signe pas ses rappels — leur documentation montre un exemple
+   * qui croit l'événement sur parole. Faute de signature, l'adresse déclarée
+   * chez eux porte un jeton secret : `/api/paiements/rappel?jeton=…`.
+   * L'acheteur, lui, ne connaît que le lien de paiement.
+   *
+   * Il arrive ici sous un nom d'en-tête RÉSERVÉ, parce que `verifierRappel`
+   * ne reçoit que le corps et les en-têtes — c'est sa signature, et elle est
+   * juste : un fournisseur qui signe vraiment n'a que faire de l'adresse. Le
+   * préfixe `x-koli-` évite toute collision avec un en-tête réel.
+   *
+   * Un en-tête entrant qui porterait ce nom est ÉCRASÉ, jamais lu : sans
+   * cela, n'importe qui pourrait l'envoyer lui-même et court-circuiter le
+   * contrôle.
+   */
+  const jeton = new URL(requete.url).searchParams.get("jeton");
+  entetes[ENTETE_JETON_RAPPEL] = jeton ?? "";
 
   // Règle 2 : la signature d'abord.
   const verification = await fournisseur.verifierRappel(corpsBrut, entetes);

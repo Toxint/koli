@@ -41,17 +41,81 @@ const verifier = (ok, libelle, detail = "") => {
  *
  * On la fabrique donc, plutot que d'annoncer un controle qui ne verifie rien.
  */
+/** Les commandes fabriquees par ce controle, a effacer avant de rendre la main. */
+const aNettoyer = [];
+
 const preparerPaiementEnAttente = async () => {
-  const cible = await lireUne(
+  const existant = await lireUne(
     `SELECT id, amount FROM "Payment" WHERE status = 'PENDING' LIMIT 1`
   );
 
-  if (!cible) return null;
+  if (existant) {
+    const ref = `test_rappel_${Date.now()}`;
+    await ecrire('UPDATE "Payment" SET "providerRef" = ? WHERE id = ?', ref, existant.id);
+    return { id: existant.id, amount: existant.amount, providerRef: ref, aEffacer: null };
+  }
 
-  const ref = `test_rappel_${Date.now()}`;
-  await ecrire('UPDATE "Payment" SET "providerRef" = ? WHERE id = ?', ref, cible.id);
+  /*
+   * Rien en attente : ON EN FABRIQUE UN.
+   *
+   * Le jeu de donnees ne cree que des paiements ABOUTIS. Ce controle dependait
+   * donc de l'ordre d'execution de la campagne — il fallait qu'un autre test
+   * ait laisse un paiement en attente derriere lui. Quand ce n'etait pas le
+   * cas, les trois controles les plus importants du fichier s'abstenaient. Ils
+   * le DISAIENT, ce qui est deja mieux que de passer au vert, mais ils
+   * s'abstenaient quand meme.
+   *
+   * Or celui qui suit est LE controle du depot : « un rappel forge ne fait
+   * payer personne ». Il ne peut pas dependre de la chance, et encore moins le
+   * jour ou l'argent devient reel. On pose donc sa propre fixture, comme le
+   * fait deja `test-factures.mjs`.
+   */
+  const vendeur = await lireUne(`SELECT id FROM "SellerProfile" LIMIT 1`);
+  if (!vendeur) return null;
 
-  return { id: cible.id, amount: cible.amount, providerRef: ref };
+  const suffixe = Date.now().toString(36).toUpperCase().slice(-8);
+  const idCommande = `ctrl-rappel-o-${suffixe}`;
+  const idPaiement = `ctrl-rappel-p-${suffixe}`;
+  const montant = 12345;
+
+  /*
+   * On note AVANT d'inserer, pas apres.
+   *
+   * La premiere version notait a la fin, une fois la commande ET le paiement
+   * poses. Une erreur sur la seconde insertion laissait donc une commande
+   * orpheline que le menage ne connaissait pas — et c'est arrive : deux
+   * commandes ont survecu a un echec sur un nom de colonne.
+   *
+   * Noter d'abord peut faire tenter d'effacer ce qui n'existe pas. C'est sans
+   * consequence, et infiniment preferable a l'inverse.
+   */
+  aNettoyer.push(idCommande);
+
+  await ecrire(
+    `INSERT INTO "Order" (id, reference, "sellerId", "buyerName", "buyerPhone",
+       "buyerCountry", "buyerCity", "buyerAddress", "deliveryFee", status,
+       "createdAt", "updatedAt")
+     VALUES (?, ?, ?, 'Controle Rappel', '+2250700000099', 'Cote d''Ivoire',
+       'Abidjan', 'Adresse de controle', 0, 'PAYMENT_PENDING', now(), now())`,
+    idCommande,
+    `KOLI-CTRL${suffixe}`,
+    vendeur.id
+  );
+
+  const ref = `test_rappel_${suffixe}`;
+  await ecrire(
+    // `Payment` n'a PAS de `updatedAt`, contrairement a `Order` : on ne
+    // devine pas les colonnes, on les lit dans le schema.
+    `INSERT INTO "Payment" (id, "orderId", provider, status, amount, "providerRef",
+       "createdAt")
+     VALUES (?, ?, 'TEST', 'PENDING', ?, ?, now())`,
+    idPaiement,
+    idCommande,
+    montant,
+    ref
+  );
+
+  return { id: idPaiement, amount: montant, providerRef: ref };
 };
 
 const signer = (corps) =>
@@ -99,7 +163,15 @@ const rappeler = async (corps, entetes = {}) =>
 
 // ═══════════ 4. LE POINT CRITIQUE : un rappel forge ne fait payer personne
 {
-  // On cible une VRAIE commande encore en attente de paiement.
+  /*
+   * Une VRAIE commande en attente — fabriquee au besoin.
+   *
+   * `preparerPaiementEnAttente` en pose une si le jeu de donnees n'en offre
+   * aucune. Sans cela, LE controle du depot s'abstenait dans la moitie des
+   * executions, selon l'ordre de la campagne.
+   */
+  await preparerPaiementEnAttente();
+
   const cible = (await lire(
     `SELECT p.id, p.status, o.reference FROM "Payment" p
        JOIN "Order" o ON o.id = p."orderId"
@@ -225,6 +297,21 @@ const rappeler = async (corps, entetes = {}) =>
       apres
     );
   }
+}
+
+/*
+ * Le menage, avant de rendre la main.
+ *
+ * La suppression de la commande emporte son paiement en cascade. On efface
+ * meme si des controles ont echoue : une fixture abandonnee ferait echouer le
+ * PROCHAIN test pour une raison qui n'a rien a voir avec ce qu'il verifie —
+ * c'est precisement ce qui est arrive a `verif:etapes` avec le stock.
+ */
+for (const id of aNettoyer) {
+  await ecrire('DELETE FROM "Order" WHERE id = ?', id);
+}
+if (aNettoyer.length > 0) {
+  console.log(`\n  · ${aNettoyer.length} fixture(s) effacee(s)`);
 }
 
 console.log("");
