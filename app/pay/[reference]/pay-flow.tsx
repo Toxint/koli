@@ -36,12 +36,25 @@ interface PayFlowProps {
   estLeClient?: boolean;
   /** Code de réception (§27) — transmis au seul client, jamais au vendeur ni au livreur. */
   codeReception?: string | null;
+  /**
+   * L'argent est-il simulé ?
+   *
+   * Un PROP et non la règle CSS `[data-mention-test]` : ici les phrases ne
+   * disparaissent pas, elles CHANGENT. « Aucun argent réel n'a été prélevé »
+   * masqué laisserait un message incomplet ; remplacé, il dit ce qui s'est
+   * réellement passé.
+   *
+   * C'est l'écran que voit l'acheteur au moment de payer. Aucun autre n'a plus
+   * besoin de dire la vérité sur ce qui arrive à son argent.
+   */
+  modeTest?: boolean;
 }
 
 export function PayFlow({
   order,
   estLeClient = false,
   codeReception = null,
+  modeTest = true,
 }: PayFlowProps) {
   const [status, setStatus] = useState(order.status);
   const [loading, setLoading] = useState(false);
@@ -132,7 +145,7 @@ export function PayFlow({
         </h1>
         <p className="text-sm text-ink-muted">
           {rembourseTraite
-            ? "Le remboursement a été traité. Aucun mouvement réel n'a lieu en mode test."
+            ? `Le remboursement a été traité.${modeTest ? " Aucun mouvement réel n'a lieu en mode test." : ""}`
             : rembourse
               ? "KOLI a tranché en faveur du client. Le remboursement est enclenché."
               : "Les fonds restent bloqués : le vendeur ne sera pas payé tant que KOLI n'a pas tranché (§33)."}
@@ -197,10 +210,14 @@ export function PayFlow({
           {attendConfirmation
             ? "Le livreur a marqué votre colis comme remis. Confirmez la réception pour que le vendeur soit payé (simulation)."
             : estTermine
-              ? "Vous avez confirmé la réception. Les fonds seraient versés au vendeur — aucun mouvement réel n'a lieu en mode test."
+              ? modeTest
+                ? "Vous avez confirmé la réception. Les fonds seraient versés au vendeur — aucun mouvement réel n'a lieu en mode test."
+                : "Vous avez confirmé la réception. Les fonds sont versés au vendeur."
               : enChemin
                 ? jalon.detailClient
-                : "Votre paiement simulé est enregistré. Aucun argent réel n'a été prélevé ni détenu. Le vendeur voit la commande comme payée et prépare l'expédition."}
+                : modeTest
+                  ? "Votre paiement simulé est enregistré. Aucun argent réel n'a été prélevé ni détenu. Le vendeur voit la commande comme payée et prépare l'expédition."
+                  : "Votre paiement est enregistré. Le montant est conservé jusqu'à votre confirmation de réception : le vendeur n'est pas encore payé."}
         </p>
 
         <span className="inline-block px-3 py-1 rounded-full bg-test-mode-surface dark:bg-amber-950/80 text-test-mode dark:text-amber-300 text-[11px] font-bold uppercase tracking-wider border border-brand-border/60">
@@ -372,14 +389,28 @@ export function PayFlow({
         {/* Payment Simulation Box */}
         <div className="bg-white dark:bg-slate-900 rounded-3xl border border-brand-border/40 dark:border-amber-500/20 p-6 shadow-xl shadow-amber-500/5 space-y-6">
           <div>
-            <div className="inline-block px-3 py-1 rounded-full bg-brand-soft dark:bg-amber-950 text-brand dark:text-amber-300 text-[10px] font-bold uppercase tracking-wider mb-2 border border-brand-border/50">
-              <Icone nom="eclair" className="w-3.5 h-3.5" /> Mode test MVP
-            </div>
+            {/*
+              * ⚠ CE BLOC EST CELUI DE LA SIMULATION.
+              *
+              * En mode réel il doit céder la place au tunnel iKeePay
+              * (`PaymentIntent.checkoutUrl`), qui n'est pas encore branché ici.
+              * Les textes sont donc conditionnés dès maintenant — annoncer
+              * « aucun argent réel n'est prélevé » sur l'écran de paiement
+              * serait le pire endroit possible pour le dire à tort — mais les
+              * boutons de scénario, eux, restent à remplacer.
+              */}
+            {modeTest && (
+              <div className="inline-block px-3 py-1 rounded-full bg-brand-soft dark:bg-amber-950 text-brand dark:text-amber-300 text-[10px] font-bold uppercase tracking-wider mb-2 border border-brand-border/50">
+                <Icone nom="eclair" className="w-3.5 h-3.5" /> Mode test MVP
+              </div>
+            )}
             <h2 className="text-lg font-bold dark:text-white">
-              Simulation de Paiement Sécurisé
+              {modeTest ? "Simulation de Paiement Sécurisé" : "Paiement sécurisé"}
             </h2>
             <p className="text-xs text-ink-muted mt-1">
-              Aucun argent réel n&apos;est prélevé. Choisissez le scénario de test pour continuer.
+              {modeTest
+                ? "Aucun argent réel n'est prélevé. Choisissez le scénario de test pour continuer."
+                : "Le montant est conservé jusqu'à votre confirmation de réception : le vendeur n'est pas payé avant."}
             </p>
           </div>
 
@@ -408,7 +439,10 @@ export function PayFlow({
           </div>
 
           <div className="p-3 rounded-xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-800 dark:text-blue-200 text-xs">
-            <Icone nom="bouclier" className="w-4 h-4 inline-block" /> <strong>Garantie KOLI :</strong> le vendeur n&apos;est payé qu&apos;après que vous ayez confirmé avoir reçu votre commande. En mode test, aucun montant réel n&apos;est prélevé ni détenu.
+            <Icone nom="bouclier" className="w-4 h-4 inline-block" /> <strong>Garantie KOLI :</strong> le vendeur n&apos;est payé qu&apos;après que vous ayez confirmé avoir reçu votre commande.
+            {modeTest
+              ? " En mode test, aucun montant réel n'est prélevé ni détenu."
+              : " Le montant est conservé par notre partenaire agréé, pas par KOLI."}
           </div>
         </div>
       </div>

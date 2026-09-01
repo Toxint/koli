@@ -7,6 +7,7 @@ import { Pagination } from "@/components/ui/Pagination";
 import { chargerFacturesVendeur } from "@/lib/invoices/liste";
 import { TableauFactures } from "@/components/domain/TableauFactures";
 import { formatCFA, pluriel } from "@/lib/format";
+import { MentionModeTest } from "@/components/ui/MentionModeTest";
 
 export const metadata: Metadata = { title: "Factures" };
 
@@ -44,7 +45,7 @@ export default async function FacturesVendeurPage({
           </h1>
           <p className="mt-1 text-sm text-ink-muted">
             Une facture est émise automatiquement dès qu&apos;un paiement
-            aboutit. Mode test — aucun paiement réel.
+            aboutit.<MentionModeTest> Mode test — aucun paiement réel.</MentionModeTest>
           </p>
         </div>
 

@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans, Inter, Instrument_Serif } from "next/font/google";
 import "./globals.css";
 import { DefinitionsLogoKoli } from "@/components/ui/LogoKoli";
+import { getPaymentMode } from "@/lib/config/mode";
 
 /**
  * Plus Jakarta Sans — dessinee pour les interfaces : elegante aux grandes
@@ -98,7 +99,25 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <head>
         <script dangerouslySetInnerHTML={{ __html: RETABLIR_MENU }} />
       </head>
-      <body className="bg-cream text-ink antialiased">
+      {/*
+       * Le mode de paiement, porte par le DOCUMENT.
+       *
+       * Les mentions « mode test — aucun paiement reel » sont ecrites dans une
+       * vingtaine d'ecrans, dont quatre composants CLIENT et le menu lateral,
+       * appele depuis vingt-sept pages. Leur passer un prop, c'etait
+       * vingt-sept occasions d'en oublier un — et la page oubliee aurait menti
+       * en pretendant qu'aucun argent ne circule pendant qu'on preleve.
+       *
+       * Une seule source, ici, et une regle CSS qui masque `[data-mention-test]`
+       * des que le mode n'est plus `test` (voir `app/globals.css`). Zero
+       * JavaScript : le §70 vise des telephones sur reseau lent, et un
+       * fournisseur de contexte sur chaque page pour un booleen serait cher
+       * paye.
+       */}
+      <body
+        data-mode-paiement={getPaymentMode()}
+        className="bg-cream text-ink antialiased"
+      >
         {/*
          * Les degrades de la marque, definis UNE FOIS pour toute
          * l'application. Voir `LogoKoli` : un degrade SVG se designe par

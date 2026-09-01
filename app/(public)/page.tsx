@@ -5,6 +5,7 @@ import { exemplesTemoignagesAutorises } from "@/lib/config/demonstration";
 import { AnnoncesActivite } from "@/components/domain/AnnoncesActivite";
 import { VisagesRoles } from "@/components/ui/VisagesRoles";
 import { annoncesActivite } from "@/lib/notifications/activite";
+import { isTestMode } from "@/lib/config/mode";
 
 const etapes = [
   {
@@ -351,6 +352,13 @@ export default async function AccueilPage() {
    */
   const annonces = await annoncesActivite();
 
+  /*
+   * §75 : la mention du mode test. Elle DOIT disparaitre quand l argent
+   * devient reel — annoncer « aucun paiement reel » pendant qu on preleve
+   * serait la pire phrase que cette page puisse afficher.
+   */
+  const modeTest = isTestMode();
+
   return (
     <div
       className="min-h-screen bg-cream text-brand dark:text-white"
@@ -576,8 +584,22 @@ export default async function AccueilPage() {
                 l'annule pour qui l'a demande. */}
             <div className="apparait-au-chargement animate-float inline-flex max-w-full items-center gap-2.5 rounded-full border border-brand-border/70 bg-white/80 py-1.5 pl-2 pr-4 shadow-sm backdrop-blur-sm">
               <VisagesRoles />
+              {/*
+                * La PHRASE change, la pastille reste.
+                *
+                * La masquer entièrement en mode réel emporterait les trois
+                * visages, qui ne sont pas là pour annoncer le mode test. Et la
+                * remplacer par un chiffre — « X millions sécurisés » — serait
+                * une affirmation qu'on ne peut pas tenir.
+                *
+                * La seconde phrase décrit ce que KOLI FAIT. Elle est vraie
+                * dans les deux modes ; c'est simplement la mention légale du
+                * §75 qui n'a plus lieu d'être quand l'argent devient réel.
+                */}
               <span className="min-w-0 text-left text-[11px] font-semibold leading-tight text-brand sm:text-xs">
-                Mode test — aucun paiement réel n&apos;est effectué
+                {modeTest
+                  ? "Mode test — aucun paiement réel n'est effectué"
+                  : "L'argent est libéré au vendeur après votre confirmation"}
               </span>
             </div>
 
@@ -957,9 +979,11 @@ export default async function AccueilPage() {
                 Créer un compte gratuitement
                 <Icone nom="fleche-droite" className="h-4 w-4" />
               </Link>
-              <p className="mt-4 text-xs text-white/60">
-                Aucun paiement réel — KOLI fonctionne en mode test.
-              </p>
+              {modeTest && (
+                <p className="mt-4 text-xs text-white/60">
+                  Aucun paiement réel — KOLI fonctionne en mode test.
+                </p>
+              )}
             </div>
           </div>
         </section>
@@ -1104,9 +1128,11 @@ export default async function AccueilPage() {
             {/* Le mode test se dit ICI, en clair, et pas en petits caractères
                 sur une page annexe : personne ne doit croire avoir confié de
                 l'argent réel. C'est la ligne la plus importante du bloc. */}
-            <span className="font-semibold text-gold">
-              Mode test — aucun argent réel ne circule
-            </span>
+            {modeTest && (
+              <span className="font-semibold text-gold">
+                Mode test — aucun argent réel ne circule
+              </span>
+            )}
           </div>
         </div>
       </footer>

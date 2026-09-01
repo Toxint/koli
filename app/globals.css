@@ -557,6 +557,39 @@ svg[data-icone] {
   vertical-align: -0.15em;
 }
 
+/**
+ * Les mentions « mode test » disparaissent des que l'argent devient reel.
+ *
+ * ┌────────────────────────────────────────────────────────────────────────┐
+ * │  ANNONCER « aucun paiement reel n'est effectue » PENDANT QU'ON PRELEVE │
+ * │  serait la pire phrase que cette application puisse afficher.          │
+ * └────────────────────────────────────────────────────────────────────────┘
+ *
+ * Elles etaient ecrites en dur dans une vingtaine d'ecrans, et `isTestMode()`
+ * n'etait lu NULLE PART dans l'interface. La bascule vers un paiement reel
+ * aurait donc laisse le site affirmer le contraire de ce qu'il fait — sur la
+ * vitrine, dans les tableaux de bord, et jusque dans les conditions
+ * d'utilisation.
+ *
+ * Le mode est pose sur `<body>` par `app/layout.tsx`. Tout element portant
+ * `data-mention-test` disparait des qu'il n'est plus `test`.
+ *
+ * POURQUOI EN CSS et non en JavaScript : quatre de ces ecrans sont des
+ * composants CLIENT, et le menu lateral est appele depuis vingt-sept pages.
+ * Leur passer un prop, c'etait vingt-sept occasions d'en oublier un — et la
+ * page oubliee aurait menti. Une regle CSS ne s'oublie pas.
+ *
+ * ⚠ Elle MASQUE, elle ne remplace pas. La ou la phrase doit CHANGER plutot que
+ * disparaitre — pages legales, aide —, l'ecran lit `isTestMode()` et ecrit
+ * l'une ou l'autre version. Masquer une phrase au milieu d'un paragraphe
+ * laisserait une coquille.
+ *
+ * Hors couche : doit l'emporter sur tout utilitaire d'affichage.
+ */
+body:not([data-mode-paiement="test"]) [data-mention-test] {
+  display: none !important;
+}
+
 /* §69 : navigation clavier. Aucun element focalisable n'avait d'indicateur. */
 :focus-visible {
   outline: 2px solid var(--color-brand-accent);

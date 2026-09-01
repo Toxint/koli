@@ -18,7 +18,14 @@ export function AuthHeader({ title, subtitle }: AuthHeaderProps) {
           <span className="font-semibold text-2xl tracking-tight text-brand dark:text-white">
             KOLI
           </span>
-          <span className="block text-[10px] font-semibold text-brand dark:text-emerald-400 uppercase tracking-widest -mt-1">
+          {/* Disparaît dès que le paiement devient réel — la règle est dans
+              `app/globals.css`. Ce bandeau coiffe la connexion ET
+              l'inscription : c'est la première chose que voit un nouveau
+              venu, et ce serait la première chose fausse qu'il lirait. */}
+          <span
+            data-mention-test=""
+            className="block text-[10px] font-semibold text-brand dark:text-emerald-400 uppercase tracking-widest -mt-1"
+          >
             Mode Test MVP
           </span>
         </div>

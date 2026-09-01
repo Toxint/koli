@@ -42,7 +42,11 @@ export function BarreCompte({
       )}
 
       <div className="flex items-center gap-2">
-        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-test-mode-surface text-test-mode text-[11px] font-semibold border border-brand-border/60 whitespace-nowrap">
+        {/* Disparait des que le paiement devient reel — voir `globals.css`. */}
+        <span
+          data-mention-test=""
+          className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-test-mode-surface text-test-mode text-[11px] font-semibold border border-brand-border/60 whitespace-nowrap"
+        >
           <Icone nom="eclair" className="w-3.5 h-3.5" /> Mode test
         </span>
 

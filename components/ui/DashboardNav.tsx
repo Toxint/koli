@@ -343,8 +343,17 @@ export function DashboardNav({
           )}
         </Link>
 
-        {/* §75 : l'indicateur de mode test reste visible à toutes les tailles. */}
+        {/*
+          * §75 : l'indicateur de mode test reste visible à toutes les tailles.
+          *
+          * `data-mention-test` le fait DISPARAITRE des que le paiement devient
+          * reel — voir la regle dans `app/globals.css`. Ce composant est appele
+          * depuis vingt-sept pages : lui passer un prop, c'etait vingt-sept
+          * occasions d'en oublier une, et la page oubliee aurait annonce
+          * « aucun paiement reel » pendant qu'on preleve.
+          */}
         <div
+          data-mention-test=""
           title={compact ? "Mode test — aucun paiement réel" : undefined}
           className={`rounded-2xl bg-white/10 border border-gold/30 ${
             compact ? "flex justify-center p-2" : "px-3 py-2"

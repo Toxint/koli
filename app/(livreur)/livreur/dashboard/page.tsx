@@ -12,6 +12,7 @@ import { mettreEnForme } from "@/lib/finance/jours";
 import { TEINTE_COURBE } from "@/lib/finance/teintes-courbes";
 import { CourbePerformance } from "@/components/domain/CourbePerformance";
 import { Icone } from "@/components/ui/Icone";
+import { MentionModeTest } from "@/components/ui/MentionModeTest";
 
 export default async function DriverDashboardPage() {
   const user = await getCurrentUser();
@@ -147,9 +148,11 @@ export default async function DriverDashboardPage() {
                   chiffre qui grossit sans jamais arriver sur un compte serait
                   pris pour une promesse — et le §84 interdit de laisser croire
                   que KOLI detient des fonds. */}
-              <p className="mt-1 text-[11px] font-semibold text-gold-deep">
-                Mode test — aucun versement réel
-              </p>
+              <MentionModeTest>
+                <p className="mt-1 text-[11px] font-semibold text-gold-deep">
+                  Mode test — aucun versement réel
+                </p>
+              </MentionModeTest>
             </div>
           </div>
 

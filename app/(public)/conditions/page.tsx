@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Icone } from "@/components/ui/Icone";
+import { isTestMode } from "@/lib/config/mode";
 
 export const metadata: Metadata = {
   title: "Conditions d'utilisation",
@@ -32,9 +33,18 @@ export default function ConditionsPage() {
         <p className="font-bold text-test-mode dark:text-amber-300">
           <Icone nom="info" className="w-4 h-4" /> Document en cours de préparation
         </p>
+        {/*
+          * La phrase CHANGE, elle ne disparait pas.
+          *
+          * C'est un document juridique : le supprimer laisserait un vide la ou
+          * le lecteur attend de savoir qui detient son argent. Les deux
+          * versions disent la meme chose sur le point qui compte — KOLI ne
+          * detient rien — et c'est vrai dans les deux modes (§84).
+          */}
         <p className="mt-2 text-sm text-brand dark:text-slate-300">
-          KOLI fonctionne actuellement en mode test : aucun paiement réel
-          n&apos;est effectué et aucun fonds n&apos;est détenu.
+          {isTestMode()
+            ? "KOLI fonctionne actuellement en mode test : aucun paiement réel n'est effectué et aucun fonds n'est détenu."
+            : "Les paiements sont encaissés par notre partenaire agréé. KOLI ne détient à aucun moment les fonds : il indique seulement quand les libérer, après votre confirmation de réception."}
         </p>
       </div>
 

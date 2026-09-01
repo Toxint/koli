@@ -8,6 +8,7 @@ import { chargerSoldeVendeur } from "@/lib/finance/solde";
 import { chargerJournal } from "@/lib/finance/journal";
 import { TableauJournal } from "@/components/domain/TableauJournal";
 import { Icone } from "@/components/ui/Icone";
+import { MentionModeTest } from "@/components/ui/MentionModeTest";
 
 export const metadata: Metadata = { title: "Solde" };
 
@@ -38,7 +39,9 @@ export default async function SoldeVendeurPage() {
             Mon solde
           </h1>
           <p className="mt-1 text-sm text-ink-muted">
-            Tous les montants sont simulés — KOLI fonctionne en mode test.
+            <MentionModeTest>
+              Tous les montants sont simulés — KOLI fonctionne en mode test.
+            </MentionModeTest>
           </p>
         </div>
 

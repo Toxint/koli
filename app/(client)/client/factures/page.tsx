@@ -8,6 +8,7 @@ import { chargerFacturesClient } from "@/lib/invoices/liste";
 import { TableauFactures } from "@/components/domain/TableauFactures";
 import { pluriel } from "@/lib/format";
 import { Icone } from "@/components/ui/Icone";
+import { MentionModeTest } from "@/components/ui/MentionModeTest";
 
 export const metadata: Metadata = { title: "Mes reçus" };
 
@@ -46,8 +47,8 @@ export default async function FacturesClientPage({
             Mes reçus
           </h1>
           <p className="mt-1 text-sm text-ink-muted">
-            La preuve de chacun de vos paiements, conservée par KOLI. Mode
-            test — aucun paiement réel.
+            La preuve de chacun de vos paiements, conservée par KOLI.
+            <MentionModeTest> Mode test — aucun paiement réel.</MentionModeTest>
           </p>
         </div>
 

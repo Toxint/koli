@@ -773,6 +773,34 @@ Il faut attendre le **message**, qui n'apparaît qu'au retour. Et si le serveur
 refuse, l'écran revient en arrière : il ne doit jamais affirmer un état que la
 base ne porte pas.
 
+### Le site ne doit jamais dire « aucun paiement reel » en prelevant
+
+`isTestMode()` n'etait lu **nulle part** dans l'interface. Les mentions du §75
+etaient ecrites en dur dans une vingtaine d'ecrans — y compris les conditions
+d'utilisation et la politique de confidentialite, qui sont des documents
+juridiques. Basculer sur iKeePay aurait fait prelever de l'argent reel a un
+site affirmant le contraire, sur chaque page.
+
+Trois mecanismes, et le choix entre eux n'est pas une preference :
+
+- **`<MentionModeTest>`** — composant SERVEUR. Le texte n'est pas rendu.
+- **`data-mention-test`** — composant CLIENT. Masque par une regle de
+  `app/globals.css`, pilotee par `data-mode-paiement` pose sur `<body>`.
+  Il en fallait un : le menu lateral est appele depuis **vingt-sept pages**, et
+  lui passer un prop, c'etait vingt-sept occasions d'en oublier une.
+- **`isTestMode()` lu a la main** — quand la phrase doit CHANGER plutot que
+  disparaitre. Masquer « en mode test » au milieu d'un paragraphe laisse une
+  coquille, et sur un document juridique laisse un vide la ou le lecteur
+  attend de savoir qui detient son argent.
+
+⚠ **Le mode est lu a la CONSTRUCTION** pour les pages statiques. Changer
+`PAYMENT_MODE` sans reconstruire ne change rien a ce qui s'affiche.
+
+`npm run verif:mentions` lit les sources et refuse toute mention hors garde.
+Il en a trouve **neuf que j'avais manquees**, dont « Mode Test MVP » sur la
+page de connexion. Falsifie en retirant une garde : il la voit et sort en
+echec.
+
 ### iKeePay ne signe pas ses rappels
 
 Le partenaire financier est choisi : **iKeePay**, agrégateur Mobile Money. La

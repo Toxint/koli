@@ -9,6 +9,7 @@ import {
   chargerStatistiquesAdmin,
   chargerActivitesRecentes,
 } from "@/lib/admin/stats";
+import { MentionModeTest } from "@/components/ui/MentionModeTest";
 
 /** Une tuile de chiffre clé. */
 function Tuile({
@@ -104,7 +105,8 @@ export default async function AdminDashboardPage() {
           </h1>
           <p className="text-white/90 text-sm mt-1">
             Supervision des utilisateurs, des fonds, des livraisons et des
-            litiges — mode test, aucun mouvement d&apos;argent réel.
+            litiges<MentionModeTest> — mode test, aucun mouvement d&apos;argent
+            réel</MentionModeTest>.
           </p>
         </div>
 
@@ -143,9 +145,11 @@ export default async function AdminDashboardPage() {
         <div>
           <div className="flex flex-wrap items-center gap-3 mb-4">
             <h2 className="text-lg font-semibold">Flux financiers</h2>
-            <span className="px-3 py-1 rounded-full bg-test-mode-surface text-test-mode text-[11px] font-semibold border border-brand-border/60 whitespace-nowrap">
-              <Icone nom="eclair" className="w-3.5 h-3.5" /> Mode test — aucun paiement réel
-            </span>
+            <MentionModeTest>
+              <span className="px-3 py-1 rounded-full bg-test-mode-surface text-test-mode text-[11px] font-semibold border border-brand-border/60 whitespace-nowrap">
+                <Icone nom="eclair" className="w-3.5 h-3.5" /> Mode test — aucun paiement réel
+              </span>
+            </MentionModeTest>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

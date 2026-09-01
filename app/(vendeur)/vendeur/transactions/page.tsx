@@ -13,6 +13,7 @@ import {
 } from "@/components/domain/TableauJournal";
 import { formatCFA, pluriel } from "@/lib/format";
 import { Icone } from "@/components/ui/Icone";
+import { MentionModeTest } from "@/components/ui/MentionModeTest";
 
 export const metadata: Metadata = { title: "Transactions" };
 
@@ -59,7 +60,9 @@ export default async function TransactionsVendeurPage({
           </h1>
           <p className="mt-1 text-sm text-ink-muted">
             Chaque mouvement d&apos;argent de vos commandes, dans l&apos;ordre.
-            Tous les montants sont simulés — KOLI fonctionne en mode test.
+            <MentionModeTest>
+              Tous les montants sont simulés — KOLI fonctionne en mode test.
+            </MentionModeTest>
           </p>
         </div>
 

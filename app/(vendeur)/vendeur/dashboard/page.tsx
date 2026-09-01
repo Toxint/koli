@@ -11,6 +11,7 @@ import { CourbePerformance } from "@/components/domain/CourbePerformance";
 import { libelleStatut, classesBadgeStatut } from "@/lib/orders/statusLabels";
 import Link from "next/link";
 import { Icone } from "@/components/ui/Icone";
+import { MentionModeTest } from "@/components/ui/MentionModeTest";
 
 export default async function SellerDashboardPage() {
   const user = await getCurrentUser();
@@ -178,7 +179,7 @@ export default async function SellerDashboardPage() {
                 Commandes récentes
               </h2>
               <p className="text-xs text-ink-muted dark:text-slate-400">
-                Suivi des transactions KOLI (mode test)
+                Suivi des transactions KOLI<MentionModeTest> (mode test)</MentionModeTest>
               </p>
             </div>
             <Link

@@ -11,6 +11,7 @@ import {
   TotauxJournal,
 } from "@/components/domain/TableauJournal";
 import { pluriel } from "@/lib/format";
+import { MentionModeTest } from "@/components/ui/MentionModeTest";
 
 export const metadata: Metadata = { title: "Transactions" };
 
@@ -52,7 +53,8 @@ export default async function TransactionsAdminPage({
           </h1>
           <p className="mt-1 text-sm text-ink-muted">
             Le registre complet des mouvements (§40), toutes commandes et tous
-            vendeurs confondus. Mode test : aucun argent réel n&apos;a circulé.
+            vendeurs confondus.<MentionModeTest> Mode test : aucun argent réel
+            n&apos;a circulé.</MentionModeTest>
           </p>
         </div>
 

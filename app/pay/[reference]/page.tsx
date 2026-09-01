@@ -7,6 +7,7 @@ import { chargerPreuveLivraison } from "@/lib/deliveries/preuve";
 import { PreuveLivraison } from "@/components/domain/PreuveLivraison";
 import { Icone } from "@/components/ui/Icone";
 import { BarreCompte } from "@/components/ui/BarreCompte";
+import { isTestMode } from "@/lib/config/mode";
 
 export default async function PayReferencePage({
   params,
@@ -93,6 +94,7 @@ export default async function PayReferencePage({
           order={formattedOrder}
           estLeClient={estLeClient}
           codeReception={codeReception}
+          modeTest={isTestMode()}
         />
 
         {(facture || preuve) && (

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { isTestMode } from "@/lib/config/mode";
 
 export const metadata: Metadata = {
   title: "Aide",
@@ -26,6 +27,10 @@ const questions = [
   {
     q: "Pourquoi vois-je la mention « mode test » ?",
     r: "KOLI est en cours de développement. Aucun paiement réel n'est effectué pour l'instant : les montants affichés sont simulés.",
+    // Cette question n'existe que tant que la mention existe. La laisser en
+    // mode reel ferait repondre a une question que plus personne ne se pose,
+    // en affirmant au passage quelque chose de faux.
+    seulementEnModeTest: true,
   },
 ];
 
@@ -44,7 +49,9 @@ export default function AidePage() {
       </h1>
 
       <dl className="mt-10 space-y-4">
-        {questions.map((item) => (
+        {questions
+          .filter((item) => !item.seulementEnModeTest || isTestMode())
+          .map((item) => (
           <div
             key={item.q}
             className="bg-white dark:bg-slate-900 rounded-2xl border border-hairline dark:border-slate-800 p-6"

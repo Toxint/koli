@@ -53,8 +53,13 @@ export function FormulaireMotDePasseOublie() {
       {/* MODE TEST : le lien qu'un SMS transmettra. Affiché à l'écran tant que
           le canal d'envoi n'existe pas (phases 25 et 31), et clairement
           signalé comme tel — il n'a rien à faire ici en production. */}
+      {/* Le bloc entier n'a de sens qu'en mode test — il disparaît avec lui.
+          Voir la règle dans `app/globals.css`. */}
       {lienDeTest && (
-        <div className="p-3 rounded-xl bg-test-mode-surface border border-brand-border/60 space-y-2">
+        <div
+          data-mention-test=""
+          className="p-3 rounded-xl bg-test-mode-surface border border-brand-border/60 space-y-2"
+        >
           <p className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-test-mode">
             <Icone nom="eclair" className="w-3.5 h-3.5" /> Mode test
           </p>

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Icone } from "@/components/ui/Icone";
+import { isTestMode } from "@/lib/config/mode";
 
 export const metadata: Metadata = {
   title: "Politique de confidentialité",
@@ -76,9 +77,18 @@ export default function ConfidentialitePage() {
 
       <h2 className="mt-10 text-xl font-bold">Ce que KOLI ne fait pas</h2>
       <ul className="mt-4 space-y-2 text-sm text-ink-muted dark:text-slate-300 list-disc pl-5">
+        {/*
+          * Le FAIT reste vrai dans les deux modes, la RAISON change.
+          *
+          * En mode reel, aucune donnee bancaire ne transite par KOLI non plus :
+          * le tunnel de paiement appartient au partenaire, et c'est lui qui
+          * demande le numero et l'operateur. Dire « parce qu'on est en mode
+          * test » serait alors faux, et affaiblirait une garantie qui tient.
+          */}
         <li>
-          Aucune donnée bancaire n&apos;est collectée : la plateforme est en
-          mode test et ne traite aucun paiement réel.
+          {isTestMode()
+            ? "Aucune donnée bancaire n'est collectée : la plateforme est en mode test et ne traite aucun paiement réel."
+            : "Aucune donnée bancaire n'est collectée : le paiement se déroule chez notre partenaire, et ni votre numéro de compte ni vos identifiants ne transitent par KOLI."}
         </li>
         <li>Aucune donnée n&apos;est revendue à des tiers.</li>
         <li>

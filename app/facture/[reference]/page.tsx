@@ -6,6 +6,7 @@ import { getCurrentUser } from "@/lib/auth/actions";
 import { BarreCompte } from "@/components/ui/BarreCompte";
 import { PartagerFacture } from "@/components/domain/PartagerFacture";
 import { LogoKoli } from "@/components/ui/LogoKoli";
+import { MentionModeTest } from "@/components/ui/MentionModeTest";
 
 const DATE_FR = new Intl.DateTimeFormat("fr-FR", {
   dateStyle: "long",
@@ -212,8 +213,11 @@ export default async function PageFacture({
 
           <p className="text-xs text-ink-muted pt-4 border-t border-hairline">
             KOLI conserve le montant jusqu&apos;à la confirmation de réception
-            par le client ; le vendeur est réglé à ce moment-là. Document émis
-            en mode test : aucun paiement réel n&apos;a été effectué.
+            par le client ; le vendeur est réglé à ce moment-là.
+            <MentionModeTest>
+              {" "}Document émis en mode test : aucun paiement réel n&apos;a été
+              effectué.
+            </MentionModeTest>
           </p>
         </article>
 

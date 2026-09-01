@@ -11,6 +11,7 @@ import { formatCFA, pluriel } from "@/lib/format";
 import { libelleMotif } from "@/lib/disputes/libelles";
 import { TraiterRemboursement } from "@/components/domain/TraiterRemboursement";
 import { Icone } from "@/components/ui/Icone";
+import { MentionModeTest } from "@/components/ui/MentionModeTest";
 
 const PAR_PAGE = 20;
 
@@ -93,7 +94,7 @@ export default async function AdminRemboursementsPage({
           <p className="flex items-start gap-2 text-xs text-ink-muted">
             <Icone nom="eclair" className="w-4 h-4 shrink-0 text-test-mode" />
             <span>
-              Mode test : aucun mouvement d&apos;argent réel. Le traitement
+              <MentionModeTest>Mode test : aucun mouvement d&apos;argent réel. </MentionModeTest>Le traitement
               inscrit le remboursement au journal et solde le séquestre — et ne
               peut être fait qu&apos;une seule fois (§30).
             </span>
