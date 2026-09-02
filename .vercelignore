@@ -1,0 +1,42 @@
+# Ce qui ne doit JAMAIS quitter ce poste.
+#
+# ┌──────────────────────────────────────────────────────────────────────────┐
+# │  Ce fichier n'existait pas, et `vercel deploy` NE RESPECTE PAS           │
+# │  `.gitignore`. Le dépôt suivi pèse 3,9 Mo ; le téléversement en          │
+# │  annonçait 56,5. La différence, ce sont les dossiers ignorés par git —   │
+# │  et l'un d'eux est `.donnees`.                                           │
+# └──────────────────────────────────────────────────────────────────────────┘
+#
+# `.donnees` contient deux choses qui n'ont rien à faire ailleurs qu'ici :
+#
+#   .donnees/kyc/       les PIÈCES D'IDENTITÉ déposées pour la vérification
+#                       vendeur — de vraies photos de vraies personnes (§8 :
+#                       « elles ne vivent JAMAIS sous public/ » ; les envoyer
+#                       chez un hébergeur revient au même problème par une
+#                       autre porte).
+#
+#   .donnees/postgres/  le répertoire de données de PostgreSQL en entier :
+#                       la table User avec ses empreintes bcrypt, les
+#                       commandes, les paiements. La base locale, à nu.
+#
+# `.next` est une sortie de construction : l'hébergeur la refabrique. L'envoyer
+# ne sert à rien et pèse 188 Mo à lui seul — c'est ce qui faisait échouer le
+# téléversement derrière le VPN.
+
+.donnees
+.next
+node_modules
+
+# Sorties de vérification — elles se régénèrent, et certaines captures d'écran
+# montrent des écrans connectés.
+test-results
+playwright-report
+*.log
+
+# Les fichiers d'environnement. Vercel a les siens ; ceux-ci sont ceux du
+# poste, et l'un d'eux porte les clefs iKeePay.
+.env
+.env.*
+
+# Le PDF source et la documentation : utiles au dépôt, inutiles à l'exécution.
+docs

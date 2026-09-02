@@ -172,6 +172,22 @@ des raisons de réseau et non de code — voir `CLAUDE.md`, section 5.
 
 ## 5 bis. La tâche planifiée
 
+> ⚠ **Une fois par jour, et ce n'est pas un choix.** Le plan Hobby plafonne les
+> tâches planifiées à une par jour — et il ne dégrade pas la fréquence en
+> silence, il **refuse le déploiement entier** : « Hobby accounts are limited to
+> daily cron jobs ». La valeur d'origine, `*/10 * * * *`, a bloqué la mise en
+> ligne du 2 septembre 2026.
+>
+> Ce que cela coûte : le rattrapage ferme les paiements abandonnés avec jusqu'à
+> 24 h de retard, et le stock qu'ils immobilisent reste bloqué d'autant. Avec
+> iKeePay c'est sa seule utilité — faute de point d'entrée de consultation chez
+> eux, un rappel PERDU n'est de toute façon pas rattrapable. Le plan Pro permet
+> de revenir à `*/10 * * * *`.
+>
+> ⚠ Et `vercel.json` **n'accepte aucune propriété en trop** : un `"comment"`
+> dans une entrée de `crons` fait échouer la construction en cinq secondes.
+> C'est pourquoi cette explication est ici et non dans le fichier.
+
 `vercel.json` déclare une tâche toutes les dix minutes sur
 `/api/paiements/rapprochement`. Elle ferme les paiements restés en suspens :
 quelqu'un ouvre le tunnel, ne valide pas, ferme l'onglet — sans elle, sa

@@ -1114,6 +1114,59 @@ silence, et la falsification a été jouée contre l'ANCIENNE construction — e
 passait au vert. Toujours arrêter le serveur avant de reconstruire (§5), et se
 méfier d'une falsification qui ne mord pas.
 
+### `vercel deploy` ne respecte PAS `.gitignore`
+
+Découvert le 2 septembre 2026, en déployant l'aperçu d'essai iKeePay.
+
+Le dépôt suivi pèse **3,9 Mo** (`git ls-files`). Le téléversement en annonçait
+**56,5**. La différence, ce sont les dossiers ignorés par git — que Vercel
+envoie quand même, faute de `.vercelignore`. Et `.donnees` en fait partie :
+
+- `.donnees/kyc/` — les **pièces d'identité** déposées pour la vérification
+  vendeur. De vraies photos de vraies personnes. Le §8 dit qu'elles ne vivent
+  jamais sous `public/` ; les expédier chez un hébergeur est le même problème
+  par une autre porte.
+- `.donnees/postgres/` — le répertoire de données PostgreSQL **en entier** : la
+  table `User` avec ses empreintes bcrypt, les commandes, les paiements.
+
+Avec `.vercelignore`, le téléversement tombe à **10,9 Mo**. Ce qui ne peut pas
+être établi rétroactivement, c'est lequel des deux dossiers composait les 45 Mo
+manquants — `.next` seul (188 Mo) pourrait l'expliquer. Le plus prudent est de
+considérer que `.donnees` est parti sur les treize déploiements de la semaine.
+
+**La leçon générale** : un fichier d'exclusion par outil, et aucun ne se déduit
+d'un autre. `.gitignore` protège le dépôt, `.vercelignore` protège le
+déploiement. Le second n'existait pas, et rien ne le signalait — la seule trace
+était un nombre de mégaoctets que personne ne regarde.
+
+⚠ **`.next` aussi doit être exclu**, pour une raison plus banale : 188 Mo que
+l'hébergeur refabrique de toute façon. C'est ce qui faisait échouer le
+téléversement derrière le VPN.
+
+### Le plan Hobby refuse le déploiement, il ne dégrade pas
+
+`vercel.json` planifiait le rattrapage toutes les dix minutes. Le plan Hobby
+plafonne à **une fois par jour** — et il ne ramène pas la fréquence en silence,
+il **refuse la construction entière** : « Hobby accounts are limited to daily
+cron jobs ». La mise en ligne du 2 septembre 2026 s'est arrêtée là.
+
+Passé à `0 3 * * *`. Ce que cela coûte : les paiements abandonnés se ferment
+avec jusqu'à 24 h de retard, et le stock qu'ils immobilisent reste bloqué
+d'autant. Avec iKeePay c'est la seule utilité du rattrapage — faute de point
+d'entrée de consultation chez eux, un rappel **perdu** n'est de toute façon pas
+rattrapable.
+
+⚠ **`vercel.json` n'accepte aucune propriété en trop.** Un `"comment"` posé dans
+une entrée de `crons` pour expliquer ce choix a fait échouer une construction en
+cinq secondes. Le raisonnement vit donc dans `docs/deploiement.md` — c'est
+pourquoi ce fichier-là est nu.
+
+⚠ **Le CLI ment sur l'échec.** `vercel deploy` rend `Error: fetch failed` alors
+que le téléversement est passé et que la construction démarre : il perd
+simplement la connexion en attendant, derrière le VPN. Vérifier avec
+`vercel ls` avant de conclure à un échec — cinq tentatives ont été relancées
+pour rien avant de le comprendre.
+
 ### Les identifiants SQL sont guillemetés
 
 PostgreSQL replie en minuscules tout identifiant non guillemeté : `FROM User`
