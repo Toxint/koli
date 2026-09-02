@@ -177,7 +177,7 @@ verifier(
   });
   const autre = await ctxAutre.newPage();
 
-  await autre.goto(`${BASE}/inscription`, { waitUntil: "domcontentloaded" });
+  await autre.goto(`${BASE}/inscription`, { waitUntil: "networkidle" });
   await autre.locator("#name").fill("Vendeur Concurrent");
   await autre.locator("#phone").fill(`+22508${marqueAutre}`);
   await autre.locator("#email").fill(`concurrent${marqueAutre}@exemple.ci`);

@@ -6,15 +6,11 @@ import { revalidatePath } from "next/cache";
 import { OrderStatus, PaymentStatus } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { getPaymentProvider } from "@/lib/config/mode";
-import { partiesDeLaCommande, notifier } from "@/lib/notifications/envoi";
 import {
-  formaterNumeroFacture,
-  rangSuivant,
-} from "@/lib/invoices/numero";
-import {
-  assertTransition,
-  InvalidOrderTransitionError,
-} from "@/lib/orders/statusMachine";
+  appliquerAboutissement,
+  cheminDePaiement,
+  MOTIF_TRANSITION_ILLEGALE,
+} from "@/lib/payments/aboutissement";
 
 const outcomeSchema = z.enum(["SUCCESS", "FAILURE"]);
 
@@ -52,49 +48,44 @@ export async function simulatePaymentAction(
 
   const order = await prisma.order.findUnique({
     where: { reference: reference.trim() },
-    include: { payment: true, fund: true, items: true },
+    select: {
+      id: true,
+      reference: true,
+      currency: true,
+      status: true,
+      payment: { select: { id: true, amount: true, status: true, idempotencyKey: true } },
+    },
   });
 
-  if (!order || !order.payment || !order.fund) {
+  if (!order || !order.payment) {
     return { success: false, error: "Commande introuvable." };
   }
 
-  // --- Idempotence (§30) : un paiement deja abouti ne se rejoue pas. ---
-  // Sans ce garde-fou, chaque appel repete dupliquait l'ecriture comptable
-  // `Transaction` et faussait le grand livre.
+  // Idempotence (§30) : un paiement deja abouti ne se rejoue pas. Le controle
+  // est refait par `appliquerAboutissement`, mais on s'arrete AVANT d'appeler
+  // le fournisseur : lui redemander une intention pour un paiement conclu est
+  // au mieux inutile, au pire un second prelevement.
   if (order.payment.status === PaymentStatus.SUCCEEDED) {
-    return { success: true, status: order.status };
+    const dejaFait = await prisma.order.findUnique({
+      where: { id: order.id },
+      select: { status: true },
+    });
+    return { success: true, status: dejaFait!.status };
   }
 
-  // --- Chemin de statuts a parcourir, valide par la machine a etats (§15) ---
-  const hops: OrderStatus[] = [];
-  if (parsedOutcome.data === "SUCCESS") {
-    // Reprise apres un echec precedent (bouton « Reessayer », §23).
-    if (order.status === OrderStatus.PAYMENT_FAILED) {
-      hops.push(OrderStatus.PAYMENT_PENDING);
-    }
-    hops.push(OrderStatus.PAYMENT_CONFIRMED, OrderStatus.FUNDS_SECURED);
-  } else {
-    hops.push(OrderStatus.PAYMENT_FAILED);
+  /*
+   * La transition est verifiee AVANT de contacter le prestataire.
+   *
+   * `appliquerAboutissement` la verifie aussi — c'est elle qui ecrit, c'est
+   * donc elle qui doit garder la porte. Mais elle n'intervient qu'apres
+   * `initiate()` et `confirm()` : s'y fier seulement reviendrait a demander une
+   * intention de paiement pour une commande deja livree. Le defaut penche du
+   * cote qui ne preleve rien.
+   */
+  if (!cheminDePaiement(order.status, parsedOutcome.data === "SUCCESS")) {
+    return { success: false, error: MOTIF_TRANSITION_ILLEGALE };
   }
 
-  try {
-    let running = order.status;
-    for (const next of hops) {
-      assertTransition(running, next);
-      running = next;
-    }
-  } catch (error) {
-    if (error instanceof InvalidOrderTransitionError) {
-      return {
-        success: false,
-        error: "Cette commande n'est plus au stade du paiement.",
-      };
-    }
-    throw error;
-  }
-
-  // --- Verdict du fournisseur (simule, deterministe) ---
   const provider = getPaymentProvider();
 
   /**
@@ -131,171 +122,39 @@ export async function simulatePaymentAction(
       ...(intent.expiresAt ? { expiresAt: intent.expiresAt } : {}),
     },
   });
+
   const verdict = await provider.confirm(intent.providerRef, {
     simulateOutcome: parsedOutcome.data,
   });
 
-  const succeeded = verdict.status === "SUCCEEDED";
-  const finalStatus = hops[hops.length - 1];
-  const now = new Date();
-  // Capture avant la transaction : TypeScript ne conserve pas le narrowing de
-  // `order.fund` a l'interieur de la closure.
-  const securedAmount = order.fund.amount;
-  // Total regle par le client (articles + livraison), a distinguer de la part
-  // sequestree qui revient au vendeur (hors livraison).
-  const paidAmount = order.payment.amount;
-
-  try {
-    await prisma.$transaction(async (tx) => {
-      // Ecriture conditionnelle : si un appel concurrent a deja fait passer le
-      // paiement, `count` vaut 0 et on abandonne sans rien dupliquer.
-      const claimed = await tx.payment.updateMany({
-        where: { orderId: order.id, status: PaymentStatus.PENDING },
-        data: {
-          status: succeeded ? PaymentStatus.SUCCEEDED : PaymentStatus.FAILED,
-          simulatedOutcome: parsedOutcome.data,
-          confirmedAt: succeeded ? now : null,
-        },
-      });
-
-      // Le paiement etait en echec : on le remet en jeu pour cette tentative.
-      if (claimed.count === 0) {
-        const retried = await tx.payment.updateMany({
-          where: { orderId: order.id, status: PaymentStatus.FAILED },
-          data: {
-            status: succeeded ? PaymentStatus.SUCCEEDED : PaymentStatus.FAILED,
-            simulatedOutcome: parsedOutcome.data,
-            confirmedAt: succeeded ? now : null,
-          },
-        });
-
-        if (retried.count === 0) {
-          throw new ConcurrentPaymentError();
-        }
-      }
-
-      if (succeeded) {
-        await tx.fund.update({
-          where: { orderId: order.id },
-          data: { secured: true, securedAt: now },
-        });
-
-        // §40 : le journal doit refleter tous les mouvements.
-        // L'ecriture PAYMENT (ce que le client a effectivement regle) manquait :
-        // seul FUNDS_SECURED etait inscrit, si bien que les frais de livraison
-        // — la difference entre les deux — n'apparaissaient nulle part et
-        // n'etaient imputes a personne.
-        await tx.transaction.createMany({
-          data: [
-            {
-              orderId: order.id,
-              type: "PAYMENT",
-              amount: paidAmount,
-            },
-            {
-              orderId: order.id,
-              type: "FUNDS_SECURED",
-              amount: securedAmount,
-            },
-          ],
-        });
-
-        // Decompte du stock (§17), au paiement et non a la creation : un lien
-        // de paiement jamais regle ne doit pas immobiliser l'inventaire. Le
-        // `gte` empeche de passer sous zero si deux paiements aboutissent en
-        // meme temps sur le dernier article ; `count` a 0 est alors accepte,
-        // la vente ayant deja ete encaissee.
-        for (const item of order.items) {
-          await tx.product.updateMany({
-            where: { id: item.productId, quantity: { gte: item.quantity } },
-            data: { quantity: { decrement: item.quantity } },
-          });
-        }
-
-        // Facture (§38) : emise a l'aboutissement du paiement, dans la MEME
-        // transaction. Emise apres coup, un incident laisserait un paiement
-        // encaisse sans piece correspondante.
-        //
-        // Le numero est sequentiel par annee (attendu de toute comptabilite) et
-        // calcule ici, sous transaction : SQLite serialise les ecritures, deux
-        // paiements simultanes ne peuvent donc pas obtenir le meme rang. La
-        // contrainte d'unicite sur `number` reste le dernier filet.
-        //
-        // Le rang vient du PLUS GRAND numero de l'annee, et non du nombre de
-        // factures : `Invoice` etant en cascade depuis `Order`, une suppression
-        // de commande faisait redescendre le compte et le numero suivant
-        // entrait en collision. Voir `lib/invoices/numero.ts`.
-        const annee = now.getFullYear();
-        const rang = await rangSuivant(tx, annee);
-
-        await tx.invoice.create({
-          data: {
-            orderId: order.id,
-            number: formaterNumeroFacture(annee, rang),
-          },
-        });
-      }
-
-      await tx.order.update({
-        where: { id: order.id },
-        data: { status: finalStatus },
-      });
-
-      // Un enregistrement d'historique par saut, pour que la trace soit fidele.
-      let from = order.status;
-      for (const to of hops) {
-        await tx.orderStatusHistory.create({
-          data: { orderId: order.id, fromStatus: from, toStatus: to },
-        });
-        from = to;
-      }
-
-      // §44 : c'est LE moment le plus important a annoncer. Le vendeur n'avait
-      // aucun moyen d'apprendre qu'un client venait de payer : il devait
-      // retourner voir sa liste de commandes de lui-meme.
-      if (succeeded) {
-        const parties = await partiesDeLaCommande(tx, order.id);
-
-        await notifier(tx, {
-          type: "FUNDS_SECURED",
-          entite: "Order",
-          entiteId: order.reference,
-          destinataires: [parties.vendeur],
-        });
-
-        await notifier(tx, {
-          type: "PAYMENT_CONFIRMED",
-          entite: "Order",
-          entiteId: order.reference,
-          destinataires: [parties.client],
-        });
-      }
-    });
-  } catch (error) {
-    if (error instanceof ConcurrentPaymentError) {
-      return {
-        success: false,
-        error: "Ce paiement a deja ete traite. Rafraichissez la page.",
-      };
-    }
-    throw error;
-  }
+  /*
+   * Les CONSEQUENCES du paiement ne vivent plus ici.
+   *
+   * Elles etaient enfermees dans cette action, donc dans le chemin SIMULE. Le
+   * rappel du prestataire — le seul chemin qui existe en mode reel — notait le
+   * paiement abouti et s'arretait la : aucun sequestre, aucune facture, aucune
+   * notification, et une commande invisible du vendeur. Voir
+   * `lib/payments/aboutissement.ts`.
+   */
+  const applique = await appliquerAboutissement(
+    order.reference,
+    verdict.status === "SUCCEEDED",
+    { simulatedOutcome: parsedOutcome.data }
+  );
 
   revalidatePath(`/pay/${order.reference}`);
 
-  if (!succeeded) {
+  if (!applique.ok) {
+    return { success: false, error: applique.motif };
+  }
+
+  if (verdict.status !== "SUCCEEDED") {
     return { success: false, error: "Le paiement n'a pas abouti." };
   }
 
-  return { success: true, status: finalStatus };
+  return { success: true, status: applique.status };
 }
 
-class ConcurrentPaymentError extends Error {
-  constructor() {
-    super("Paiement deja traite par un appel concurrent.");
-    this.name = "ConcurrentPaymentError";
-  }
-}
 
 /**
  * L'état actuel d'une commande, pour l'écran de paiement.

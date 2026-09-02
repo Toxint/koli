@@ -3,6 +3,7 @@ import { PaymentStatus } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { getPaymentProvider } from "@/lib/config/mode";
 import { ENTETE_JETON_RAPPEL } from "@/lib/payments/IkeePayProvider";
+import { appliquerAboutissement } from "@/lib/payments/aboutissement";
 
 /**
  * Rappel du fournisseur de paiement (webhook) — §29, §52.
@@ -88,7 +89,17 @@ export async function POST(requete: Request) {
 
   const paiement = await prisma.payment.findUnique({
     where: { providerRef: intent.providerRef },
-    select: { id: true, status: true, amount: true, orderId: true },
+    select: {
+      id: true,
+      status: true,
+      amount: true,
+      orderId: true,
+      // La reference, et pas seulement l'identifiant : c'est elle que prend
+      // `appliquerAboutissement`, comme partout ailleurs. L'identifiant interne
+      // d'une commande n'est jamais cense circuler (voir la note d'autorisation
+      // de `simulatePaymentAction`).
+      order: { select: { reference: true } },
+    },
   });
 
   // Règle 3 : réponse indifférenciée.
@@ -117,12 +128,19 @@ export async function POST(requete: Request) {
     return NextResponse.json({ recu: true, traite: false });
   }
 
+  /*
+   * Les renseignements que SEUL le rappel apporte.
+   *
+   * Le numéro du payeur et son opérateur ne nous sont connus qu'ici : c'est
+   * l'agrégateur qui les collecte, jamais KOLI (aucun numéro de payeur ne
+   * transite par le tunnel). On les note avant tout le reste, pour qu'ils
+   * survivent même si la suite n'aboutit pas.
+   */
   await prisma.payment.updateMany({
     // Conditionnée sur l'état de départ : deux rappels simultanés n'en font
     // aboutir qu'un.
     where: { id: paiement.id, status: { notIn: conclu } },
     data: {
-      status: nouveau,
       lastCheckedAt: new Date(),
       ...(intent.failureReason ? { failureReason: intent.failureReason } : {}),
       ...(intent.payerMsisdn ? { payerMsisdn: intent.payerMsisdn } : {}),
@@ -130,13 +148,52 @@ export async function POST(requete: Request) {
     },
   });
 
-  // Le rappel NOTE l'état. Il ne sécurise pas les fonds, n'émet pas de facture
-  // et ne prévient personne : ces écritures appartiennent à
-  // `lib/payments/actions.ts`, qui les fait dans une seule transaction. Les
-  // dupliquer ici en produirait une seconde version, forcément divergente.
-  //
-  // Le jour du branchement (phase 30), c'est ici que l'action de confirmation
-  // sera appelée — une ligne, à un endroit déjà éprouvé.
+  /*
+   * ── LE BRANCHEMENT DE LA PHASE 30 ───────────────────────────────────────
+   *
+   * Cette route NOTAIT l'état et s'arrêtait là. Le commentaire qu'elle portait
+   * l'annonçait : « le jour du branchement, c'est ici que l'action de
+   * confirmation sera appelée ». En mode test c'était sans conséquence — le
+   * bouton de simulation appelle `simulatePaymentAction`, qui fait tout. En
+   * mode réel, ce rappel est le SEUL chemin, et il n'aboutissait à rien :
+   *
+   *   le client débité chez l'agrégateur, le paiement marqué SUCCEEDED chez
+   *   nous, et **aucun séquestre, aucune facture, aucune notification** — une
+   *   commande restée « en attente de paiement », invisible du vendeur.
+   *
+   * `appliquerAboutissement` porte ces écritures et les fait dans une seule
+   * transaction. Elle est idempotente : un rappel rejoué — ce que les
+   * agrégateurs font systématiquement s'ils n'ont pas eu de 200 assez vite —
+   * n'écrit rien une seconde fois.
+   */
+  if (nouveau === PaymentStatus.SUCCEEDED || nouveau === PaymentStatus.FAILED) {
+    const applique = await appliquerAboutissement(
+      paiement.order.reference,
+      nouveau === PaymentStatus.SUCCEEDED
+      // `simulatedOutcome` reste nul : c'est ce qui distingue, dans le
+      // registre, un encaissement joué d'un encaissement qui a eu lieu.
+    );
+
+    /*
+     * On répond 200 même si l'application a échoué, et c'est délibéré.
+     *
+     * Un 500 ferait rejouer le rappel par l'agrégateur, en boucle, alors que le
+     * motif d'échec — une transition de statut illégale, par exemple — ne se
+     * résoudra pas tout seul. Le rejeu ne réparerait rien et masquerait le
+     * problème derrière une avalanche d'appels.
+     */
+    return NextResponse.json({ recu: true, traite: applique.ok });
+  }
+
+  /*
+   * Statut non conclusif : AWAITING_CUSTOMER — le client valide sur son
+   * téléphone — ou EXPIRED. On note, sans rien déclencher.
+   */
+  await prisma.payment.updateMany({
+    where: { id: paiement.id, status: { notIn: conclu } },
+    data: { status: nouveau },
+  });
+
   return NextResponse.json({ recu: true, traite: true });
 }
 

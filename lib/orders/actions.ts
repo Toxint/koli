@@ -12,6 +12,27 @@ import { deviseDuPays } from "@/data/markets";
 import { preleverCommission } from "@/lib/finance/commission";
 import { ACTIONS_AUDIT, consigner } from "@/lib/audit/journal";
 import { partiesDeLaCommande, notifier } from "@/lib/notifications/envoi";
+import { getPaymentMode } from "@/lib/config/mode";
+
+/**
+ * Le mode de paiement courant, dans le vocabulaire du schema.
+ *
+ * La correspondance est EXPLICITE et non derivee de `provider.id` : un
+ * identifiant de fournisseur est une chaine libre, une valeur d'enum est un
+ * contrat avec la base. Les lier par une conversion ferait echouer une
+ * insertion le jour ou quelqu'un renomme un identifiant — au moment de
+ * l'encaissement, c'est-a-dire au pire moment.
+ */
+function fournisseurEnBase(): PaymentProviderType {
+  switch (getPaymentMode()) {
+    case "ikeepay":
+      return PaymentProviderType.IKEEPAY;
+    case "test":
+    default:
+      return PaymentProviderType.TEST;
+  }
+}
+
 
 const orderSchema = z.object({
   buyerName: z.string().min(2, "Le nom du client est requis"),
@@ -190,7 +211,17 @@ export async function createOrderAction(formData: FormData) {
       },
       payment: {
         create: {
-          provider: PaymentProviderType.TEST,
+          /*
+           * Le fournisseur REEL, pas TEST en dur.
+           *
+           * C'etait ecrit en dur, et rien ne le signalait tant que le mode
+           * reel n'avait jamais tourne. Une commande encaissee par iKeePay
+           * aurait porte la mention TEST dans le registre — et c'est
+           * exactement la colonne qu'on lit pour rapprocher nos ecritures de
+           * leur releve. Un journal financier qui se trompe de payeur ne se
+           * rattrape pas apres coup.
+           */
+          provider: fournisseurEnBase(),
           status: PaymentStatus.PENDING,
           amount: grandTotal,
         },

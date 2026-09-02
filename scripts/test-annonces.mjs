@@ -52,13 +52,29 @@ console.log(`\n=== VIGNETTES D'ACTIVITÉ depuis ${BASE} ===\n`);
  * quelle fenêtre), et jamais la mise en forme, qui est justement ce qu'on
  * vérifie à l'écran.
  */
+/*
+ * Aucune borne « les six plus recents », et c'est deliberé.
+ *
+ * L'accueil est en `revalidate = 60` : la page lue peut avoir ete rendue il y a
+ * une minute. Pendant ce temps, d'autres controles de la campagne creent des
+ * comptes — inscription, mot de passe oublie, cloisonnement — et le « six plus
+ * recents » n'est deja plus le meme des deux cotes.
+ *
+ * C'est ce qui a fait echouer « Boutique A. correspond a une ligne du
+ * registre » le 2 septembre 2026 : le compte existait, bien ACTIF, mais il
+ * etait sorti du top 6 entre le rendu de la page et la lecture de la base.
+ *
+ * La question posee ici est « cette phrase designe-t-elle quelqu'un de reel ? »
+ * et non « est-ce exactement le top 6 ». Un nom invente ne correspondra a
+ * personne quoi qu'il arrive : le controle garde tout son mordant.
+ */
 const depuis = new Date(Date.now() - FENETRE_JOURS * 24 * 60 * 60 * 1000);
 
 const inscrits = await lire(
   `SELECT name, "createdAt" FROM "User"
     WHERE "createdAt" >= ? AND status = 'ACTIVE'
       AND role IN ('CLIENT','SELLER','DRIVER')
-    ORDER BY "createdAt" DESC LIMIT 6`,
+    ORDER BY "createdAt" DESC`,
   depuis
 );
 
@@ -69,16 +85,12 @@ const verses = await lire(
      JOIN "SellerProfile" sp ON sp.id = o."sellerId"
      JOIN "User" u ON u.id = sp."userId"
     WHERE t.type = 'FUNDS_RELEASED' AND t."createdAt" >= ?
-    ORDER BY t."createdAt" DESC LIMIT 6`,
+    ORDER BY t."createdAt" DESC`,
   depuis
 );
 
 /** Le prénom seul suffit à reconnaître : le nom, lui, ne doit PAS apparaître. */
 const prenom = (n) => String(n).trim().split(/\s+/)[0];
-const nomDeFamille = (n) => {
-  const m = String(n).trim().split(/\s+/);
-  return m.length > 1 ? m[m.length - 1] : null;
-};
 
 const attendus = [...inscrits, ...verses];
 console.log(
@@ -168,9 +180,30 @@ async function parcourir(largeur) {
    * abrège en « Awa K. » ; si quelqu'un retire l'abréviation un jour, c'est ce
    * contrôle qui le dira — et personne d'autre.
    */
-  const noms = attendus.map((a) => nomDeFamille(a.name)).filter(Boolean);
-  const fuite = noms.find((n) => n.length > 1 && [...vues].some((v) => v.includes(n)));
-  verifier(!fuite, `${largeur} px · aucun nom de famille n'est affiché en entier`, fuite ?? "");
+  /*
+   * ┌────────────────────────────────────────────────────────────────────────┐
+   * │  Il cherchait chaque nom de famille du registre dans le TEXTE ENTIER.  │
+   * │  Deux personnes suffisaient a le faire mentir.                         │
+   * └────────────────────────────────────────────────────────────────────────┘
+   *
+   * « Test Nouveau Vendeur » donne le nom de famille « Vendeur » ; « Vendeur
+   * Concurrent » donne le prenom « Vendeur ». L'annonce « Vendeur C. vient de
+   * s'inscrire » contenait donc un nom de famille — celui de quelqu'un
+   * d'autre, par pure coincidence. Le controle criait a la fuite la ou il n'y
+   * en avait aucune, le 2 septembre 2026.
+   *
+   * On eprouve desormais la FORME de ce qui s'affiche, et non la presence
+   * d'une chaine. « Awa K. » passe, « Awa Kone » ne passe pas — quel que soit
+   * le nom des autres. C'est exact au lieu d'etre approximatif, et cela reste
+   * le seul controle capable de voir une abreviation retiree.
+   */
+  const NOM_ABREGE = /^(\S+)(?: (\p{Lu})\.)? (?:vient de|a reçu)/u;
+  const malAbrege = [...vues].find((v) => !NOM_ABREGE.test(v));
+  verifier(
+    !malAbrege,
+    `${largeur} px · aucun nom de famille n'est affiché en entier`,
+    malAbrege ?? ""
+  );
 
   const cible = await page
     .getByRole("button", { name: /Masquer les annonces/ })

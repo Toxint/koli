@@ -44,15 +44,31 @@ const verifier = (ok, libelle, detail = "") => {
 /** Les commandes fabriquees par ce controle, a effacer avant de rendre la main. */
 const aNettoyer = [];
 
-const preparerPaiementEnAttente = async () => {
+const preparerPaiementEnAttente = async (forcerFixture = false) => {
   const existant = await lireUne(
-    `SELECT id, amount FROM "Payment" WHERE status = 'PENDING' LIMIT 1`
+    `SELECT p.id, p.amount, p."orderId", o.reference
+       FROM "Payment" p JOIN "Order" o ON o.id = p."orderId"
+      WHERE p.status = 'PENDING' LIMIT 1`
   );
 
-  if (existant) {
+  /*
+   * `forcerFixture` : le controle 9 marque le paiement ABOUTI, ce qui
+   * decompte le stock et emet une facture. Le faire sur un paiement du jeu
+   * de donnees perturberait `verif:factures` et `verif:etapes` plus loin
+   * dans la campagne — un test hostile a ses voisins, exactement ce que
+   * `test-session-orpheline.mjs` a appris a ne plus faire.
+   */
+  if (existant && !forcerFixture) {
     const ref = `test_rappel_${Date.now()}`;
     await ecrire('UPDATE "Payment" SET "providerRef" = ? WHERE id = ?', ref, existant.id);
-    return { id: existant.id, amount: existant.amount, providerRef: ref, aEffacer: null };
+    return {
+      id: existant.id,
+      amount: existant.amount,
+      providerRef: ref,
+      reference: existant.reference,
+      orderId: existant.orderId,
+      aEffacer: null,
+    };
   }
 
   /*
@@ -102,6 +118,18 @@ const preparerPaiementEnAttente = async () => {
     vendeur.id
   );
 
+  // Le sequestre, cree VIDE comme le fait `createOrder`. Sans lui,
+  // `appliquerAboutissement` refuse la commande et le controle 9 ne peut
+  // pas s'exercer.
+  await ecrire(
+    `INSERT INTO "Fund" (id, "orderId", "sellerId", amount, secured, released)
+     VALUES (?, ?, ?, ?, false, false)`,
+    `ctrl-rappel-f-${suffixe}`,
+    idCommande,
+    vendeur.id,
+    montant
+  );
+
   const ref = `test_rappel_${suffixe}`;
   await ecrire(
     // `Payment` n'a PAS de `updatedAt`, contrairement a `Order` : on ne
@@ -115,7 +143,13 @@ const preparerPaiementEnAttente = async () => {
     ref
   );
 
-  return { id: idPaiement, amount: montant, providerRef: ref };
+  return {
+    id: idPaiement,
+    amount: montant,
+    providerRef: ref,
+    reference: `KOLI-CTRL${suffixe}`,
+    orderId: idCommande,
+  };
 };
 
 const signer = (corps) =>
@@ -295,6 +329,89 @@ const rappeler = async (corps, entetes = {}) =>
       apres !== "SUCCEEDED",
       "mais le paiement n'est PAS marque abouti",
       apres
+    );
+  }
+}
+
+// ═══════════ 9. Un rappel valide ABOUTIT : sequestre, facture, notification
+//
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │  Ce fichier ne verifiait que des REFUS. Rien ne verifiait qu'un rappel   │
+// │  authentique produise quoi que ce soit.                                   │
+// └──────────────────────────────────────────────────────────────────────────┘
+//
+// C'est ainsi que le defaut le plus grave de la phase 30 est passe inapercu :
+// la route NOTAIT le paiement et s'arretait la — ni sequestre, ni facture, ni
+// notification. En mode test c'etait invisible, le bouton de simulation
+// faisant tout le travail par un autre chemin. En mode reel, ce rappel est le
+// SEUL chemin, et il n'aboutissait a rien.
+//
+// `ikeepay:repetition` l'a trouve, mais elle exige `PAYMENT_MODE=ikeepay` et ne
+// tourne donc PAS dans la campagne. Ce controle-ci ferme l'ecart : il exerce le
+// meme branchement avec le fournisseur de test.
+{
+  const cible = await preparerPaiementEnAttente(true);
+
+  if (!cible) {
+    verifier(false, "une fixture existe pour eprouver l'aboutissement");
+  } else {
+    const corps = JSON.stringify({
+      providerRef: cible.providerRef,
+      status: "SUCCEEDED",
+      amount: cible.amount,
+    });
+    const r = await rappeler(corps, { "x-koli-signature": signer(corps) });
+
+    verifier(
+      r.status === 200,
+      "le rappel d'aboutissement est accepte",
+      `statut ${r.status}`
+    );
+
+    const paiement = (
+      await lire(`SELECT status FROM "Payment" WHERE id = ?`, cible.id)
+    )[0];
+    verifier(
+      paiement.status === "SUCCEEDED",
+      "le paiement est marque abouti",
+      paiement.status
+    );
+
+    const fonds = (
+      await lire(`SELECT secured FROM "Fund" WHERE "orderId" = ?`, cible.orderId)
+    )[0];
+    verifier(
+      fonds?.secured === true,
+      "LES FONDS SONT MIS SOUS SEQUESTRE — c'est ce qui manquait",
+      fonds ? String(fonds.secured) : "aucun sequestre"
+    );
+
+    const commande = (
+      await lire(`SELECT status FROM "Order" WHERE id = ?`, cible.orderId)
+    )[0];
+    verifier(
+      commande.status === "FUNDS_SECURED",
+      "la commande devient visible du vendeur",
+      commande.status
+    );
+
+    const factures = await lire(
+      `SELECT id FROM "Invoice" WHERE "orderId" = ?`,
+      cible.orderId
+    );
+    verifier(factures.length === 1, "une facture est emise (§38)", `${factures.length}`);
+
+    // Rejeu : les agregateurs renvoient leurs rappels s'ils n'ont pas eu de 200
+    // assez vite. Sans idempotence, le vendeur serait credite deux fois.
+    await rappeler(corps, { "x-koli-signature": signer(corps) });
+    const facturesApres = await lire(
+      `SELECT id FROM "Invoice" WHERE "orderId" = ?`,
+      cible.orderId
+    );
+    verifier(
+      facturesApres.length === 1,
+      "un rappel rejoue n'emet pas une seconde facture",
+      `${facturesApres.length}`
     );
   }
 }

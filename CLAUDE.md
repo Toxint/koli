@@ -228,9 +228,29 @@ régénérer avant la mise en ligne.**
 `lib/__tests__/ikeepay.test.ts`), mais **il n'est pas activé** :
 `PAYMENT_MODE` reste sur `test`, aucun argent ne bouge.
 
-Trois réponses manquent, et elles sont d'eux : une **signature** de leurs
-rappels, un **point d'entrée de consultation**, un **sandbox** pour
-l'encaissement. Voir §8. Tant qu'elles manquent, ne pas basculer.
+**Le 2 septembre 2026, la chaîne réelle a été jouée de bout en bout** —
+`npm run ikeepay:repetition`, dix-neuf contrôles, sans un franc. Elle a trouvé
+le défaut qui rendait tout le reste inutile : le rappel notait le paiement et
+**ne faisait rien** — ni séquestre, ni facture, ni notification. Corrigé
+(`lib/payments/aboutissement.ts`), et le schéma connaît enfin iKeePay
+(migration `20260902110753_fournisseur_ikeepay`). Voir §8.
+
+Ce qui manque pour un essai réel, dans l'ordre :
+
+1. **Les deux clefs iKeePay**, à coller dans `.env.local` — les lignes y sont,
+   vides. `IKEEPAY_WEBHOOK_TOKEN` et `CRON_SECRET` sont déjà tirés au sort.
+2. **Une adresse joignable depuis Internet.** Sur `localhost`, iKeePay
+   encaisse et poste son rappel dans le vide : le client est débité, la
+   commande reste figée, et le rattrapage ne peut pas la sauver.
+3. **L'adresse de rappel déclarée dans leur tableau de bord** —
+   `npm run ikeepay:verifier -- --avec-jeton` l'affiche.
+
+Marche à suivre complète : `docs/deploiement.md`, §5 ter.
+
+Trois réponses manquent toujours, et elles sont d'eux : une **signature** de
+leurs rappels, un **point d'entrée de consultation**, un **sandbox** pour
+l'encaissement. Voir §8. Elles ne bloquent plus l'essai — elles décident de ce
+qu'on peut garantir en production.
 
 Restent ouverts et dépendent aussi d'eux : le versement au vendeur, le
 remboursement automatique.
@@ -325,6 +345,15 @@ npm run verif:annonces   # les vignettes de la vitrine se lisent-elles en entier
 npm run verif:livreurs   # chaque vendeur n'a-t-il QUE ses livreurs ?
 ```
 
+Et trois outils qui ne sont pas des vérifications mais des préparatifs — ils
+concernent l'encaissement réel, et sont détaillés au §8 :
+
+```bash
+npm run secrets:generer      # les secrets qu'on ne choisit pas à la main
+npm run ikeepay:verifier     # la configuration iKeePay tient-elle ?
+npm run ikeepay:repetition   # la chaîne réelle, sans un franc (mode ikeepay requis)
+```
+
 34 commandes `verif:*` au total. Elles pilotent un **vrai navigateur**
 (Playwright) contre le **vrai serveur** et lisent la **vraie base**. Un écran
 peut mentir sans que la base bouge, et l'inverse.
@@ -371,6 +400,11 @@ app/                     Routes Next.js, groupées par rôle
 
 lib/                     La logique métier. C'est ici que tout se décide.
   orders/  payments/  deliveries/  disputes/  refunds/  finance/
+    payments/aboutissement.ts  CE QUE FAIT un paiement qui aboutit —
+                               séquestre, facture, stock, notifications.
+                               Appelé par le bouton de simulation ET par le
+                               rappel du prestataire. Sans lui, le mode réel
+                               encaissait sans rien déclencher.
   invoices/  notifications/  audit/  kyc/  sellers/  products/
   auth/    db/       admin/       config/     navigation.ts  format.ts
   __tests__/             les tests unitaires
@@ -396,6 +430,9 @@ scripts/                 51 fichiers — vérification et outillage
   preparer-supabase.mjs  mise en route Supabase
   preparer-stockage.mjs  seau des pièces KYC
   verifier-*.mjs         contrôles (schéma, requêtes, latence)
+  verifier-ikeepay.mjs   la configuration d'encaissement, avant l'argent
+  repetition-ikeepay.mjs la chaîne réelle jouée sans un franc
+  generer-secrets.mjs    AUTH_SECRET, CRON_SECRET, jeton de rappel
   test-*.mjs             parcours de bout en bout
 
 docs/                    documents de référence
@@ -465,6 +502,33 @@ le falsifie : on fabrique le défaut qu'il cherche et on vérifie qu'il le voit.
 Ces délais, calibrés sur une base locale, ont produit neuf faux diagnostics
 d'un coup lorsque la base est passée à distance. On attend que la base porte
 l'écriture, que l'étape suivante s'affiche, que la navigation ait eu lieu.
+
+
+### Un formulaire ne se soumet pas avant d'être hydraté
+
+Corollaire du précédent, et il a coûté trois faux diagnostics en deux jours.
+
+Les formulaires de connexion et d'inscription sont soumis par React. Tant que
+l'hydratation n'a pas eu lieu, leur `onSubmit` **n'existe pas** : Playwright
+remplit, clique, et *rien ne part*. `waitUntil: "domcontentloaded"` rend la main
+bien avant ce moment. On attend donc `networkidle` avant tout remplissage.
+
+**Le piège n'est pas l'échec, c'est la réussite.** Un test qui conclut « rester
+sur `/connexion` prouve que le mot de passe est refusé » passe aussi bien quand
+le clic n'est jamais parti. `verif:motdepasse` portait exactement ce défaut :
+« le nouveau mot de passe permet de se connecter » échouait — à tort — et
+« l'ancien ne fonctionne plus » passait — à tort aussi, et **ne pouvait pas
+échouer**. Un refus se prouve désormais par le message affiché, jamais par une
+absence de mouvement.
+
+Trois `goto` gardent délibérément `domcontentloaded` : ils cliquent un lien ou
+lisent une redirection du serveur, deux choses qui n'attendent aucun JavaScript.
+
+⚠ **Ce que cela dit du PRODUIT, et qui reste vrai** : sur un téléphone d'entrée
+de gamme et un réseau lent (§70), quelqu'un qui tape « Se connecter » très vite
+peut ne rien déclencher. Un humain met des secondes à remplir un formulaire,
+donc le cas est rare — mais seul un formulaire fonctionnant **sans JavaScript**
+le fermerait tout à fait.
 
 ### L'identité est violette sur blanc, et les jetons sont mesurés
 
@@ -646,6 +710,23 @@ vraies inscriptions et les vrais versements des quatorze derniers jours.
 `verif:annonces` a changé de nature : il ne vérifie plus que six chaînes
 connues s'affichent, il confronte l'écran au registre. C'est le seul contrôle
 qui puisse encore attraper le retour d'un texte inventé.
+
+**Deux faiblesses de ce contrôle, trouvées le 2 septembre 2026**, et toutes deux
+du même genre : il comparait un écran à une base qui bougeait sous lui.
+
+- **Il lisait « les six plus récents ».** L'accueil est en `revalidate = 60` :
+  la page lue peut avoir été rendue une minute plus tôt. Pendant ce temps,
+  d'autres contrôles de la campagne créent des comptes, et le top 6 n'est plus
+  le même des deux côtés. « Boutique A. ne correspond à aucune ligne du
+  registre » — alors que le compte existait, bien actif, simplement sorti de la
+  fenêtre. La borne a disparu : la question posée est « cette phrase
+  désigne-t-elle quelqu'un de réel ? », pas « est-ce exactement le top 6 ».
+- **Il cherchait les noms de famille dans le texte entier.** « Test Nouveau
+  **Vendeur** » donne le nom de famille « Vendeur » ; « **Vendeur** Concurrent »
+  donne le prénom « Vendeur ». Le contrôle criait à la fuite sur une pure
+  coïncidence. Il éprouve désormais la **forme** de ce qui s'affiche —
+  `Prénom I.` — ce qui est exact au lieu d'être approximatif. Falsifié en
+  retirant l'abréviation : il nomme la phrase fautive.
 
 ### La marque : un anneau ouvert, et un comma dedans
 
@@ -889,6 +970,149 @@ d'un autre test en ayant laissé un. Il pose désormais sa propre fixture, et
 l'efface. La note du `aNettoyer` se fait AVANT les insertions : notée après,
 un échec sur la seconde laissait une commande orpheline que le ménage ignorait
 — et c'est arrivé.
+
+### Le rappel notait le paiement, et ne faisait RIEN
+
+Le 2 septembre 2026, `npm run ikeepay:repetition` — la répétition générale de
+l'encaissement réel — a trouvé ce pour quoi elle a été écrite.
+
+`/api/paiements/rappel` marquait le paiement `SUCCEEDED` et s'arrêtait là. Son
+propre commentaire l'annonçait : « le jour du branchement (phase 30), c'est ici
+que l'action de confirmation sera appelée — une ligne, à un endroit déjà
+éprouvé ». Ce jour était arrivé, la ligne n'était pas écrite.
+
+En mode test, sans conséquence : le bouton de simulation appelle
+`simulatePaymentAction`, qui fait tout. **En mode réel, ce rappel est le SEUL
+chemin** — personne n'est devant un écran quand il arrive. Le résultat aurait
+été :
+
+```
+le client débité chez l'agrégateur
+  → le paiement passe à SUCCEEDED chez nous
+  → aucun séquestre, aucune facture, aucune notification, aucun décompte de stock
+  → la commande reste « en attente de paiement », invisible du vendeur
+```
+
+De l'argent prélevé, et personne pour l'apprendre — sur une application dont le
+sujet est la confiance.
+
+**Les conséquences d'un paiement vivent désormais dans
+`lib/payments/aboutissement.ts`**, appelé par les deux chemins. Ce n'est pas une
+action serveur : elle est appelée depuis une route d'API, qui n'a ni session ni
+utilisateur, et surtout elle ne décide de rien — le verdict lui est donné.
+
+Quatre choses qui se déferaient sans être écrites :
+
+- **La transition est vérifiée DEUX fois, et c'est voulu.** `cheminDePaiement`
+  est exporté parce que `simulatePaymentAction` doit poser la question **avant**
+  d'appeler `initiate()`. S'y fier seulement dans `appliquerAboutissement` —
+  qui n'intervient qu'après `confirm()` — reviendrait à demander une intention
+  de prélèvement pour une commande déjà livrée. Un test unitaire garde cette
+  propriété ; c'est lui qui a refusé la première version du refactor.
+- **`AWAITING_CUSTOMER` a dû être ajouté aux états repris.** C'est l'état NORMAL
+  d'un paiement Mobile Money quand le rappel arrive — le client valide sur son
+  téléphone. Il n'existait pas dans le chemin simulé, où le verdict tombe dans
+  la milliseconde. Sans lui, **tout** paiement réel aurait été refusé comme
+  « concurrent », et rien n'aurait jamais été séquestré.
+- **`simulatedOutcome` reste nul en mode réel.** C'est cette colonne qui
+  distingue, dans le registre, un encaissement joué d'un encaissement qui a eu
+  lieu.
+- **Le rappel répond 200 même quand l'application échoue.** Un 500 ferait
+  rejouer l'agrégateur en boucle, alors qu'une transition illégale ne se
+  résoudra pas d'elle-même : le rejeu ne réparerait rien et noierait le
+  problème.
+
+**Rien dans la campagne ne vérifiait qu'un rappel VALIDE produise quoi que ce
+soit.** `verif:rappel` n'éprouvait que des refus — signature forgée, corps
+modifié, référence inconnue, montant discordant. C'est ainsi que le défaut a
+pu vivre : tous ses contrôles restaient verts. Le contrôle 9 exerce désormais
+le branchement complet avec le fournisseur de test — séquestre, statut de
+commande, facture, et rejeu sans seconde facture. Falsifié en neutralisant
+`appliquerAboutissement` derrière une garde d'environnement : ses cinq
+assertions tombent, avec exactement les symptômes du défaut d'origine.
+
+⚠ **`ikeepay:repetition` ne remplace pas ce contrôle** : elle exige
+`PAYMENT_MODE=ikeepay` et ne tourne donc pas dans `verif:tout`. Un défaut du
+branchement serait invisible de la campagne sans le contrôle 9.
+
+⚠ **Falsifier demande une condition OPAQUE à TypeScript.** `if (true) return`
+rend la suite inatteignable, lui fait perdre tout affinage de type, et casse la
+compilation au lieu de falsifier : on ne voit alors rien du tout. Une lecture
+d'`process.env` fait l'affaire.
+
+**Le schéma ne connaissait pas iKeePay non plus.** `enum PaymentProviderType`
+n'avait que `TEST`, et `lib/orders/actions.ts` écrivait `TEST` en dur. Une
+commande encaissée par iKeePay aurait porté la mention `TEST` dans le registre —
+et c'est précisément la colonne qu'on lit pour rapprocher nos écritures de leur
+relevé. Migration `20260902110753_fournisseur_ikeepay`.
+
+⚠ **Cette migration doit être appliquée à Supabase avant tout déploiement en
+mode réel** (`npm run supabase:migrer -- --appliquer`), puis le code redéployé.
+
+### Trois outils pour essayer sans bac à sable
+
+iKeePay n'en offre aucun pour l'encaissement — le seul documenté concerne les
+cartes. Le premier essai chez eux est un vrai débit. Ces trois commandes sont ce
+qui remplace le bac à sable :
+
+```bash
+npm run secrets:generer      # AUTH_SECRET, CRON_SECRET, IKEEPAY_WEBHOOK_TOKEN
+npm run ikeepay:verifier     # la configuration tient-elle ? (jeton masqué)
+npm run ikeepay:repetition   # la chaîne complète en mode réel, sans un franc
+```
+
+`ikeepay:repetition` **refuse de tourner en mode test**, et c'est le point : en
+`test`, ses dix-neuf contrôles passeraient tous en n'exerçant rien — les boutons
+de simulation seraient absents parce qu'ils sont ailleurs, le rappel serait
+accepté par un autre fournisseur. Une répétition qui rend vert sans avoir joué
+la pièce est pire que pas de répétition.
+
+Elle **ne sort pas du poste** : le serveur ne contacte jamais iKeePay —
+`initiate()` ne fait que bâtir une adresse, sans appel réseau — et l'appel que
+le NAVIGATEUR ferait vers leur tunnel est coupé par le script. Une première
+version l'ouvrait pour de bon : cliquer « Payer » chargeait leur page de
+paiement en vrai, avec la vraie clef publique, à chaque exécution. Rien n'y
+était prélevé, mais une répétition qui dépend d'une page distante n'est pas
+reproductible — et le VPN de ce poste la ferait attendre pour rien.
+
+Éprouvée le 2 septembre 2026 avec les clefs de production : **19 sur 19**. Ce
+qu'elle ne prouve pas, et il faut le dire : qu'ils envoient bien leur rappel, et
+à la forme attendue.
+
+⚠ **L'adresse de rappel doit être joignable depuis Internet.** Sur `localhost`,
+iKeePay encaisse et poste son rappel dans le vide : le client est débité, la
+commande reste figée, et sans point d'entrée de consultation le rattrapage ne
+peut pas la sauver. `ikeepay:verifier` refuse de dire « prêt » tant que
+`NEXT_PUBLIC_APP_URL` désigne une adresse privée.
+
+La marche à suivre complète est en `docs/deploiement.md`, §5 ter.
+
+### Un contrôle qui lit les restes d'un autre test
+
+`verif:courbes` n'avait pas de fixture. Le jeu de démonstration s'arrête au
+séquestre et ne libère jamais de fonds : les écritures que la courbe affichait
+étaient celles qu'un test amont — le parcours, les jalons — avait laissées en
+passant. Rien ne garantissait ni leur présence, ni leur date, ni leur montant.
+
+Le 2 septembre 2026 elles n'y étaient plus, et trois contrôles sont tombés d'un
+coup : « 0 graduation », « plafond -Infinity ». Le défaut n'était pas dans les
+courbes, qui allaient très bien.
+
+**Le pire était le §25.** Sans libération, la valeur de la marchandise vaut 0, et
+le contrôle cherchait la chaîne `"0"` dans l'écran du livreur — qu'on y trouve
+toujours. Il échouait donc quoi qu'affiche cette page, pour une raison étrangère
+à ce qu'il vérifie.
+
+Il pose maintenant **deux jours** d'écritures, et non un seul : avec un point
+unique, l'axe vertical n'a pas d'étendue et le contrôle des graduations ne
+prouverait rien. Falsifié en neutralisant la commission dans
+`lib/finance/courbes.ts` : il voit l'écart (65 000 affichés, 61 750 en base).
+
+⚠ **Piège rencontré pendant cette falsification**, et qui se reproduira : le
+serveur précédent tenait encore le port 3000, `npx next start` a échoué en
+silence, et la falsification a été jouée contre l'ANCIENNE construction — elle
+passait au vert. Toujours arrêter le serveur avant de reconstruire (§5), et se
+méfier d'une falsification qui ne mord pas.
 
 ### Les identifiants SQL sont guillemetés
 

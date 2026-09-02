@@ -59,7 +59,7 @@ verifier(
 );
 
 // ---------------------------------------------------- 2. Un compte a nous
-await page.goto(`${BASE}/inscription`, { waitUntil: "domcontentloaded" });
+await page.goto(`${BASE}/inscription`, { waitUntil: "networkidle" });
 await page.locator("#name").fill(COMPTE.nom);
 await page.locator("#phone").fill(COMPTE.telephone);
 await page.locator("#email").fill(COMPTE.email);
@@ -134,10 +134,36 @@ verifier(
 );
 
 // -------------------------------- 5. Le nouveau marche, l'ancien non
+/**
+ * Tente une connexion, et DIT ce qui s'est passe.
+ *
+ * ┌────────────────────────────────────────────────────────────────────────┐
+ * │  Rester sur /connexion signifie DEUX choses opposees : le mot de passe │
+ * │  a ete refuse, ou le clic n'a rien declenche du tout.                  │
+ * └────────────────────────────────────────────────────────────────────────┘
+ *
+ * A `domcontentloaded`, on remplissait et on cliquait avant que React n'ait
+ * hydrate le formulaire : `onSubmit` n'existait pas encore, aucune requete ne
+ * partait. Deux consequences, et la seconde est la pire.
+ *
+ * « le nouveau mot de passe permet de se connecter » echouait alors que la
+ * reinitialisation avait parfaitement fonctionne — l'echec observe le
+ * 2 septembre 2026, sur une base locale a 38 ms.
+ *
+ * Et « l'ancien mot de passe ne fonctionne plus » PASSAIT, pour la mauvaise
+ * raison : le clic ne partant jamais, l'URL restait /connexion quoi qu'il
+ * arrive. Ce controle ne pouvait pas echouer, donc il ne protegeait rien (§8)
+ * — pas meme le jour ou une reinitialisation laisserait l'ancien mot de passe
+ * valide, ce qui est exactement le defaut qu'il est cense guetter.
+ *
+ * Elle attend donc `networkidle` avant de cliquer, et rapporte le message
+ * affiche : un refus se PROUVE par « mot de passe incorrect », jamais par une
+ * absence de mouvement.
+ */
 const essayer = async (motDePasse) => {
   const c = await navigateur.newContext();
   const p = await c.newPage();
-  await p.goto(`${BASE}/connexion`, { waitUntil: "domcontentloaded" });
+  await p.goto(`${BASE}/connexion`, { waitUntil: "networkidle" });
   await p.locator("#identifier").fill(COMPTE.email);
   await p.locator("#password").fill(motDePasse);
   await p
@@ -145,24 +171,36 @@ const essayer = async (motDePasse) => {
     .filter({ visible: true })
     .first()
     .click();
-  // Une connexion reussie quitte /connexion ; une connexion refusee y reste.
-  // On attend donc le depart, borne dans le temps : l'echec legitime coute la
-  // duree du delai, la reussite ne coute que ce qu'elle prend.
-  await p
-    .waitForURL((u) => !u.pathname.startsWith("/connexion"), { timeout: 15000 })
-    .catch(() => {});
+  // Une connexion reussie quitte /connexion ; une connexion refusee y reste et
+  // affiche son motif. On attend l'un OU l'autre, borne dans le temps : le cas
+  // legitime coute ce qu'il prend, et seul le silence coute le delai entier.
+  await Promise.race([
+    p.waitForURL((u) => !u.pathname.startsWith("/connexion"), { timeout: 15000 }),
+    p
+      .getByText(/mot de passe incorrect/i)
+      .first()
+      .waitFor({ state: "visible", timeout: 15000 }),
+  ]).catch(() => {});
   const chemin = new URL(p.url()).pathname;
+  const texte = await p.evaluate(() => document.body.innerText);
   await c.close();
-  return chemin;
+  return { chemin, refuse: /mot de passe incorrect/i.test(texte) };
 };
 
+const avecNouveau = await essayer(COMPTE.nouveau);
 verifier(
-  (await essayer(COMPTE.nouveau)) === "/vendeur/dashboard",
-  "le nouveau mot de passe permet de se connecter"
+  avecNouveau.chemin === "/vendeur/dashboard",
+  "le nouveau mot de passe permet de se connecter",
+  avecNouveau.chemin
 );
+
+const avecAncien = await essayer(COMPTE.ancien);
 verifier(
-  (await essayer(COMPTE.ancien)) === "/connexion",
-  "l'ancien mot de passe ne fonctionne plus"
+  avecAncien.chemin === "/connexion" && avecAncien.refuse,
+  "l'ancien mot de passe est refuse, et le refus est affiche",
+  avecAncien.refuse
+    ? avecAncien.chemin
+    : `${avecAncien.chemin} sans message de refus — le formulaire a-t-il seulement ete soumis ?`
 );
 
 // ------------------------------------------------ 6. Le lien ne sert qu'une fois

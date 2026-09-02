@@ -32,23 +32,46 @@ const verifier = (ok, libelle, detail = "") => {
   }
 };
 
+/**
+ * Connecte, et DIT si elle a reussi.
+ *
+ * ┌────────────────────────────────────────────────────────────────────────┐
+ * │  Elle avalait son expiration : `.catch(() => {})`, puis on continuait  │
+ * │  comme si de rien n'etait.                                             │
+ * └────────────────────────────────────────────────────────────────────────┘
+ *
+ * Quand la connexion trainait — la campagne complete sollicite le meme
+ * serveur, et bcrypt coute cher —, le test lisait la PAGE DE CONNEXION et
+ * concluait « le menu ne nomme pas l'espace ». Un echec qui accuse le mauvais
+ * coupable est pire qu'un echec franc : on cherche le defaut dans le menu, ou
+ * il n'y en a pas.
+ *
+ * Elle renvoie donc un booleen, et une SECONDE tentative absorbe la contention
+ * passagere. Si les deux echouent, l'appelant le dit pour ce que c'est.
+ */
 const connecter = async (page, identifiant) => {
-  await page.goto(`${BASE}/connexion`, { waitUntil: "domcontentloaded" });
-  await page.locator("#identifier").fill(identifiant);
-  await page.locator("#password").fill(MDP);
-  await page
-    .getByRole("button", { name: /^Se connecter$/ })
-    .filter({ visible: true })
-    .first()
-    .click();
+  for (let essai = 1; essai <= 2; essai++) {
+    await page.goto(`${BASE}/connexion`, { waitUntil: "networkidle" });
+    await page.locator("#identifier").fill(identifiant);
+    await page.locator("#password").fill(MDP);
+    await page
+      .getByRole("button", { name: /^Se connecter$/ })
+      .filter({ visible: true })
+      .first()
+      .click();
 
-  // On attend la navigation, pas un delai fixe : au premier appel apres le
-  // demarrage du serveur, la reponse met plus longtemps et un `waitForTimeout`
-  // trop court faisait echouer le test pour une raison etrangere a ce qu'il
-  // verifie.
-  await page
-    .waitForURL((u) => !u.pathname.startsWith("/connexion"), { timeout: 25000 })
-    .catch(() => {});
+    // On attend la navigation, pas un delai fixe : au premier appel apres le
+    // demarrage du serveur, la reponse met plus longtemps et un
+    // `waitForTimeout` trop court faisait echouer le test pour une raison
+    // etrangere a ce qu'il verifie.
+    const arrive = await page
+      .waitForURL((u) => !u.pathname.startsWith("/connexion"), { timeout: 30000 })
+      .then(() => true)
+      .catch(() => false);
+
+    if (arrive) return true;
+  }
+  return false;
 };
 
 const bouton = (page, libelle) =>
@@ -203,15 +226,28 @@ const attendreDeconnexion = async (page) => {
       viewport: { width: 1280, height: 900 },
     });
     const page = await ctx.newPage();
-    await connecter(page, identifiant);
 
-    // On attend LE TEXTE ATTENDU, pas seulement le changement d'URL.
-    //
-    // `connecter` avale l'expiration de son attente. Quand le serveur est
-    // sollicite par le reste de la suite, la connexion depasse le delai, le
-    // test lit la page de connexion, et conclut que le menu ne nomme pas
-    // l'espace — un echec etranger a ce qu'il verifie, qui n'apparaissait
-    // qu'une fois sur trois.
+    /*
+     * Si la connexion n'aboutit pas, on le DIT — et on n'accuse pas le menu.
+     *
+     * C'est le defaut qui faisait echouer ce controle une fois sur trois
+     * pendant la campagne complete : la connexion depassait son delai, le test
+     * lisait la page de connexion, et concluait « le menu ne nomme pas
+     * l'espace ». On cherchait alors le defaut dans un menu qui n'en avait
+     * aucun.
+     */
+    if (!(await connecter(page, identifiant))) {
+      verifier(
+        false,
+        `${identifiant} : la connexion aboutit`,
+        "deux tentatives expirees — le menu n'est PAS en cause"
+      );
+      await ctx.close();
+      continue;
+    }
+
+    // On attend ensuite LE TEXTE ATTENDU, et pas seulement le changement
+    // d'URL : le menu est rendu par le serveur, il peut arriver apres.
     await page
       .waitForFunction(
         (motif) => new RegExp(motif, "i").test(document.body.innerText),

@@ -35,7 +35,7 @@ const bouton = (page, libelle) =>
   page.getByRole("button", { name: libelle }).filter({ visible: true }).first();
 
 const connecter = async (page, identifiant) => {
-  await page.goto(`${BASE}/connexion`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${BASE}/connexion`, { waitUntil: "networkidle" });
   await page.locator("#identifier").fill(identifiant);
   await page.locator("#password").fill(MDP);
   await bouton(page, /^Se connecter$/).click();

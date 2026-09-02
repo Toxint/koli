@@ -26,7 +26,7 @@
  */
 
 import { chromium } from "playwright";
-import { lire, lireUne, fermer } from "./base-donnees.mjs";
+import { ecrire, lire, lireUne, fermer } from "./base-donnees.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 const MDP = "Password123!";
@@ -135,6 +135,106 @@ const totalAffiche = async (carte) => {
   return m ? enNombre(m[1]) : null;
 };
 
+/**
+ * Ce controle POSE SES PROPRES ECRITURES.
+ *
+ * ┌────────────────────────────────────────────────────────────────────────┐
+ * │  Il lisait ce qu'un AUTRE test avait laisse derriere lui.              │
+ * └────────────────────────────────────────────────────────────────────────┘
+ *
+ * Le jeu de demonstration ne cree aucune liberation de fonds : il s'arrete au
+ * sequestre. Les ecritures que cette courbe affiche etaient donc celles qu'un
+ * test amont — le parcours, les jalons — avait produites en passant. Rien ne
+ * garantissait ni leur presence, ni leur date, ni leur montant.
+ *
+ * Le 2 septembre 2026 elles n'y etaient plus, et les trois controles les plus
+ * substantiels du fichier sont tombes d'un coup : « 0 graduation », « plafond
+ * -Infinity ». Le defaut n'etait pas dans les courbes, qui allaient tres bien.
+ *
+ * Le pire etait le §25. Sans liberation, `marchandise` vaut 0, et le controle
+ * cherchait la chaine "0" dans l'ecran du livreur — qu'on y trouve toujours.
+ * Il echouait donc quoi qu'affiche cette page, et pour une raison etrangere a
+ * ce qu'il verifie.
+ *
+ * Deux jours distincts, et non un seul : avec un seul point, l'axe vertical
+ * n'a pas d'etendue et le controle des graduations ne prouverait rien.
+ */
+const aNettoyer = [];
+
+async function poserLesEcritures(idVendeur, idLivreur) {
+  const suffixe = Date.now().toString(36).toUpperCase().slice(-8);
+
+  // Deux jours DANS la fenetre, et loin de minuit : `fraisDeBordure` existe
+  // parce qu'une ecriture posee a quelques minutes de minuit bascule d'un jour
+  // a l'autre selon l'instant du rendu.
+  const jour = (recul) => {
+    const d = new Date();
+    d.setHours(12, 0, 0, 0);
+    d.setDate(d.getDate() - recul);
+    return d;
+  };
+
+  const lots = [
+    { recul: 3, marchandise: 40000, commission: 2000, livraison: 1500 },
+    { recul: 1, marchandise: 25000, commission: 1250, livraison: 1000 },
+  ];
+
+  for (const [n, lot] of lots.entries()) {
+    const idCommande = `ctrl-courbe-o-${suffixe}-${n}`;
+
+    // Note AVANT insertion : une erreur en cours de route laisserait sinon une
+    // commande orpheline que le menage ignore.
+    aNettoyer.push(idCommande);
+
+    await ecrire(
+      `INSERT INTO "Order" (id, reference, "sellerId", "buyerName", "buyerPhone",
+         "buyerCountry", "buyerCity", "buyerAddress", "deliveryFee", status,
+         "createdAt", "updatedAt")
+       VALUES (?, ?, ?, 'Controle Courbe', '+2250700000097', 'Cote d''Ivoire',
+         'Abidjan', 'Adresse de controle', ?, 'COMPLETED', ?, ?)`,
+      idCommande,
+      `KOLI-CRB${suffixe}${n}`,
+      idVendeur,
+      lot.livraison,
+      jour(lot.recul),
+      jour(lot.recul)
+    );
+
+    await ecrire(
+      `INSERT INTO "Delivery" (id, "orderId", "driverId", status, "assignedAt",
+         "deliveredAt")
+       VALUES (?, ?, ?, 'CONFIRMED', ?, ?)`,
+      `ctrl-courbe-d-${suffixe}-${n}`,
+      idCommande,
+      idLivreur,
+      jour(lot.recul),
+      jour(lot.recul)
+    );
+
+    // La commission est NEGATIVE : `amount` est signe, et la courbe du vendeur
+    // est nette. Une commission positive gonflerait la courbe au lieu de la
+    // reduire — et le total afficherait plus que ce que le vendeur touche.
+    const ecritures = [
+      ["FUNDS_RELEASED", lot.marchandise],
+      ["COMMISSION", -lot.commission],
+      ["DRIVER_PAYOUT", lot.livraison],
+    ];
+
+    for (const [type, montant] of ecritures) {
+      await ecrire(
+        `INSERT INTO "Transaction" (id, "orderId", type, amount, "createdAt")
+         VALUES (?, ?, ?::"TransactionType", ?, ?)`,
+        `ctrl-courbe-t-${suffixe}-${n}-${type}`,
+        idCommande,
+        type,
+        montant,
+        jour(lot.recul)
+      );
+    }
+  }
+}
+
+
 const navigateur = await chromium.launch();
 
 try {
@@ -148,6 +248,8 @@ try {
       WHERE u.email = ?`,
     "livreur@koli.ci"
   );
+
+  await poserLesEcritures(vendeur.id, livreur.id);
 
   // ═══════════ 1. Le vendeur — le total annoncé est celui du registre
 
@@ -461,6 +563,12 @@ try {
   }
 } finally {
   await navigateur.close();
+  for (const id of aNettoyer) {
+    await ecrire('DELETE FROM "Order" WHERE id = ?', id);
+  }
+  if (aNettoyer.length > 0) {
+    console.log(`\n  · ${aNettoyer.length} fixture(s) effacee(s)`);
+  }
   await fermer();
 }
 

@@ -43,8 +43,32 @@ const page = await ctx.newPage();
 const erreurs = [];
 page.on("pageerror", (e) => erreurs.push(e.message.slice(0, 160)));
 
-// 1. Inscription : on obtient une session parfaitement valide.
-await page.goto(`${BASE}/inscription`, { waitUntil: "domcontentloaded" });
+/*
+ * 1. Inscription : on obtient une session parfaitement valide.
+ *
+ * `networkidle` et non `domcontentloaded`, et ce n'est pas un detail de
+ * confort.
+ *
+ * ┌────────────────────────────────────────────────────────────────────────┐
+ * │  Le formulaire ne se soumet PAS avant que React ne l'ait hydrate.      │
+ * │  Son `onSubmit` n'existe pas encore, et le clic ne declenche rien.     │
+ * └────────────────────────────────────────────────────────────────────────┘
+ *
+ * A `domcontentloaded`, le test remplissait et cliquait en quelques
+ * millisecondes — avant l'hydratation. Il concluait « l'inscription n'ouvre
+ * pas de session », alors que l'inscription n'avait jamais ete demandee.
+ *
+ * Cela ne se voyait pas tant que la page etait legere. Elle s'est alourdie, la
+ * course s'est mise a se perdre, et le controle a commence a accuser un defaut
+ * qui n'existe pas.
+ *
+ * ⚠ Ce que cela dit du PRODUIT, et qui reste vrai : sur un telephone d'entree
+ * de gamme et un reseau lent (§70), quelqu'un qui tape « Creer mon compte »
+ * tres vite peut ne rien declencher. Un vrai utilisateur met des secondes a
+ * remplir un formulaire, donc le cas est rare — mais il existe, et seul un
+ * formulaire fonctionnant sans JavaScript le fermerait tout a fait.
+ */
+await page.goto(`${BASE}/inscription`, { waitUntil: "networkidle" });
 await page.locator("#name").fill("Compte Ephemere");
 await page.locator("#phone").fill(`+22507${marque}`);
 await page.locator("#email").fill(EMAIL_TEST);

@@ -96,6 +96,16 @@ enum PaymentStatus {
 
 enum PaymentProviderType {
   TEST
+
+  /// iKeePay, agregateur Mobile Money (phase 30).
+  ///
+  /// Cette valeur manquait, et rien ne le signalait tant que le mode reel
+  /// n'avait jamais tourne : `lib/orders/actions.ts` ecrivait TEST en dur.
+  /// Une commande payee par iKeePay aurait donc porte la mention TEST dans
+  /// le registre — sur un journal financier, c'est un mensonge, et c'est
+  /// precisement la colonne qu'on lit pour rapprocher nos ecritures de leur
+  /// releve.
+  IKEEPAY
 }
 
 enum TransactionType {

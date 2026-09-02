@@ -191,6 +191,96 @@ rappel PERDU n'est pas rattrapable — voir §8 de `CLAUDE.md`.
 
 ---
 
+
+---
+
+## 5 ter. Essayer l'encaissement iKeePay soi-même
+
+Trois outils existent pour cela, et l'ordre compte.
+
+```bash
+npm run secrets:generer      # les valeurs qu'on ne choisit pas à la main
+npm run ikeepay:verifier     # la configuration tient-elle ?
+npm run ikeepay:repetition   # toute la chaîne, en mode réel, sans un franc
+```
+
+> ⚠ **iKeePay n'a pas de bac à sable pour l'encaissement.** Le seul sandbox
+> documenté concerne les cartes (iKeeCard). Le premier essai chez eux est donc
+> un **vrai débit sur un vrai numéro** — prenez le plus petit montant possible.
+
+### La répétition générale — à faire d'abord
+
+`npm run ikeepay:repetition` joue la chaîne complète en mode `ikeepay` sans
+qu'un franc bouge : elle forge elle-même le rappel qu'iKeePay enverrait.
+
+Elle prouve dix-neuf choses, dont les quatre qui comptent : que l'écran ne
+porte plus aucune mention « mode test » ni aucun bouton de simulation ; que
+l'adresse du tunnel porte le montant **recalculé par le serveur** ; qu'un
+rappel authentique met les fonds sous séquestre ; et qu'un rappel **forgé** —
+l'acheteur qui lit sa référence sur son propre lien de paiement — ne fait
+avancer strictement rien.
+
+Elle ne prouve pas qu'iKeePay envoie bien son rappel, ni qu'il a la forme
+attendue. Cela ne se saura qu'au premier vrai paiement.
+
+Elle **ne sort pas du poste**, et peut donc tourner avec vos vraies clefs sans
+rien déclencher chez eux : le serveur ne les contacte jamais — `initiate()` ne
+fait que bâtir une adresse, sans appel réseau — et l'appel que le navigateur
+ferait vers leur tunnel est coupé par le script lui-même.
+
+Éprouvée le 2 septembre 2026 avec les clefs de production : **19 contrôles sur
+19**, sans qu'un franc bouge et sans une requête chez eux.
+
+```bash
+# dans .env.local
+IKEEPAY_PUBLIC_KEY=pk_essai_local_factice
+IKEEPAY_SECRET_KEY=sk_essai_local_factice
+PAYMENT_MODE=ikeepay
+```
+
+Puis — et l'ordre n'est pas négociable, le mode est lu **à la construction** :
+
+```
+arrêter le serveur  →  npm run build  →  npx next start  →  npm run ikeepay:repetition
+```
+
+### Le vrai essai
+
+Il exige une chose de plus, et c'est elle qui bloque :
+
+> ⚠ **L'adresse de rappel doit être joignable depuis Internet.**
+
+Sur `localhost`, iKeePay encaisse, poste son rappel dans le vide, et la
+commande reste « en attente de paiement » indéfiniment : **le client est
+débité, le vendeur ne voit rien**. Et comme iKeePay n'expose aucun point
+d'entrée de consultation, `consulter()` renvoie `null` et le rattrapage ne peut
+pas le réparer — il faut aller le lire à la main dans leur tableau de bord.
+
+Il faut donc un déploiement (un aperçu Vercel suffit — `vercel deploy`, sans
+`--prod`, avec `PAYMENT_MODE=ikeepay` sur l'environnement *Preview* seul, pour
+que la production reste en mode test).
+
+Ensuite, dans le tableau de bord iKeePay, déclarer l'adresse de rappel :
+
+```
+https://<votre-site>/api/paiements/rappel?jeton=<IKEEPAY_WEBHOOK_TOKEN>
+```
+
+`npm run ikeepay:verifier -- --avec-jeton` l'affiche en entier. Sans l'option,
+le jeton est masqué : cette sortie finit dans un historique de terminal ou une
+capture d'écran, et ce jeton est la **seule** chose qui distingue un rappel
+authentique d'un rappel forgé — iKeePay ne signe pas les siens.
+
+### Ce qui reste à leur demander
+
+Trois choses, et les trois sont écrites dans `lib/payments/IkeePayProvider.ts` :
+
+| Manque | Ce qu'il coûte |
+|---|---|
+| Une **signature** des rappels | Le jeton d'URL protège de l'acheteur — le scénario réel — mais pas d'un intermédiaire qui verrait passer l'adresse. |
+| Un **point d'entrée de consultation** | Sans lui, un rappel perdu n'est pas rattrapable : le client est débité, la commande figée. |
+| Un **sandbox d'encaissement** | Sans lui, le premier essai est un vrai débit. |
+
 ## 6. Ce que le déploiement ne fait PAS
 
 - **Aucun argent ne circule.** `PAYMENT_MODE=test`. Le site est utilisable de
