@@ -66,7 +66,8 @@
     "verif:parcours-en-ligne": "node scripts/verifier-parcours-en-ligne.mjs",
     "secrets:generer": "node scripts/generer-secrets.mjs",
     "ikeepay:verifier": "node scripts/verifier-ikeepay.mjs",
-    "ikeepay:repetition": "node scripts/repetition-ikeepay.mjs"
+    "ikeepay:repetition": "node scripts/repetition-ikeepay.mjs",
+    "supabase:registre": "node scripts/nettoyer-registre.mjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",

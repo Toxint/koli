@@ -352,6 +352,7 @@ concernent l'encaissement réel, et sont détaillés au §8 :
 npm run secrets:generer      # les secrets qu'on ne choisit pas à la main
 npm run ikeepay:verifier     # la configuration iKeePay tient-elle ?
 npm run ikeepay:repetition   # la chaîne réelle, sans un franc (mode ikeepay requis)
+npm run supabase:registre    # le registre en ligne porte-t-il des ecritures FABRIQUEES ?
 ```
 
 34 commandes `verif:*` au total. Elles pilotent un **vrai navigateur**
@@ -1166,6 +1167,90 @@ que le téléversement est passé et que la construction démarre : il perd
 simplement la connexion en attendant, derrière le VPN. Vérifier avec
 `vercel ls` avant de conclure à un échec — cinq tentatives ont été relancées
 pour rien avant de le comprendre.
+
+### Le site de production FABRIQUE des écritures dans le registre réel
+
+Découvert le 5 septembre 2026, en cherchant pourquoi un essai de paiement
+restait simulé.
+
+Trois choses vraies séparément, désastreuses ensemble :
+
+```
+un déploiement de PRODUCTION, public
+  + PAYMENT_MODE=test, donc le bouton « simuler un paiement réussi »
+  + la base de PRODUCTION derrière
+  = n'importe quel visiteur fabrique une commande, un séquestre
+    et un NUMÉRO DE FACTURE dans le registre réel
+```
+
+Ce n'est pas une hypothèse. `KOLI-M6BDYA9F` portait 2 500 FCFA jamais
+encaissés, 2 000 FCFA de séquestre inexistant, et **`FAC-2026-000001`** — le
+premier numéro de la série fiscale de l'année. `rangSuivant` lit le plus grand
+numéro, pas le nombre de factures : la première vraie vente aurait donc porté
+le n° 2, avec un n° 1 ne correspondant à rien. C'est le genre d'écart qu'un
+comptable relève.
+
+C'est le problème que le §4 décrit à propos du jeu de démonstration, entré par
+une autre porte — et cette porte-là est ouverte à tout le monde.
+
+**Le détecteur est `Payment.simulatedOutcome`.** Cette colonne est renseignée
+par le chemin simulé et **reste nulle en mode réel** — c'est exactement pour
+cela qu'elle a été gardée telle quelle dans `lib/payments/aboutissement.ts`.
+`npm run supabase:registre` s'en sert :
+
+```bash
+npm run supabase:registre                # montre, ne touche à rien
+npm run supabase:registre -- --appliquer # efface
+```
+
+`provider = 'TEST'` ne suffirait pas : une commande peut naître en mode test et
+n'avoir jamais été payée. Ce qu'on retire, ce sont les écritures **fabriquées**,
+pas les commandes en attente. Le script compte les dépendances avant et après —
+une cascade absente laisserait des lignes orphelines, et une ligne orpheline
+dans un registre financier est pire qu'une ligne fausse : elle n'apparaît plus
+nulle part.
+
+⚠ **Le vrai correctif n'est pas le nettoyage.** Tant que production, mode test
+et base de production coexistent, la pollution revient. Elle cesse le jour où la
+production bascule en `ikeepay` : il n'y a alors plus de bouton à appuyer.
+
+### Fermer la production au public est IMPOSSIBLE sur le plan Hobby
+
+Éprouvé le 5 septembre 2026, par l'API Vercel, et non déduit :
+
+| Réglage | Réponse |
+|---|---|
+| `ssoProtection: { deploymentType: "all" }` | **428** — « Vercel Authentication is not available on your plan for production deployments » |
+| `ssoProtection: { deploymentType: "preview" }` | **200** — disponible |
+| `passwordProtection` | **428** — « Advanced Deployment Protection is not enabled » |
+
+Le seul réglage disponible protège **les aperçus**, c'est-à-dire exactement
+l'inverse du besoin : il fermerait le site d'essai — celui qui prélève vraiment
+— et laisserait la production ouverte à la simulation.
+
+⚠ **Ce test a une conséquence qu'il faut annuler.** Le troisième appel active
+réellement la protection sur les aperçus, ce qui **bloque le rappel iKeePay**.
+Après toute exploration de ces réglages : remettre `ssoProtection: null` et
+vérifier que le rappel répond encore, avant que quiconque ne paie. Un rappel
+bloqué pendant un vrai paiement, c'est un client débité et une commande figée.
+
+Le jeton du CLI est lisible dans
+`%APPDATA%/xdg.data/com.vercel.cli/auth.json` — c'est par là que passent les
+appels à `api.vercel.com` quand le CLI n'offre pas la commande.
+
+### Le site d'essai porte un nom STABLE
+
+`https://koli-essai.vercel.app` (`vercel alias set`), et non l'adresse du
+déploiement.
+
+Une adresse de déploiement (`koli-nfcce35hf-…`) change à chaque envoi. Déclarée
+telle quelle chez iKeePay, elle serait morte au redéploiement suivant — et le
+rappel serait posté dans le vide, sans erreur visible, pendant un vrai paiement.
+
+⚠ **Les deux sites se ressemblent, et c'est ce qui a fait perdre trois jours.**
+L'essai du 2 septembre a été joué sur `koli-zeta.vercel.app`, la production, en
+mode test — d'où « ça fonctionne toujours en mode test ». Le seul repère visible
+est la mention « mode test » : le site d'essai n'en porte aucune.
 
 ### Les identifiants SQL sont guillemetés
 
