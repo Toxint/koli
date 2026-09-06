@@ -1,3 +1,5 @@
+import { SYMBOLE, type Devise } from "@/data/markets";
+
 // Espace fine insécable (U+202F) comme séparateur de milliers, et espace
 // insécable (U+00A0) avant l'unité.
 //
@@ -7,14 +9,47 @@
 const SEPARATEUR_MILLIERS = " ";
 const ESPACE_INSECABLE = " ";
 
-// ex. : formatCFA(18500) → "18 500 FCFA" (insécable).
-export function formatCFA(amount: number): string {
+/**
+ * Un montant, avec sa devise.
+ *
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │  « FCFA » était écrit en dur ici, et dans une trentaine d'écrans.        │
+ * └──────────────────────────────────────────────────────────────────────────┘
+ *
+ * C'était sans conséquence tant que KOLI ne desservait que sept pays, tous en
+ * franc CFA : XOF et XAF sont arrimés à l'euro au même taux, donc identiques
+ * au centime près. La couverture d'iKeePay en compte dix-sept, dont la RDC —
+ * où un franc CFA vaut environ quatre francs congolais.
+ *
+ * Un montant congolais affiché « 796 FCFA » ne serait pas une imprécision :
+ * ce serait un chiffre faux d'un facteur quatre, sur l'écran même où quelqu'un
+ * décide de payer.
+ *
+ * ex. : formatMontant(18500, "XOF") → "18 500 FCFA"
+ *       formatMontant(18500, "CDF") → "18 500 FC"
+ */
+export function formatMontant(amount: number, devise: Devise): string {
   const rounded = Math.round(amount).toString();
   const withSpaces = rounded.replace(
     /\B(?=(\d{3})+(?!\d))/g,
     SEPARATEUR_MILLIERS
   );
-  return `${withSpaces}${ESPACE_INSECABLE}FCFA`;
+  return `${withSpaces}${ESPACE_INSECABLE}${SYMBOLE[devise]}`;
+}
+
+/**
+ * Le franc CFA, quand la devise est CONNUE pour être celle-là.
+ *
+ * Conservé pour les écrans dont les montants ne peuvent être qu'en CFA — les
+ * réglages de la plateforme, par exemple. Partout où un montant appartient à
+ * une commande ou à un vendeur, c'est `formatMontant` qu'il faut, avec la
+ * devise de cette commande ou de ce vendeur.
+ *
+ * ⚠ L'appeler par commodité sur un montant dont on ignore la devise, c'est
+ * réintroduire exactement le défaut qu'on vient de retirer.
+ */
+export function formatCFA(amount: number): string {
+  return formatMontant(amount, "XOF");
 }
 
 /**

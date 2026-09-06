@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { commeDevise } from "@/data/markets";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { getCurrentUser } from "@/lib/auth/actions";
@@ -51,6 +52,7 @@ export default async function PayReferencePage({
       : null;
 
     const formattedOrder = {
+      currency: commeDevise(dbOrder.currency),
       id: dbOrder.id,
       reference: dbOrder.reference,
       buyerName: dbOrder.buyerName,
@@ -107,7 +109,8 @@ export default async function PayReferencePage({
           modeTest={isTestMode()}
           checkoutUrl={await adresseDuTunnel(
             dbOrder.reference,
-            montantTotal
+            montantTotal,
+            dbOrder.currency
           )}
         />
 
@@ -158,7 +161,8 @@ export default async function PayReferencePage({
  */
 async function adresseDuTunnel(
   reference: string,
-  montant: number
+  montant: number,
+  devise: string
 ): Promise<string | null> {
   if (isTestMode()) return null;
 
@@ -166,7 +170,19 @@ async function adresseDuTunnel(
     const intention = await getPaymentProvider().initiate({
       orderReference: reference,
       amount: montant,
-      currency: "XOF",
+      /*
+       * La devise de LA COMMANDE, jamais "XOF" en dur.
+       *
+       * Elle l'était, et c'est passé inaperçu tant que les sept marchés
+       * desservis étaient tous en franc CFA — XOF et XAF sont arrimés à l'euro
+       * au même taux, donc interchangeables au centime près.
+       *
+       * Avec la RDC, ce n'est plus vrai : un franc CFA vaut environ quatre
+       * francs congolais. Annoncer « XOF » à iKeePay pour une commande en CDF
+       * lui ferait prélever quatre fois la somme due — ou la refuser. Le genre
+       * d'écart qu'on ne découvre qu'au relevé.
+       */
+      currency: devise,
       // La reference tient lieu de clef : deux affichages de la meme commande
       // batissent la meme adresse, donc le meme `order_id` chez iKeePay.
       idempotencyKey: reference,

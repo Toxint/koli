@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { formatCFA } from "@/lib/format";
+import { formatMontant } from "@/lib/format";
+import type { Devise } from "@/data/markets";
 import { simulatePaymentAction } from "@/lib/payments/actions";
 import { confirmReceptionAction } from "@/lib/orders/actions";
 import { Icone } from "@/components/ui/Icone";
@@ -23,6 +24,14 @@ interface PayFlowProps {
     buyerCity: string;
     buyerAddress: string;
     buyerLandmark?: string | null;
+    /**
+     * La devise de CETTE commande.
+     *
+     * Elle ne se devine pas depuis le pays affiché : c'est la commande qui la
+     * porte, figée à sa création. Un vendeur qui déménage ne doit pas voir
+     * changer la monnaie de ses ventes passées.
+     */
+    currency: Devise;
     deliveryFee: number;
     status: string;
     sellerName: string;
@@ -170,7 +179,7 @@ export function PayFlow({
           </div>
           <div className="flex justify-between font-medium">
             <span className="text-ink-muted">Montant concerné :</span>
-            <span className="font-bold">{formatCFA(grandTotal)}</span>
+            <span className="font-bold">{formatMontant(grandTotal, order.currency)}</span>
           </div>
         </div>
 
@@ -258,7 +267,7 @@ export function PayFlow({
           </div>
           <div className="flex justify-between font-medium">
             <span className="text-ink-muted">Montant total :</span>
-            <span className="font-bold text-brand dark:text-white">{formatCFA(grandTotal)}</span>
+            <span className="font-bold text-brand dark:text-white">{formatMontant(grandTotal, order.currency)}</span>
           </div>
           <div className="flex justify-between font-medium">
             <span className="text-ink-muted">Destinataire :</span>
@@ -370,11 +379,11 @@ export function PayFlow({
                     {item.name}
                   </span>
                   <span className="text-xs text-ink-muted">
-                    Quantité : {item.quantity} × {formatCFA(item.unitPrice)}
+                    Quantité : {item.quantity} × {formatMontant(item.unitPrice, order.currency)}
                   </span>
                 </div>
                 <span className="font-bold text-brand dark:text-white">
-                  {formatCFA(item.unitPrice * item.quantity)}
+                  {formatMontant(item.unitPrice * item.quantity, order.currency)}
                 </span>
               </div>
             ))}
@@ -383,15 +392,15 @@ export function PayFlow({
           <div className="pt-3 border-t border-hairline dark:border-slate-800 text-xs space-y-2">
             <div className="flex justify-between text-ink-muted">
               <span>Sous-total articles :</span>
-              <span className="font-semibold">{formatCFA(subtotal)}</span>
+              <span className="font-semibold">{formatMontant(subtotal, order.currency)}</span>
             </div>
             <div className="flex justify-between text-ink-muted">
               <span>Frais de livraison :</span>
-              <span className="font-semibold">{formatCFA(order.deliveryFee)}</span>
+              <span className="font-semibold">{formatMontant(order.deliveryFee, order.currency)}</span>
             </div>
             <div className="flex justify-between text-base font-bold text-brand dark:text-white pt-2 border-t border-hairline dark:border-slate-800">
               <span>Total à régler :</span>
-              <span className="text-brand dark:text-amber-400">{formatCFA(grandTotal)}</span>
+              <span className="text-brand dark:text-amber-400">{formatMontant(grandTotal, order.currency)}</span>
             </div>
           </div>
         </div>

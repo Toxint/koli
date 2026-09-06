@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { createOrderAction } from "@/lib/orders/actions";
 import { formatCFA } from "@/lib/format";
-import { markets } from "@/data/markets";
+import { MARCHES, type Marche } from "@/data/markets";
 import { Icone } from "@/components/ui/Icone";
 import { BarreCompte } from "@/components/ui/BarreCompte";
 
@@ -513,7 +513,7 @@ export function FormulaireCommande({
                     onChange={(e) => setBuyerCountry(e.target.value)}
                     className={CHAMP}
                   >
-                    {markets.map((marche) => (
+                    {MARCHES.map((marche: Marche) => (
                       <option key={marche.code} value={marche.name}>
                         {marche.name}
                       </option>
