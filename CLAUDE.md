@@ -1050,6 +1050,52 @@ relevé. Migration `20260902110753_fournisseur_ikeepay`.
 ⚠ **Cette migration doit être appliquée à Supabase avant tout déploiement en
 mode réel** (`npm run supabase:migrer -- --appliquer`), puis le code redéployé.
 
+### iKeePay annonce un bac à sable — correction du 6 septembre 2026
+
+Il était écrit ici, à plusieurs endroits, qu'iKeePay n'offre **aucun** bac à
+sable pour l'encaissement et que le seul documenté concerne les cartes. Leur
+propre page commerciale dit le contraire :
+
+> « **Sandbox développeur** — Environnement de test complet avec données mock et
+> webhooks. »
+> *(https://ikeepay.com/business, section « API Gateway »)*
+
+**Un environnement de test avec webhooks**, c'est exactement ce qui manquait :
+de quoi éprouver la chaîne complète, rappel compris, sans qu'un franc bouge.
+
+Ce qui reste vrai, et qu'il ne faut pas confondre avec une bonne nouvelle
+acquise :
+
+- **Il est gardé.** « Demander un accès développeur » est un `<button>` sans
+  destination — il agit en JavaScript, probablement après connexion. L'accès se
+  demande, il ne se prend pas.
+- **C'est une promesse commerciale, pas une documentation.** Rien n'y dit si le
+  bac à sable couvre l'ENCAISSEMENT Mobile Money ou seulement les cartes — la
+  distinction qui avait mené à la note d'origine.
+- **Rien n'a été vérifié.** Tant que l'accès n'est pas obtenu et éprouvé, les
+  scripts continuent de traiter le premier paiement comme un vrai débit, et
+  c'est la bonne posture : le défaut penche du côté qui ne coûte rien.
+
+⚠ **À demander en même temps que les deux autres questions en suspens** — la
+signature des rappels et le point d'entrée de consultation. Les trois relèvent
+du même interlocuteur et du même accès développeur.
+
+Leur tableau de bord est à **`https://ikeepay.com/auth/login`** (courriel et mot
+de passe). Il n'existe ni `dashboard.` ni `app.` : ces sous-domaines ne
+résolvent pas.
+
+⚠ **Leur site est une application entièrement montée en JavaScript** : 5 Ko de
+coquille HTML, et tout le reste dans un fichier de 2 Mo au nom empreinté
+(`/assets/index-<hash>.js`). Trois conséquences pratiques :
+
+- `curl` n'en tire rien — il faut Playwright pour lire quoi que ce soit chez eux.
+- **Toutes les adresses rendent 200**, y compris celles qui n'existent pas :
+  sonder un chemin par son code de statut ne prouve rien.
+- Quand ils publient une nouvelle version, l'empreinte change. Un navigateur qui
+  a gardé l'ancienne coquille réclame un fichier supprimé et **reste blanc
+  indéfiniment**, sans message. C'est ce qui a bloqué l'utilisateur une journée
+  entière ; le remède est `Ctrl+Maj+R`, puis vider les données du site.
+
 ### Trois outils pour essayer sans bac à sable
 
 iKeePay n'en offre aucun pour l'encaissement — le seul documenté concerne les
