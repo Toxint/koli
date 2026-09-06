@@ -140,6 +140,72 @@ export const SANS_COURRIEL: NotificationType[] = [
 ];
 
 /**
+ * Le motif qui empêche d'écrire, quand il y en a un.
+ *
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │  La DÉCISION est ici, pure ; seul le transport lit la base.              │
+ * └──────────────────────────────────────────────────────────────────────────┘
+ *
+ * Elle vivait dans une ternaire à quatre étages au milieu de la boucle
+ * d'expédition — l'endroit le plus difficile à lire du fichier, et le seul
+ * qu'on ne pouvait éprouver sans `DATABASE_URL`. Séparée, chaque règle se
+ * nomme et se vérifie.
+ *
+ * Rend `null` quand rien ne s'y oppose. Le motif rendu est écrit tel quel dans
+ * `Notification.sendError` : c'est ce qu'on lira six mois plus tard en se
+ * demandant pourquoi un vendeur n'a rien reçu.
+ *
+ * ⚠ Le registre a le dernier mot, et il n'est pas lu ici : voir
+ * `MOTIF_COMMANDE_ABSENTE`.
+ */
+export function motifDeNonEnvoi(n: {
+  adresse: string | null | undefined;
+  type: NotificationType;
+  reference: string | null | undefined;
+}): string | null {
+  // La plupart des acheteurs de KOLI n'ont donné qu'un téléphone. Ce n'est pas
+  // une panne, c'est une information.
+  if (!n.adresse?.trim()) return "aucune adresse";
+
+  if (!MESSAGES[n.type]) {
+    return SANS_COURRIEL.includes(n.type)
+      ? "pas de courriel pour ce type (choix)"
+      : "aucun texte pour ce type";
+  }
+
+  /*
+   * SANS REFERENCE, on n'envoie pas.
+   *
+   * `entityId` est nullable en base. Le repli sur une chaîne vide produisait
+   * « Vous avez une vente — » et « la commande . » : un courriel visiblement
+   * cassé, adressé à un vrai vendeur, sur une application dont le sujet est la
+   * confiance.
+   */
+  if (!n.reference?.trim()) return "aucune reference de commande";
+
+  if (estFictive(n.adresse)) return "adresse de demonstration";
+
+  return null;
+}
+
+/**
+ * Le motif que seul le REGISTRE peut donner.
+ *
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │  Une notification survit à sa commande.                                  │
+ * └──────────────────────────────────────────────────────────────────────────┘
+ *
+ * `entityId` est une chaîne, pas une clef étrangère : rien ne la supprime en
+ * cascade. Le ménage du registre (`supabase:registre`) efface les ventes
+ * FABRIQUÉES et laisse leurs notifications derrière lui — `KOLI-M6BDYA9F` en
+ * est une, et son destinataire est une vraie personne.
+ *
+ * Annoncer « un client vient de payer la commande X » quand X n'est nulle part,
+ * c'est exactement le courriel qu'on ne rattrape pas.
+ */
+export const MOTIF_COMMANDE_ABSENTE = "commande absente du registre";
+
+/**
  * Les domaines FICTIFS, vers lesquels on n'écrit jamais.
  *
  * ┌──────────────────────────────────────────────────────────────────────────┐

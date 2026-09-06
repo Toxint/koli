@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/db/prisma";
 import {
   MESSAGES,
-  SANS_COURRIEL,
-  estFictive,
+  MOTIF_COMMANDE_ABSENTE,
+  motifDeNonEnvoi,
   type MontantsDeLaCommande,
 } from "@/lib/notifications/textes";
 import { commeDevise } from "@/data/markets";
@@ -78,12 +78,27 @@ const PAR_FOURNEE = 25;
  * s'additionne. Refaire le calcul, c'est se donner une seconde chance de se
  * tromper, et l'écart ne se verrait que dans la boîte du vendeur.
  *
- * Tout est `null` quand la commande est introuvable : les textes disent alors
- * ce qu'ils disaient avant, sans chiffre. Une phrase sans montant reste vraie ;
- * une phrase avec un mauvais montant, non.
+ * Chaque champ vaut `null` quand le registre ne porte pas encore l'écriture :
+ * les textes disent alors ce qu'ils disaient avant, sans chiffre. Une phrase
+ * sans montant reste vraie ; une phrase avec un mauvais montant, non.
+ *
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │  Mais la FONCTION rend `null` quand la commande elle-même est absente,   │
+ * │  et ce n'est pas la même chose.                                          │
+ * └──────────────────────────────────────────────────────────────────────────┘
+ *
+ * « Le registre ne dit rien encore » et « cette commande n'existe pas » se
+ * ressemblaient : les deux donnaient quatre `null`, et le courriel partait
+ * quand même. Or annoncer « un client vient de payer la commande X » quand X
+ * n'est nulle part, c'est exactement le courriel qu'on ne rattrape pas.
+ *
+ * Le cas est réel. Une notification survit à sa commande : `entityId` est une
+ * chaîne, pas une clef étrangère — rien ne la supprime en cascade. Le ménage du
+ * registre (`supabase:registre`, §8) efface les ventes FABRIQUÉES et laisse
+ * leurs notifications derrière lui. `KOLI-M6BDYA9F` en est une, et son
+ * destinataire est une vraie personne.
  */
-async function montantsDe(reference: string): Promise<MontantsDeLaCommande> {
-  const vide = { paye: null, sequestre: null, libereNet: null, rembourse: null };
+async function montantsDe(reference: string): Promise<MontantsDeLaCommande | null> {
 
   const commande = await prisma.order.findUnique({
     where: { reference },
@@ -95,7 +110,8 @@ async function montantsDe(reference: string): Promise<MontantsDeLaCommande> {
     },
   });
 
-  if (!commande) return vide;
+  // La commande n'est pas au registre : on n'annonce rien à son sujet.
+  if (!commande) return null;
 
   const devise = commeDevise(commande.currency);
   const somme = (types: string[]) =>
@@ -163,51 +179,50 @@ export async function expedierNotificationsEnAttente(): Promise<Resultat> {
 
   for (const n of enAttente) {
     const message = MESSAGES[n.type];
-    const adresse = n.user.email?.trim();
 
     /*
-     * Pas d'adresse, ou pas de texte pour ce type : on marque COMME TRAITÉE.
+     * Marque COMME TRAITEE, avec son motif.
      *
-     * Sans cela, la même ligne reviendrait à chaque passage et bloquerait la
-     * file derrière elle. Le motif est noté — « aucune adresse » n'est pas une
-     * panne, c'est une information : la plupart des acheteurs de KOLI n'ont
-     * donné qu'un téléphone.
+     * Sans cela, la meme ligne reviendrait a chaque passage et bloquerait la
+     * file derriere elle.
      */
-    /*
-     * SANS REFERENCE, on n envoie pas.
-     *
-     * `entityId` est nullable en base. Le repli sur une chaine vide produisait
-     * « Vous avez une vente — » et « la commande . » : un courriel visiblement
-     * casse, adresse a un vrai vendeur, sur une application dont le sujet est
-     * la confiance.
-     *
-     * En pratique `notifier()` passe toujours la reference de la commande. Mais
-     * « en pratique » n est pas « toujours », et le cout de se tromper ici est
-     * bien plus eleve que celui de ne rien envoyer : la notification reste
-     * visible dans l application, ou elle porte son contexte.
-     */
-    if (!adresse || !message || !n.entityId?.trim() || estFictive(adresse)) {
+    const motif = motifDeNonEnvoi({
+      adresse: n.user.email,
+      type: n.type,
+      reference: n.entityId,
+    });
+
+    if (motif || !message) {
       await prisma.notification.update({
         where: { id: n.id },
-        data: {
-          sentAt: new Date(),
-          sendError: !adresse
-            ? "aucune adresse"
-            : !message
-              ? SANS_COURRIEL.includes(n.type)
-                ? "pas de courriel pour ce type (choix)"
-                : "aucun texte pour ce type"
-              : !n.entityId?.trim()
-                ? "aucune reference de commande"
-                : "adresse de demonstration",
-        },
+        data: { sentAt: new Date(), sendError: motif ?? "aucun texte pour ce type" },
       });
       ignorees++;
       continue;
     }
 
-    // Non nulle : la garde ci-dessus a ecarte les lignes sans reference.
-    const reference = n.entityId.trim();
+    // Non nuls : `motifDeNonEnvoi` a ecarte les lignes sans adresse ni reference.
+    const adresse = n.user.email!.trim();
+    const reference = n.entityId!.trim();
+
+    /*
+     * La commande est-elle encore au registre ?
+     *
+     * Lu AVANT l envoi, et non au moment de composer le texte : le verdict
+     * decide s il faut ecrire, pas seulement quoi ecrire. Une notification
+     * orpheline est marquee avec son motif — sinon elle reviendrait a chaque
+     * passage et bloquerait la file derriere elle.
+     */
+    const montants = await montantsDe(reference);
+
+    if (!montants) {
+      await prisma.notification.update({
+        where: { id: n.id },
+        data: { sentAt: new Date(), sendError: MOTIF_COMMANDE_ABSENTE },
+      });
+      ignorees++;
+      continue;
+    }
 
     try {
       const reponse = await fetch(API, {
@@ -223,7 +238,7 @@ export async function expedierNotificationsEnAttente(): Promise<Resultat> {
           text: [
             `Bonjour ${n.user.name},`,
             "",
-            message.corps(reference, await montantsDe(reference)),
+            message.corps(reference, montants),
             "",
             "— KOLI",
           ].join("\n"),

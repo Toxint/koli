@@ -4,6 +4,7 @@ import {
   MESSAGES,
   SANS_COURRIEL,
   estFictive,
+  motifDeNonEnvoi,
   type MontantsDeLaCommande,
 } from "@/lib/notifications/textes";
 
@@ -151,6 +152,71 @@ describe("chaque type est TRANCHÉ", () => {
     for (const type of SANS_COURRIEL) {
       expect(MESSAGES[type], type).toBeUndefined();
     }
+  });
+});
+
+describe("ce qui empêche d'écrire", () => {
+  const bon = {
+    adresse: "vendeur@premiummarketafrica.com",
+    type: NotificationType.FUNDS_SECURED,
+    reference: REF,
+  };
+
+  it("rien ne s'oppose à une notification complète", () => {
+    expect(motifDeNonEnvoi(bon)).toBeNull();
+  });
+
+  /**
+   * La plupart des acheteurs de KOLI n'ont donné qu'un téléphone. Ce n'est pas
+   * une panne, et le motif doit le dire — sinon on cherchera une panne.
+   */
+  it("pas d'adresse : on le dit, on ne s'en alarme pas", () => {
+    expect(motifDeNonEnvoi({ ...bon, adresse: null })).toBe("aucune adresse");
+    expect(motifDeNonEnvoi({ ...bon, adresse: "   " })).toBe("aucune adresse");
+  });
+
+  /**
+   * Le §25 du registre : « pas de courriel pour ce type » est un CHOIX,
+   * « aucun texte » un OUBLI. Les confondre ferait réparer l'un en croyant
+   * réparer l'autre.
+   */
+  it("distingue le type délibérément muet du type oublié", () => {
+    expect(motifDeNonEnvoi({ ...bon, type: NotificationType.IN_TRANSIT })).toBe(
+      "pas de courriel pour ce type (choix)"
+    );
+  });
+
+  /**
+   * `entityId` est nullable. Le repli sur une chaîne vide produisait « Vous
+   * avez une vente — » et « la commande . », adressé à un vrai vendeur.
+   */
+  it("pas de référence : on n'envoie rien plutôt qu'une phrase cassée", () => {
+    expect(motifDeNonEnvoi({ ...bon, reference: null })).toBe(
+      "aucune reference de commande"
+    );
+    expect(motifDeNonEnvoi({ ...bon, reference: "  " })).toBe(
+      "aucune reference de commande"
+    );
+  });
+
+  it("écarte les adresses du jeu de démonstration", () => {
+    expect(motifDeNonEnvoi({ ...bon, adresse: "vendeur@koli.ci" })).toBe(
+      "adresse de demonstration"
+    );
+  });
+
+  /**
+   * L'ORDRE compte, et il n'est pas arbitraire.
+   *
+   * Une notification sans adresse ET sans référence doit dire « aucune
+   * adresse » : c'est le fait le plus général, celui qui explique tout le
+   * reste. Un motif qui change selon un détail sans rapport rend le registre
+   * illisible — et c'est le registre qu'on lira pour comprendre.
+   */
+  it("nomme le premier obstacle, pas le dernier", () => {
+    expect(motifDeNonEnvoi({ ...bon, adresse: null, reference: null })).toBe(
+      "aucune adresse"
+    );
   });
 });
 

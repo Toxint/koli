@@ -371,7 +371,7 @@ npm run admin:motdepasse     # changer le mot de passe administrateur, en local 
 (Playwright) contre le **vrai serveur** et lisent la **vraie base**. Un écran
 peut mentir sans que la base bouge, et l'inverse.
 
-**332 tests unitaires** par ailleurs (`npm test`, Vitest).
+**338 tests unitaires** par ailleurs (`npm test`, Vitest).
 
 ---
 
@@ -1602,10 +1602,38 @@ exige que chaque valeur de l'énumération soit dans l'un ou l'autre, jamais dan
 les deux ni dans aucun : ajouter un type au schéma sans trancher échoue,
 en le nommant. Falsifié en retirant `ARRIVED` de la liste.
 
+**Une notification SURVIT à sa commande, et ne doit alors rien annoncer.**
+`entityId` est une chaîne, pas une clef étrangère : rien ne la supprime en
+cascade. Le ménage du registre (`supabase:registre`) efface les ventes
+FABRIQUÉES et laisse leurs notifications derrière lui — `KOLI-M6BDYA9F` en est
+une, et son destinataire est une **vraie** personne. « Le registre ne dit rien
+encore » et « cette commande n'existe pas » se ressemblaient : les deux
+donnaient quatre `null`, et le courriel partait quand même. `montantsDe()`
+rend désormais `null` pour le second cas, et la ligne est marquée
+`commande absente du registre`.
+
+⚠ **C'est ce qui aurait eu lieu au premier déploiement.** Quatre notifications
+attendaient en ligne, écrites avant que le canal courriel existe ; trois sont
+sur `koli.ci`, la quatrième sur une vraie adresse et pour la vente fabriquée
+du 2 septembre. Le garde les couvre toutes les quatre sans qu'on touche à la
+base de production.
+
+**La DÉCISION est séparée du TRANSPORT.** `motifDeNonEnvoi()` est pure : elle
+rend le motif qui empêche d'écrire, ou `null`. Elle vivait dans une ternaire à
+quatre étages au milieu de la boucle — l'endroit le plus difficile à lire du
+fichier, et le seul qu'on ne pouvait éprouver sans `DATABASE_URL`.
+
+⚠ **L'ORDRE des motifs n'est pas arbitraire.** Une notification sans adresse ET
+sans référence doit dire « aucune adresse » : c'est le fait le plus général,
+celui qui explique le reste. Un motif qui change selon un détail sans rapport
+rend le registre illisible — et c'est le registre qu'on lira pour comprendre
+pourquoi un vendeur n'a rien reçu. Falsifié en intervertissant deux tests : le
+contrôle le voit.
+
 **Les textes sont SÉPARÉS de l'expédition** (`textes.ts`) parce qu'ils sont purs :
 aucune base, aucun réseau. `courriel.ts` importe `prisma`, qui exige
 `DATABASE_URL` au chargement — les éprouver aurait demandé une base. Un contrôle
-qu'on ne peut pas lancer est un contrôle qu'on ne lance pas. Douze contrôles dans
+qu'on ne peut pas lancer est un contrôle qu'on ne lance pas. Dix-huit contrôles dans
 `lib/__tests__/courriels.test.ts`, sans une variable d'environnement.
 
 Falsifié en glissant `${m.sequestre}` dans le message du livreur : le contrôle du
