@@ -4,7 +4,8 @@ import { getCurrentUser } from "@/lib/auth/actions";
 import { MenuEspace } from "@/components/ui/MenuEspace";
 import { BarreRecherche } from "@/components/ui/BarreRecherche";
 import { Pagination } from "@/components/ui/Pagination";
-import { formatCFA, pluriel } from "@/lib/format";
+import { formatMontant, pluriel } from "@/lib/format";
+import { deviseDuVendeur } from "@/data/markets";
 import { chargerClientsVendeur } from "@/lib/sellers/clients";
 import { Icone } from "@/components/ui/Icone";
 
@@ -27,6 +28,16 @@ export default async function VendeurClientsPage({
   if (!user || user.role !== "SELLER" || !user.sellerProfile) {
     redirect("/connexion");
   }
+
+  /*
+   * La devise du vendeur, une fois pour tout l'écran.
+   *
+   * Un vendeur a un pays, donc une monnaie ; et depuis que la commande suit
+   * le vendeur et non l'acheteur, TOUTES ses écritures sont dans cette
+   * monnaie. Rien ne se mélange ici — contrairement aux écrans de
+   * l'administration, qui agrègent plusieurs vendeurs.
+   */
+  const devise = deviseDuVendeur(user.sellerProfile.country);
 
   const { q, page: pageBrute } = await searchParams;
   const page = Math.max(1, Number(pageBrute) || 1);
@@ -126,7 +137,7 @@ export default async function VendeurClientsPage({
                         Total réglé
                       </span>
                       <span className="text-base font-semibold">
-                        {formatCFA(client.totalRegle)}
+                        {formatMontant(client.totalRegle, devise)}
                       </span>
                       {/* On dit ce que le chiffre recouvre : le total des
                           commandes créées gonflerait le montant de tout ce qui

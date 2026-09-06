@@ -66,6 +66,15 @@ interface PayFlowProps {
    * que d'afficher un bouton qui ne mene nulle part.
    */
   checkoutUrl?: string | null;
+  /**
+   * Ce que le total représente dans la monnaie de l'ACHETEUR.
+   *
+   * `null` quand les deux monnaies sont la même — répéter « 2 000 FCFA
+   * ≈ 2 000 FCFA » n'aide personne — ou quand le taux n'a pas pu être
+   * obtenu. Dans ce dernier cas l'écran n'affiche RIEN de plus : un
+   * montant absent se remarque, un montant faux se croit.
+   */
+  equivalent?: { texte: string; exact: boolean } | null;
 }
 
 export function PayFlow({
@@ -74,6 +83,7 @@ export function PayFlow({
   codeReception = null,
   modeTest = true,
   checkoutUrl = null,
+  equivalent = null,
 }: PayFlowProps) {
   const [status, setStatus] = useState(order.status);
   const [loading, setLoading] = useState(false);
@@ -402,6 +412,32 @@ export function PayFlow({
               <span>Total à régler :</span>
               <span className="text-brand dark:text-amber-400">{formatMontant(grandTotal, order.currency)}</span>
             </div>
+
+            {/*
+              * Ce que cela fait dans la monnaie de l'acheteur.
+              *
+              * Le montant du VENDEUR reste au-dessus, en gras : c'est lui qui
+              * fait foi, c'est lui qu'on retrouvera sur la facture et au
+              * séquestre. L'équivalent est là pour qu'un acheteur congolais
+              * sache ce que « 2 000 FCFA » représente chez lui, pas pour le
+              * remplacer.
+              *
+              * Le « ≈ » n'est pas une politesse : notre taux et celui d'iKeePay
+              * diffèrent d'environ 2 % — leur marge de change, mesurée le
+              * 6 septembre 2026. C'est LEUR taux qui débite le compte.
+              */}
+            {equivalent && (
+              <div className="flex justify-between text-xs text-ink-muted">
+                <span>Soit, chez vous :</span>
+                <span className="font-semibold">{equivalent.texte}</span>
+              </div>
+            )}
+            {equivalent && !equivalent.exact && (
+              <p className="text-[11px] leading-relaxed text-ink-muted">
+                Montant indicatif. Le prélèvement se fait au taux de votre
+                opérateur, qui peut différer de quelques pour cent.
+              </p>
+            )}
           </div>
         </div>
 

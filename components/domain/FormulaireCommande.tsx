@@ -3,8 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { createOrderAction } from "@/lib/orders/actions";
-import { formatCFA } from "@/lib/format";
-import { MARCHES, type Marche } from "@/data/markets";
+import { formatMontant } from "@/lib/format";
+import { MARCHES, type Marche, type Devise } from "@/data/markets";
 import { Icone } from "@/components/ui/Icone";
 import { BarreCompte } from "@/components/ui/BarreCompte";
 
@@ -85,8 +85,11 @@ function LigneResume({ libelle, valeur }: { libelle: string; valeur: string }) {
 
 export function FormulaireCommande({
   produits,
+  devise,
 }: {
   produits: ProduitCatalogue[];
+  /** La monnaie du vendeur — celle de ses prix, et donc de cette commande. */
+  devise: Devise;
 }) {
   const [etape, setEtape] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -326,7 +329,7 @@ export function FormulaireCommande({
                         value={p.id}
                         disabled={p.quantity === 0}
                       >
-                        {p.name} — {formatCFA(p.price)}
+                        {p.name} — {formatMontant(p.price, devise)}
                         {p.quantity === 0
                           ? " (rupture)"
                           : ` (stock : ${p.quantity})`}
@@ -636,7 +639,7 @@ export function FormulaireCommande({
                   <LigneResume libelle="Article" valeur={productName} />
                   <LigneResume
                     libelle="Prix unitaire"
-                    valeur={formatCFA(unitPrice)}
+                    valeur={formatMontant(unitPrice, devise)}
                   />
                   <LigneResume libelle="Quantité" valeur={String(quantity)} />
                 </dl>
@@ -678,7 +681,7 @@ export function FormulaireCommande({
                   </button>
                 </div>
                 <dl className="divide-y divide-hairline">
-                  <LigneResume libelle="Frais" valeur={formatCFA(deliveryFee)} />
+                  <LigneResume libelle="Frais" valeur={formatMontant(deliveryFee, devise)} />
                   <LigneResume
                     libelle="Repère"
                     valeur={buyerLandmark.trim() || "—"}
@@ -694,13 +697,13 @@ export function FormulaireCommande({
                     Total réglé par le client
                   </span>
                   <span className="text-2xl font-bold">
-                    {formatCFA(grandTotal)}
+                    {formatMontant(grandTotal, devise)}
                   </span>
                 </div>
                 <p className="text-[11px] text-white/80 mt-1">
-                  {formatCFA(subtotal)} d&apos;articles +{" "}
-                  {formatCFA(deliveryFee)} de livraison. Vous recevrez{" "}
-                  {formatCFA(subtotal)} après confirmation de réception par le
+                  {formatMontant(subtotal, devise)} d&apos;articles +{" "}
+                  {formatMontant(deliveryFee, devise)} de livraison. Vous recevrez{" "}
+                  {formatMontant(subtotal, devise)} après confirmation de réception par le
                   client.
                 </p>
               </div>

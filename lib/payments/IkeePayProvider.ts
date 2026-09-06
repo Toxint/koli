@@ -341,6 +341,9 @@ export class IkeePayProvider implements PaymentProvider {
         providerRef: reference,
         status: versNotreStatut(statutBrut),
         amount: Math.round(montant),
+        // LEUR devise, qui n est pas forcement la notre : ils convertissent
+        // dans le tunnel. 796 CDF encaisses pour une commande de 200 XOF.
+        currency: typeof d.currency === "string" ? d.currency : undefined,
         payerMsisdn:
           typeof d.phone_number === "string" ? d.phone_number : undefined,
         payerOperator: typeof d.operator === "string" ? d.operator : undefined,

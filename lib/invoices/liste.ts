@@ -22,6 +22,8 @@ export interface LigneFactureListe {
   referenceCommande: string;
   contrepartie: string;
   total: number;
+  /** La devise de cette facture — celle de la commande, figee a sa creation. */
+  devise: string;
   statutPaiement: PaymentStatus;
   statutCommande: OrderStatus;
 }
@@ -29,7 +31,14 @@ export interface LigneFactureListe {
 export interface ResultatFactures {
   lignes: LigneFactureListe[];
   total: number;
-  /** Somme des factures du filtre — calculée en base, pas sur la page. */
+  /**
+   * Somme des factures du filtre — calculee en base, pas sur la page.
+   *
+   * ⚠ Elle n a de sens que sur un ecran a MONNAIE UNIQUE. Un vendeur en a une
+   * seule, donc la page vendeur peut l afficher. La page client, dont les
+   * factures peuvent venir de plusieurs pays, ne l affiche pas — et ne doit
+   * pas se mettre a le faire sans grouper par devise (`formatTotaux`).
+   */
   montantTotal: number;
 }
 
@@ -96,6 +105,7 @@ async function charger(
           select: {
             reference: true,
             status: true,
+            currency: true,
             buyerName: true,
             payment: { select: { amount: true, status: true } },
             seller: {
@@ -133,6 +143,10 @@ async function charger(
           ? f.order.buyerName
           : f.order.seller.businessName || f.order.seller.user.name,
       total: f.order.payment?.amount ?? 0,
+      // La devise de CHAQUE ligne. Les factures d un client peuvent venir
+      // de vendeurs de pays differents : une colonne « montant » sans
+      // monnaie y juxtaposerait des chiffres incomparables.
+      devise: f.order.currency,
       statutPaiement: f.order.payment?.status ?? "PENDING",
       statutCommande: f.order.status,
     })),

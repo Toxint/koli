@@ -45,6 +45,8 @@ export interface LigneJournal {
   id: string;
   type: TransactionType;
   montant: number;
+  /** La monnaie de CETTE ecriture. L administration en agrege plusieurs. */
+  devise: string;
   taux: number | null;
   date: Date;
   reference: string;
@@ -65,7 +67,12 @@ export interface ResultatJournal {
   lignes: LigneJournal[];
   total: number;
   /** Somme par type, sur l'ENSEMBLE du filtre — pas sur la page affichée. */
-  totauxParType: { type: TransactionType; montant: number; nombre: number }[];
+  totauxParType: {
+    type: TransactionType;
+    devise: string;
+    montant: number;
+    nombre: number;
+  }[];
 }
 
 export async function chargerJournal({
@@ -110,8 +117,11 @@ export async function chargerJournal({
       take: parPage,
     }),
     prisma.transaction.count({ where }),
+    // Groupe par type ET PAR DEVISE : l administration lit les ecritures de
+    // tous les vendeurs, dont les monnaies different. Un total par type seul
+    // additionnerait des francs CFA et des francs congolais.
     prisma.transaction.groupBy({
-      by: ["type"],
+      by: ["type", "currency"],
       where,
       _sum: { amount: true },
       _count: { _all: true },
@@ -123,6 +133,7 @@ export async function chargerJournal({
       id: l.id,
       type: l.type,
       montant: l.amount,
+      devise: l.currency,
       taux: l.rate,
       date: l.createdAt,
       reference: l.order.reference,
@@ -133,6 +144,7 @@ export async function chargerJournal({
     totauxParType: parType
       .map((g) => ({
         type: g.type,
+        devise: g.currency,
         montant: g._sum.amount ?? 0,
         nombre: g._count._all,
       }))
@@ -162,6 +174,7 @@ export async function chargerJournalCommande(
     id: l.id,
     type: l.type,
     montant: l.amount,
+    devise: l.currency,
     taux: l.rate,
     date: l.createdAt,
     reference: l.order.reference,

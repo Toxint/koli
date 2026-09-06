@@ -1,7 +1,8 @@
 import Link from "next/link";
 import type { LigneJournal } from "@/lib/finance/journal";
 import { LIBELLES_TYPE, EXPLICATIONS } from "@/lib/finance/journal";
-import { formatCFA } from "@/lib/format";
+import { formatMontant } from "@/lib/format";
+import { commeDevise, type Devise } from "@/data/markets";
 import { Icone } from "@/components/ui/Icone";
 
 /**
@@ -18,13 +19,13 @@ function classesMontant(montant: number) {
   return montant < 0 ? "text-danger" : "text-brand";
 }
 
-function Signe({ montant }: { montant: number }) {
+function Signe({ montant, devise }: { montant: number; devise: Devise }) {
   // Le signe est explicite des deux côtés. Un « 2 500 FCFA » sans signe, sur
   // une ligne de commission, se lit comme une recette du vendeur alors que
   // c'est une retenue.
   return (
     <span className={`font-semibold tabular-nums ${classesMontant(montant)}`}>
-      {montant < 0 ? "−" : "+"} {formatCFA(Math.abs(montant))}
+      {montant < 0 ? "−" : "+"} {formatMontant(Math.abs(montant), devise)}
     </span>
   );
 }
@@ -117,7 +118,7 @@ export function TableauJournal({
           </div>
 
           <div className="sm:text-right shrink-0">
-            <Signe montant={l.montant} />
+            <Signe devise={commeDevise(l.devise)} montant={l.montant} />
             <span className="block text-[11px] text-ink-muted mt-0.5">
               <time dateTime={l.date.toISOString()}>
                 {dateCourte.format(l.date)}
@@ -140,21 +141,26 @@ export function TableauJournal({
 export function TotauxJournal({
   totaux,
 }: {
-  totaux: { type: LigneJournal["type"]; montant: number; nombre: number }[];
+  totaux: {
+    type: LigneJournal["type"];
+    devise: string;
+    montant: number;
+    nombre: number;
+  }[];
 }) {
   if (totaux.length === 0) return null;
 
   return (
     <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
       {totaux.map((t) => (
-        <div key={t.type} className="rounded-2xl border border-hairline p-4">
+        <div key={`${t.type}-${t.devise}`} className="rounded-2xl border border-hairline p-4">
           <span className="block text-[11px] font-semibold uppercase tracking-wider text-ink-muted">
             {LIBELLES_TYPE[t.type]}
           </span>
           <span
             className={`block text-lg font-bold mt-1 tabular-nums ${classesMontant(t.montant)}`}
           >
-            {t.montant < 0 ? "−" : "+"} {formatCFA(Math.abs(t.montant))}
+            {t.montant < 0 ? "−" : "+"} {formatMontant(Math.abs(t.montant), commeDevise(t.devise))}
           </span>
           <span className="block text-[11px] text-ink-muted mt-0.5">
             {t.nombre} écriture{t.nombre > 1 ? "s" : ""}

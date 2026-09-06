@@ -64,6 +64,15 @@ export interface PaymentIntent {
   status: PaymentIntentStatus;
   /** Montant en unités entières de la devise (FCFA, pas de centimes). */
   amount: number;
+  /**
+   * La devise DU PRESTATAIRE, quand il la communique.
+   *
+   * Elle peut differer de celle de la commande : iKeePay convertit dans son
+   * tunnel, et a encaisse 796 CDF pour une commande de 200 XOF. Sans elle,
+   * comparer les deux montants revient a comparer des grandeurs qui ne se
+   * mesurent pas dans la meme unite — ce qui a fait perdre un vrai paiement.
+   */
+  currency?: string;
   /** Motif en clair quand l'état est FAILED. Destiné à être montré au client. */
   failureReason?: string;
   /** Numéro qui a payé, quand le fournisseur le communique. */

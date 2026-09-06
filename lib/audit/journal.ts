@@ -53,6 +53,24 @@ export const ACTIONS_AUDIT = {
   /** Pièce justificative acceptée ou refusée (§37). */
   KYC_DOCUMENT_REVIEWED: "KYC_DOCUMENT_REVIEWED",
 
+  /**
+   * Un rappel du prestataire est arrivé et n'a RIEN produit.
+   *
+   * ┌────────────────────────────────────────────────────────────────────┐
+   * │  Deux vrais paiements ont été perdus le 6 septembre 2026 sans     │
+   * │  laisser la moindre trace.                                         │
+   * └────────────────────────────────────────────────────────────────────┘
+   *
+   * La route répond 200 à un rappel qu'elle écarte — la règle anti-oracle
+   * interdit de révéler qu'une référence est inconnue, donc le refus et le
+   * succès se ressemblent. Le prestataire est satisfait, l'acheteur est
+   * débité, et personne n'apprend rien.
+   *
+   * Consigné SEULEMENT au-delà de la porte du jeton : en deçà, n'importe
+   * qui pourrait remplir le journal en frappant l'adresse.
+   */
+  PAYMENT_CALLBACK_DISCARDED: "PAYMENT_CALLBACK_DISCARDED",
+
   /* ── Équipes de livraison (§5.3) ──
    *
    * Le lien d'invitation vaut droit d'entrée dans l'équipe d'un vendeur : qui
@@ -125,6 +143,7 @@ export async function consigner(
 
 /** Libellés français des actions, pour l'écran de consultation. */
 export const LIBELLES_ACTION: Record<string, string> = {
+  PAYMENT_CALLBACK_DISCARDED: "Rappel de paiement écarté",
   COMMISSION_RATE_SET: "Taux de commission modifié",
   COMMISSION_SUSPENDED: "Commission suspendue",
   ACCOUNT_STATUS_SET: "Statut de compte modifié",

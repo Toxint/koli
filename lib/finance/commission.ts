@@ -85,7 +85,22 @@ export async function tauxCommissionActif(
  */
 export async function preleverCommission(
   tx: Prisma.TransactionClient,
-  { orderId, assiette }: { orderId: string; assiette: number }
+  {
+    orderId,
+    assiette,
+    devise,
+  }: {
+    orderId: string;
+    assiette: number;
+    /**
+     * La monnaie de la commande.
+     *
+     * Elle est passee plutot que relue : cette fonction s execute DANS la
+     * transaction qui libere les fonds, et une lecture de plus y ajouterait
+     * un aller-retour au moment ou la base tient deja des verrous.
+     */
+    devise: string;
+  }
 ): Promise<Prelevement> {
   const taux = await tauxCommissionActif(tx);
   const montant = calculerCommission(assiette, taux);
@@ -96,6 +111,7 @@ export async function preleverCommission(
     data: {
       orderId,
       type: "COMMISSION",
+      currency: devise,
       // Signe négatif : c'est un débit du point de vue du vendeur. La
       // convention de `Transaction.amount` est « + crédit / − débit ».
       amount: -montant,

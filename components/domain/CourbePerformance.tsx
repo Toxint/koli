@@ -1,7 +1,8 @@
 "use client";
 
 import { useId, useRef, useState } from "react";
-import { formatCFA } from "@/lib/format";
+import { formatMontant } from "@/lib/format";
+import { type Devise } from "@/data/markets";
 
 export interface PointCourbe {
   /** Jour, déjà mis en forme par le serveur — « lun. 12 ». */
@@ -172,10 +173,19 @@ function cheminLisse(pts: { x: number; y: number }[]): string {
  */
 export function CourbePerformance({
   points,
+  devise,
   couleur,
   libelle,
 }: {
   points: PointCourbe[];
+  /**
+   * La monnaie de la courbe.
+   *
+   * Le composant sert au vendeur ET au livreur, qui n ont pas forcement la
+   * meme : un livreur peut travailler pour des vendeurs de pays differents.
+   * Il ne la devine donc pas, on la lui donne.
+   */
+  devise: Devise;
   /**
    * Teinte de la série — trait ET remplissage, une seule valeur.
    *
@@ -318,7 +328,7 @@ export function CourbePerformance({
           viewBox={`0 0 ${L} ${H}`}
           className="h-auto w-full touch-none overflow-visible"
           role="img"
-          aria-label={`${libelle}. Total sur la période : ${formatCFA(total)}. Le détail figure dans le tableau qui suit.`}
+          aria-label={`${libelle}. Total sur la période : ${formatMontant(total, devise)}. Le détail figure dans le tableau qui suit.`}
           onMouseMove={vide ? undefined : surDeplacement}
           onMouseLeave={() => setSurvole(null)}
         >
@@ -498,7 +508,7 @@ export function CourbePerformance({
               {actif.etiquetteLongue}
             </span>
             <span className="block font-bold text-heading">
-              {formatCFA(actif.valeur)}
+              {formatMontant(actif.valeur, devise)}
             </span>
           </div>
         )}
@@ -532,7 +542,7 @@ export function CourbePerformance({
               <tr key={p.etiquetteLongue} className="border-t border-hairline">
                 <td className="py-1">{p.etiquetteLongue}</td>
                 <td className="py-1 text-right tabular-nums">
-                  {formatCFA(p.valeur)}
+                  {formatMontant(p.valeur, devise)}
                 </td>
               </tr>
             ))}

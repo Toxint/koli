@@ -7,6 +7,7 @@ import { AuthHeader } from "@/components/ui/AuthHeader";
 import { registerAction } from "@/lib/auth/actions";
 import { BoutonGoogle } from "@/components/ui/BoutonGoogle";
 import { Icone } from "@/components/ui/Icone";
+import { MARCHES, type Marche } from "@/data/markets";
 
 type RoleType = "SELLER" | "DRIVER" | "CLIENT";
 
@@ -50,6 +51,18 @@ export function FormulaireInscription({
   const [vehicle, setVehicle] = useState("");
   const [zone, setZone] = useState("");
   const [city, setCity] = useState("Abidjan");
+  /*
+   * Le pays, DEMANDÉ et non supposé.
+   *
+   * Il était écrit en dur — « Côte d'Ivoire » — pour tout compte créé.
+   * Un commerçant de Kinshasa était donc enregistré comme ivoirien, et
+   * ses prix libellés en francs CFA : quatre fois leur valeur réelle.
+   *
+   * Aucune valeur par défaut ici. La liste s'ouvre sur le premier marché,
+   * mais c'est un choix visible que l'utilisateur peut corriger — pas une
+   * supposition invisible.
+   */
+  const [country, setCountry] = useState(MARCHES[0].name);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -71,6 +84,7 @@ export function FormulaireInscription({
       formData.append("zone", zone);
     }
     if (role === "CLIENT") formData.append("city", city);
+    formData.append("country", country);
 
     // Le jeton part avec l'inscription. `registerAction` le revalide contre la
     // base : entre l'ouverture de cette page et l'envoi du formulaire, le
@@ -404,6 +418,32 @@ export function FormulaireInscription({
                 </p>
               </div>
             )}
+
+            <div>
+              <label
+                htmlFor="country"
+                className="block text-xs font-semibold text-brand dark:text-slate-300 uppercase tracking-wider mb-1.5"
+              >
+                Pays
+              </label>
+              <select
+                id="country"
+                autoComplete="country-name"
+                value={country}
+                onChange={(e) => setCountry(e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-hairline dark:border-slate-700 bg-white dark:bg-slate-800 text-brand dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand-border transition-all text-sm"
+              >
+                {MARCHES.map((marche: Marche) => (
+                  <option key={marche.code} value={marche.name}>
+                    {marche.name}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-ink-muted">
+                Il détermine la monnaie de vos prix et les opérateurs proposés à
+                vos acheteurs.
+              </p>
+            </div>
 
             {role === "CLIENT" && (
               <div>

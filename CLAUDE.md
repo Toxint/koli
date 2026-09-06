@@ -235,15 +235,21 @@ le défaut qui rendait tout le reste inutile : le rappel notait le paiement et
 (`lib/payments/aboutissement.ts`), et le schéma connaît enfin iKeePay
 (migration `20260902110753_fournisseur_ikeepay`). Voir §8.
 
-Ce qui manque pour un essai réel, dans l'ordre :
+**Les trois conditions de l'essai réel sont remplies depuis le 6 septembre
+2026** : les clefs sont posées, `koli-essai.vercel.app` est joignable, et
+l'adresse de rappel est déclarée chez eux. Deux vrais paiements sont arrivés —
+`KOLI-B68YSD5C` (1 000 CDF) et `KOLI-E5ZNYA6R` (200 XOF), tous deux
+`FUNDS_SECURED`, factures `FAC-2026-000001` et `FAC-2026-000002`.
 
-1. **Les deux clefs iKeePay**, à coller dans `.env.local` — les lignes y sont,
-   vides. `IKEEPAY_WEBHOOK_TOKEN` et `CRON_SECRET` sont déjà tirés au sort.
-2. **Une adresse joignable depuis Internet.** Sur `localhost`, iKeePay
-   encaisse et poste son rappel dans le vide : le client est débité, la
-   commande reste figée, et le rattrapage ne peut pas la sauver.
-3. **L'adresse de rappel déclarée dans leur tableau de bord** —
-   `npm run ikeepay:verifier -- --avec-jeton` l'affiche.
+⚠ **Les deux ont d'abord été PERDUS**, chacun pour une raison différente et
+toutes deux muettes : `providerRef` jamais écrit en mode réel, et une règle de
+montant qui comparait des devises différentes. Les deux sont corrigés, et un
+rappel écarté laisse désormais une trace. Voir §8 — ces trois sections sont les
+plus importantes du fichier pour qui reprend l'encaissement.
+
+⚠ **La production reste en `test`.** Seul le site d'essai encaisse pour de
+vrai, et les deux sites se ressemblent : le seul repère visible est la mention
+« mode test », absente de l'essai.
 
 Marche à suivre complète : `docs/deploiement.md`, §5 ter.
 
@@ -254,6 +260,10 @@ qu'on peut garantir en production.
 
 Restent ouverts et dépendent aussi d'eux : le versement au vendeur, le
 remboursement automatique.
+
+⚠ **Le versement au vendeur est BLOQUÉ par une décision, pas par du code** :
+iKeePay règle en dollars, pas dans la monnaie encaissée, et `Fund.amount`
+suppose le contraire. Ne rien construire avant d'avoir tranché — voir §8.
 
 ---
 
@@ -353,13 +363,15 @@ npm run secrets:generer      # les secrets qu'on ne choisit pas à la main
 npm run ikeepay:verifier     # la configuration iKeePay tient-elle ?
 npm run ikeepay:repetition   # la chaîne réelle, sans un franc (mode ikeepay requis)
 npm run supabase:registre    # le registre en ligne porte-t-il des ecritures FABRIQUEES ?
+npm run ikeepay:surveiller   # attendre un vrai paiement et dire ce qui arrive
+npm run admin:motdepasse     # changer le mot de passe administrateur, en local ou en ligne
 ```
 
 34 commandes `verif:*` au total. Elles pilotent un **vrai navigateur**
 (Playwright) contre le **vrai serveur** et lisent la **vraie base**. Un écran
 peut mentir sans que la base bouge, et l'inverse.
 
-**297 tests unitaires** par ailleurs (`npm test`, Vitest).
+**332 tests unitaires** par ailleurs (`npm test`, Vitest).
 
 ---
 
@@ -1308,6 +1320,297 @@ L'essai du 2 septembre a été joué sur `koli-zeta.vercel.app`, la production, 
 mode test — d'où « ça fonctionne toujours en mode test ». Le seul repère visible
 est la mention « mode test » : le site d'essai n'en porte aucune.
 
+### Le premier vrai encaissement, et les deux défauts qu'il a révélés
+
+Le 6 septembre 2026, 1 000 CDF ont été encaissés pour de vrai sur
+`KOLI-B68YSD5C`. Le tableau de bord iKeePay affichait **COMPLETED**. KOLI n'en
+a rien su.
+
+**`providerRef` n'est JAMAIS écrit en mode réel.**
+
+En mode test, `simulatePaymentAction` l'enregistre après `initiate()`. En mode
+réel, le tunnel n'a **aucun appel serveur à l'initiation** : `adresseDuTunnel`
+bâtit une adresse et jette la référence. Personne ne l'écrit, jamais.
+
+La route de rappel cherchait le paiement par ce champ. Elle ne trouvait
+personne, et répondait **200 sans rien faire** — la règle anti-oracle interdit
+de révéler qu'une référence est inconnue, donc le refus et le succès se
+ressemblent. Un défaut totalement muet, sur le chemin par lequel arrive tout
+l'argent.
+
+Elle résout désormais aussi par la **référence de commande** — chez iKeePay les
+deux sont la même chaîne — et note la référence manquante au passage, pour
+qu'un rapprochement à la main reste possible.
+
+⚠ **`verif:rappel` ne pouvait pas le voir : sa fixture posait un `providerRef`
+que la production n'écrit pas.** Un test plus gentil que la réalité ne protège
+de rien. Le contrôle 10 part maintenant d'un paiement à `providerRef` NUL —
+l'état réel — et vérifie qu'il aboutit quand même. Falsifié en neutralisant le
+second chemin : il reproduit exactement la panne du jour, « rappel accepté »
+suivi d'un paiement resté en attente.
+
+### « Le montant doit correspondre » — mais dans quelle monnaie ?
+
+Second vrai paiement perdu le 6 septembre 2026, et pour une autre raison que le
+premier.
+
+La commande valait **200 XOF**. iKeePay a converti dans son tunnel et encaissé
+**796 CDF**. La règle 4 comparait `intent.amount` à `paiement.amount` — 796
+contre 200 — et jetait le rappel :
+
+```
+{ "recu": true, "traite": false }
+```
+
+Un 200 poli, aucune trace, et un acheteur débité pendant que le vendeur ne
+voyait rien. La règle est nécessaire — sans elle, un rappel forgé attribuerait
+n'importe quelle somme à n'importe quelle commande — mais elle comparait des
+grandeurs qui ne se mesurent pas dans la même unité.
+
+**Même devise → comparaison exacte, inchangée. Devises différentes → conversion
+et tolérance de ±25 %.** La bande est large exprès : leur taux n'est pas le
+nôtre (1,8 % d'écart mesuré), il inclut leur marge, il bouge entre l'affichage
+et le prélèvement, et l'arrondi pèse lourd sur de petits montants. Ce qu'elle
+attrape encore, c'est un écart d'ordre de grandeur — éprouvé en production : 40
+000 CDF et 400 CDF refusés pour une commande de 1 000 XOF, 4 050 et 3 900
+acceptés.
+
+⚠ **Taux indisponible ⇒ on NE REJETTE PAS.** Faire dépendre l'aboutissement d'un
+vrai paiement d'une API de change tierce coûterait un client débité pour rien.
+Le jeton et la référence restent la porte.
+
+**`Payment.collectedAmount` / `collectedCurrency`** retiennent désormais ce qui
+a été RÉELLEMENT prélevé. `amount` reste le montant de la commande : les deux
+sont vrais et ne se remplacent pas — l'un est ce que le vendeur recevra, l'autre
+ce qui a quitté le compte de l'acheteur. Sans eux, le second chiffre n'existait
+nulle part, et rapprocher notre registre de leur relevé était impossible.
+
+### Un rappel écarté LAISSE UNE TRACE
+
+C'est le silence qui a coûté les deux paiements du 6 septembre 2026, pas les
+deux défauts eux-mêmes.
+
+La route répond **200 à un rappel qu'elle jette**. La règle anti-oracle
+l'impose : révéler qu'une référence est inconnue apprendrait à qui sonde
+l'adresse quelles commandes existent. Conséquence — le refus et le succès se
+ressemblent, le prestataire est satisfait, l'acheteur est débité, et personne
+n'apprend rien. Il a fallu lire les journaux de l'hébergeur pour seulement
+SAVOIR que les rappels étaient arrivés.
+
+Les quatre points de rejet consignent désormais au journal d'audit, sous
+`PAYMENT_CALLBACK_DISCARDED`, avec leur motif et ce que le rappel réclamait :
+
+| Motif | Ce qu'on note en plus |
+|---|---|
+| aucun paiement ne porte cette référence | — |
+| montant différent, même monnaie | montant attendu, devise de la commande |
+| montant hors tolérance après conversion | équivalent calculé, écart en % |
+| paiement déjà conclu | statut actuel |
+| statut sans correspondance | — |
+
+Trois décisions qui se déferaient sans être écrites :
+
+- **La réponse reste indifférenciée.** Le contrôle anti-oracle est toujours là
+  et il a raison. Ce qui change, c'est que NOUS savons.
+- **Rien n'est consigné en deçà de la porte du jeton.** Sinon n'importe qui
+  remplirait le journal en frappant l'adresse.
+- **Une panne d'écriture du journal ne change pas la réponse.** Le prestataire
+  rejouerait, sans que cela répare quoi que ce soit.
+
+⚠ `verif:rappel` **exige cette trace** : qu'elle existe, qu'elle dise pourquoi,
+et qu'elle dise ce qui était réclamé. Sans ce contrôle, la ligne se perdrait au
+premier remaniement — et le silence reviendrait, ce qui est exactement comment
+ce défaut est né.
+
+⚠ **Ce contrôle a d'abord été écrit de travers, et seule la falsification l'a
+montré.** Il cherchait la trace d'une référence FIXE. Le journal d'audit n'étant
+pas vidé entre deux campagnes, il retrouvait celle laissée par l'exécution
+précédente et restait **vert alors que la consignation était désactivée**. Un
+contrôle qui ne peut pas échouer ne protège rien (§8), et celui-là ne le
+pouvait pas.
+
+La référence porte désormais un horodatage : la trace ne peut venir que de
+CETTE exécution. Falsifié de nouveau, il rend « 0 trace(s) ».
+
+**La leçon dépasse ce fichier :** un contrôle qui lit une table CUMULATIVE doit
+s'assurer que ce qu'il y lit vient de lui. Le journal d'audit survit d'une
+campagne à l'autre, comme les comptes et les commandes — et c'est précisément
+ce qui rend son témoignage trompeur si on ne le date pas.
+
+### Un vendeur sans pays vend en francs CFA sans l'avoir choisi
+
+`deviseDuVendeur(null)` retombe sur XOF. C'est correct pour les comptes créés
+avant que `SellerProfile.country` n'existe — ils étaient tous ivoiriens, le pays
+ayant été écrit en dur à l'inscription — mais cela reste un repli.
+
+Le 6 septembre 2026, les deux comptes vendeurs de Supabase étaient dans ce cas,
+et leurs commandes sortaient en francs CFA pour des acheteurs de Kinshasa. Leur
+pays a été renseigné à la main (RDC) ; leurs commandes ANTÉRIEURES gardent leur
+devise, un registre ne se relit pas.
+
+⚠ **À vérifier après toute reprise de données** : un vendeur sans pays est un
+vendeur dont les prix ne sont peut-être pas dans la monnaie qu'il croit.
+
+### L'ordre des déploiements, appris à mes dépens
+
+La migration `devise-exigee` retire la valeur par défaut de
+`Transaction.currency`, pour que le compilateur exige la devise à chaque
+écriture. Elle a été appliquée à Supabase **avant** que le code correspondant
+soit déployé.
+
+Résultat immédiat : le rappel du prestataire a répondu **500**. Le code déployé
+n'écrivait pas la colonne, devenue `NOT NULL` sans défaut.
+
+C'est exactement ce que le §4 annonce — « une migration appliquée à Supabase ne
+suffit pas, le code déployé doit suivre » — et je l'ai fait dans le mauvais
+ordre, sur un vrai paiement.
+
+**La règle, formulée pour ne plus s'y tromper :** une migration qui RESSERRE une
+contrainte (`NOT NULL`, retrait d'un défaut, clé étrangère) se déploie APRÈS le
+code ; une migration qui ÉLARGIT (colonne ajoutée, contrainte levée) se déploie
+AVANT. Le sens est toujours le même : à aucun instant le code en ligne ne doit
+violer le schéma en ligne.
+
+⚠ Le défaut a été rétabli en urgence pour débloquer, et il a **immédiatement**
+produit deux écritures en XOF sur une commande en CDF — corrigées depuis la
+commande. La démonstration la plus nette de pourquoi ce défaut ne doit pas
+exister : il ne se trompe pas de temps en temps, il se trompe tout de suite.
+
+### iKeePay règle en DOLLARS, pas dans la monnaie encaissée
+
+Les 1 000 CDF encaissés ont été crédités **0,45 USD** au portefeuille. Le
+portefeuille CDF est resté à zéro.
+
+Sur le taux, rien à conclure : 1 000 CDF valent 0,436 USD au marché, ils ont
+crédité 0,45 — trois pour cent d'écart, probablement l'arrondi à deux décimales
+sur un montant minuscule. Il faudra une vraie vente pour juger.
+
+**Mais le fait structurel ouvre un trou dans le modèle.** KOLI dit au vendeur
+« 1 000 FC sous séquestre » ; la somme réellement détenue est en dollars, et sa
+valeur en francs congolais bouge entre le séquestre et le versement. Quelqu'un
+porte un risque de change que personne n'a choisi de porter.
+
+`Fund.amount` est un entier dans la monnaie de la commande, et suppose que
+l'argent est détenu dans cette monnaie. Il ne l'est pas.
+
+Trois issues, et le choix appartient à l'utilisateur — mais la première question
+est de savoir si iKeePay permet d'être crédité en CDF (leur portefeuille a une
+case CDF, restée vide). Posée par courriel le 6 septembre 2026. À défaut : KOLI
+absorbe l'écart et garantit le montant, ou le vendeur reçoit ce que les dollars
+valent au versement — auquel cas il faut le dire à l'inscription, pas au moment
+de payer.
+
+⚠ **Ne pas construire le versement au vendeur avant d'avoir tranché.**
+
+### Les notifications n'allaient NULLE PART
+
+`notifier()` écrivait une ligne dans `Notification`, visible dans l'écran des
+notifications de KOLI. C'est tout ce qu'elle faisait. Un vendeur qui ne rouvre
+pas l'application de la journée ne savait pas qu'il avait vendu — et le §44 dit
+que c'est LE moment à annoncer.
+
+`lib/notifications/courriel.ts` est le pont entre la ligne écrite et la boîte du
+destinataire. `lib/notifications/textes.ts` porte les phrases, et rien d'autre.
+
+**Resend, par `fetch` et sans SDK.** Leur API est un seul POST ; le SDK ajoute
+une dépendance à installer, mettre à jour et auditer pour ce que trente lignes
+font ici — et chaque kilo-octet du serveur se paie au démarrage à froid, sur un
+public à réseau lent (§70).
+
+**Un sous-domaine dédié : `koli.premiummarketafrica.com`.** La réputation d'envoi
+se construit par domaine. Si KOLI tombe un jour sur des adresses invalides, c'est
+`koli.` qui en souffre — pas le domaine racine, ni le second projet qui s'en sert.
+DKIM, SPF et DMARC sont posés chez Hostinger et vérifiés chez Resend ; sans le
+`_dmarc`, les deux premiers essais sont arrivés dans les indésirables.
+
+Sept décisions, et chacune se déferait sans être écrite :
+
+- **AUCUN montant dans le courriel du livreur, et c'est le §25.** Il ne doit
+  jamais voir la valeur de ce qu'il transporte : un livreur qui sait qu'il porte
+  400 000 FCFA ne fait pas le même trajet. La règle était déjà tenue à l'écran
+  (`verif:courbes`) ; un courriel est un écran de plus, et celui qui voyage le
+  mieux — il se montre, se transfère, se lit par-dessus l'épaule.
+- **La commission n'est jamais nommée.** Décision de l'utilisateur, le 6
+  septembre 2026. Le chiffre annoncé est celui que le vendeur touche, vrai sans
+  réserve ; le détail de ce qui a été retenu vit dans son solde (§40), où il se
+  regarde posément plutôt que de s'apprendre dans un courriel.
+- **Les montants sont LUS dans le registre, jamais recalculés.** Le séquestre
+  vient de `Fund`, le règlement de `Payment`, le net libéré de la somme des
+  écritures `FUNDS_RELEASED` et `COMMISSION` — qui est négative, donc s'additionne.
+  Refaire le calcul, c'est se donner une seconde chance de se tromper, et l'écart
+  ne se verrait que dans la boîte du vendeur.
+- **Registre muet ⇒ phrase sans chiffre, et elle reste correcte.** Chaque texte
+  est écrit pour tenir debout sans montant. Un test éprouve l'absence de
+  deux-points orphelin, d'espace avant un point et de double espace — les marques
+  d'un gabarit dont un morceau a disparu.
+- **Aucun lien cliquable.** Décision de l'utilisateur. Un courriel qui apprend
+  une vente et pousse à cliquer ressemble exactement à celui qui l'imite ; le
+  destinataire ouvre KOLI par où il a l'habitude.
+- **Hors de la transaction, et après la réponse.** `after()` de Next : l'acheteur
+  ne patiente pas derrière Resend, et la transaction est déjà close quand le
+  courriel part. **Un courriel parti ne se rappelle pas** — envoyé de l'intérieur,
+  un échec ultérieur laisserait un vendeur prévenu d'une vente qui n'existe pas.
+- **`declencherExpedition()` n'échoue JAMAIS bruyamment.** Hors contexte de
+  requête — un script, un test — `after()` lève. On l'attrape et on ne fait rien :
+  la notification reste en attente, alors qu'une exception ici annulerait le
+  paiement qui vient d'aboutir.
+
+**Les adresses de démonstration ne reçoivent rien.** `koli.ci`, `exemple.ci`,
+`example.com`, `test.local`. Chaque campagne crée des ventes, donc des
+notifications : sans ce garde, elle expédierait une dizaine de courriels vers des
+boîtes inexistantes à chaque passage, et chaque rebond abîme la réputation
+d'envoi — celle qui décide si un vrai vendeur trouve le message dans sa boîte.
+Un expéditeur neuf n'a droit qu'à peu d'erreurs ; les dépenser en tests serait
+dommage.
+
+⚠ **La liste est EXPLICITE, pas une devinette.** Un filtre malin — « les adresses
+contenant *test* » — écarterait un jour le courriel d'un vrai commerçant qui
+s'appelle Testa. Un test le dit.
+
+**Six points déclenchent l'expédition**, et il a fallu les chercher :
+`aboutissement.ts` (vente et paiement confirmé), `assign.ts` (livreur assigné),
+puis `deliveries/actions.ts` (livré), `disputes/actions.ts` (litige ouvert),
+`orders/actions.ts` (fonds libérés) et `refunds/actions.ts` (remboursement).
+
+⚠ **Les quatre derniers manquaient.** Ils s'en remettaient à la tâche de
+rattrapage — qui, sur le forfait Hobby, passe **une fois par jour** (§8). Un
+vendeur réglé à 4 h l'aurait appris à 3 h le lendemain, pour le courriel qui est
+l'aboutissement de toute la promesse KOLI.
+
+⚠ **Sans clef, on ne marque RIEN.** `sentAt` posé sans envoi ferait disparaître
+à jamais des notifications que personne n'a reçues. En revanche une ligne
+inexpédiable — pas d'adresse, pas de texte pour ce type, pas de référence — est
+marquée avec son motif : sinon elle reviendrait à chaque passage et bloquerait la
+file derrière elle.
+
+⚠ **Une notification sans référence de commande n'est pas envoyée.** `entityId`
+est nullable ; le repli sur une chaîne vide produisait « Vous avez une vente — »
+et « la commande . » — un courriel visiblement cassé, adressé à un vrai vendeur,
+sur une application dont le sujet est la confiance.
+
+**Sept types sur douze partent ; cinq sont muets, et c'est un CHOIX.**
+`SANS_COURRIEL` porte les étapes de livraison — colis prêt, ramassé, en route,
+arrivé, réception confirmée. Les écrire ferait quatre courriels de plus par
+commande pour une information que l'acheteur suit dans l'application et qui ne
+lui demande rien ; un service qui écrit trop finit dans les indésirables, et
+emporte les trois messages qui comptaient.
+
+⚠ **La liste existe pour que le registre distingue un CHOIX d'un OUBLI.** Sans
+elle, `sendError` disait « aucun texte pour ce type » dans les deux cas, et la
+prochaine lecture aurait corrigé le choix en croyant réparer l'oubli. Un test
+exige que chaque valeur de l'énumération soit dans l'un ou l'autre, jamais dans
+les deux ni dans aucun : ajouter un type au schéma sans trancher échoue,
+en le nommant. Falsifié en retirant `ARRIVED` de la liste.
+
+**Les textes sont SÉPARÉS de l'expédition** (`textes.ts`) parce qu'ils sont purs :
+aucune base, aucun réseau. `courriel.ts` importe `prisma`, qui exige
+`DATABASE_URL` au chargement — les éprouver aurait demandé une base. Un contrôle
+qu'on ne peut pas lancer est un contrôle qu'on ne lance pas. Douze contrôles dans
+`lib/__tests__/courriels.test.ts`, sans une variable d'environnement.
+
+Falsifié en glissant `${m.sequestre}` dans le message du livreur : le contrôle du
+§25 tombe, seul, en nommant le montant qu'il a trouvé.
+
 ### Les identifiants SQL sont guillemetés
 
 PostgreSQL replie en minuscules tout identifiant non guillemeté : `FROM User`
@@ -1347,6 +1650,15 @@ serait pas une gêne, ce serait une destruction.
 ---
 
 ## 10. Comptes de démonstration
+
+⚠ **Ceux-ci sont LOCAUX.** Ils viennent de `prisma/seed.ts` et n'existent que
+sur le poste. En ligne, l'administrateur est `admin@koli.ci` — même adresse,
+mais **le mot de passe a été choisi par l'utilisateur le 6 septembre 2026** et
+n'est écrit nulle part, ni ici, ni dans le dépôt, ni dans une conversation.
+Pour en poser un autre : `ADMIN_PASSWORD="…" npm run admin:motdepasse`, qui
+écrit sur la base EN LIGNE (`.env` seul) et vérifie que le nouveau rouvre bien
+le compte. On se connecte par `/connexion` comme tout le monde ; c'est le rôle
+porté par le compte qui ouvre `/admin`.
 
 Mot de passe commun : `Password123!`
 

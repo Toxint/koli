@@ -113,10 +113,35 @@ export async function chargerCourbeVendeur(
  * informations financières qui ne le concernent pas, et la valeur des colis
  * qu'il transporte en fait partie.
  */
+/**
+ * Ce que rend la courbe d'un livreur.
+ *
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │  Un livreur peut travailler pour des vendeurs de pays différents.        │
+ * └──────────────────────────────────────────────────────────────────────────┘
+ *
+ * Ses paies sont alors dans plusieurs monnaies, et les additionner sur une même
+ * courbe donnerait une ligne qui ne mesure rien : 5 000 francs CFA et
+ * 5 000 francs congolais ne font pas 10 000 de quoi que ce soit, et le second
+ * vaut le quart du premier.
+ *
+ * La courbe ne retient donc QUE la monnaie dominante, et `melange` dit qu'il y
+ * en avait d'autres. L'écran l'annonce plutôt que de laisser croire à un total
+ * complet — un livreur qui compare sa paie réelle à ce chiffre doit savoir
+ * pourquoi ils diffèrent.
+ */
+export interface CourbeLivreur {
+  points: PointJour[];
+  /** La monnaie retenue. `null` si le livreur n'a aucune paie sur la période. */
+  devise: string | null;
+  /** Vrai si des paies dans d'autres monnaies ont été écartées. */
+  melange: boolean;
+}
+
 export async function chargerCourbeLivreur(
   driverProfileId: string,
   jours = 14
-): Promise<PointJour[]> {
+): Promise<CourbeLivreur> {
   const depuis = minuitMoins(jours - 1);
 
   const lignes = await prisma.transaction.findMany({
@@ -125,15 +150,39 @@ export async function chargerCourbeLivreur(
       createdAt: { gte: depuis },
       order: { delivery: { driverId: driverProfileId } },
     },
-    select: { amount: true, createdAt: true },
+    select: { amount: true, createdAt: true, currency: true },
   });
 
-  const parJour = new Map<string, number>();
+  // La monnaie DOMINANTE, par le montant cumulé et non par le nombre de
+  // courses : dix petites livraisons ne font pas la monnaie principale de
+  // quelqu'un qui gagne l'essentiel sur deux grosses.
+  /*
+   * Une ecriture sans devise ne peut pas exister — la colonne est NOT NULL —
+   * mais si elle existait, la comparaison plus bas les ecarterait TOUTES et
+   * la courbe tomberait a zero sans un mot. On les rattache au franc CFA, qui
+   * est ce que portaient toutes les ecritures d avant la colonne.
+   */
+  const deviseDe = (c: string | null | undefined) => c ?? "XOF";
 
+  const parDevise = new Map<string, number>();
   for (const l of lignes) {
+    const d = deviseDe(l.currency);
+    parDevise.set(d, (parDevise.get(d) ?? 0) + l.amount);
+  }
+
+  const dominante =
+    [...parDevise.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+
+  const parJour = new Map<string, number>();
+  for (const l of lignes) {
+    if (deviseDe(l.currency) !== dominante) continue;
     const cle = cleJour(l.createdAt);
     parJour.set(cle, (parJour.get(cle) ?? 0) + l.amount);
   }
 
-  return serieComplete(jours, parJour);
+  return {
+    points: serieComplete(jours, parJour),
+    devise: dominante,
+    melange: parDevise.size > 1,
+  };
 }

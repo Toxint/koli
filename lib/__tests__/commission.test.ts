@@ -94,6 +94,7 @@ describe("preleverCommission", () => {
 
     const res = await preleverCommission(txMock as never, {
       orderId: "o1",
+      devise: "XOF",
       assiette: 20_000,
     });
 
@@ -116,6 +117,7 @@ describe("preleverCommission", () => {
 
     const res = await preleverCommission(txMock as never, {
       orderId: "o1",
+      devise: "XOF",
       assiette: 20_000,
     });
 
@@ -130,6 +132,7 @@ describe("preleverCommission", () => {
 
     const res = await preleverCommission(txMock as never, {
       orderId: "o1",
+      devise: "XOF",
       assiette: 50,
     });
 
@@ -142,6 +145,7 @@ describe("preleverCommission", () => {
 
     await preleverCommission(txMock as never, {
       orderId: "o1",
+      devise: "XOF",
       assiette: 20_000,
     });
 

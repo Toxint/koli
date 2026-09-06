@@ -247,6 +247,17 @@ model SellerProfile {
   legalName              String?
   kycSubmittedAt         DateTime?
 
+  /// Le pays du vendeur — donc SA DEVISE, donc celle de ses prix.
+  ///
+  /// Il manquait, et cela rendait un defaut d'argent inevitable : la devise
+  /// d'une commande etait prise sur l'ACHETEUR alors que le prix est fixe par
+  /// le VENDEUR. Un vendeur ivoirien vendant 2 000 XOF a un acheteur congolais
+  /// encaissait 2 000 CDF — le quart de son du, sans que rien ne le signale.
+  ///
+  /// Nullable pour les comptes anterieurs, que rien ne peut renseigner
+  /// retroactivement. `deviseDuVendeur` retombe alors sur XOF, et le DIT.
+  country                String?
+
   createdAt              DateTime                 @default(now())
 
   products Product[]
@@ -499,6 +510,19 @@ model Payment {
 
   // Qui a paye, et depuis quel operateur. Necessaire au rapprochement et au
   // support : « je vous ai envoye l argent » se verifie avec ces deux champs.
+  /// Ce que le prestataire a REELLEMENT encaisse, et dans quelle monnaie.
+  ///
+  /// `amount` est le montant de NOTRE commande — 200 XOF. iKeePay a preleve
+  /// 796 CDF, sa propre conversion. Les deux sont vrais, et aucun des deux
+  /// ne remplace l autre : le premier est ce que le vendeur recevra, le
+  /// second ce qui a quitte le compte de l acheteur.
+  ///
+  /// Sans ces colonnes, le second chiffre n existait nulle part. Rapprocher
+  /// notre registre du releve du prestataire etait donc impossible — et
+  /// c est precisement ce qu on fait quand un paiement se perd.
+  collectedAmount   Int?
+  collectedCurrency String?
+
   payerMsisdn      String?
   payerOperator    String?
 
@@ -530,6 +554,29 @@ model Transaction {
   type      TransactionType
   amount    Int             // signé : + crédit / - débit
   createdAt DateTime        @default(now())
+
+  /// La monnaie de cette écriture.
+  ///
+  /// Recopiée depuis la commande, et c'est délibéré : une écriture de grand
+  /// livre doit porter sa propre unité. La lire par jointure obligeait à
+  /// remonter à `Order` pour savoir ce que « 2 000 » veut dire, et rendait
+  /// impossible tout regroupement — `groupBy` ne sait pas sommer un montant
+  /// en le classant par une colonne d'une autre table.
+  ///
+  /// Elle est FIGÉE, comme `rate` juste en dessous et pour la même raison : un
+  /// vendeur qui change de pays ne doit pas voir la monnaie de ses écritures
+  /// passées changer sous lui. Un journal comptable ne se relit pas à la
+  /// lumière des réglages du jour.
+  /// Pas de valeur par defaut, une fois les lignes existantes reprises.
+  ///
+  /// Un defaut « XOF » conviendrait aux donnees d aujourd hui et serait faux
+  /// des la premiere ecriture congolaise — sans qu aucune erreur ne se
+  /// produise nulle part. En le retirant, le compilateur EXIGE la devise a
+  /// chaque creation d ecriture : six sites aujourd hui, et tous ceux qu on
+  /// ajoutera.
+  currency  String
+
+  @@index([type, currency])
 
   // Taux appliqué, figé au moment de l'écriture (§41). Ne concerne que les
   // lignes COMMISSION ; ailleurs il reste nul.
@@ -692,6 +739,28 @@ model Notification {
   entityType String?
   entityId   String?
   createdAt  DateTime         @default(now())
+
+  /// Quand la notification a ete EXPEDIEE hors de l application.
+  ///
+  /// Nulle tant qu elle n existe que dans l ecran des notifications. Un
+  /// vendeur qui ne rouvre pas KOLI de la journee ne sait pas qu il a vendu :
+  /// c est le §44, et c est le moment le plus important a annoncer.
+  ///
+  /// Cette colonne est ce qui rend l envoi REPRENABLE. Sans elle, un incident
+  /// au milieu d une fournee laisserait un doute — a-t-on deja ecrit a
+  /// celui-ci ? — et le choix entre ne rien envoyer ou tout envoyer deux fois.
+  sentAt     DateTime?
+
+  /// Pourquoi l expedition a echoue, quand elle a echoue.
+  ///
+  /// Une adresse invalide, un refus du prestataire, une coupure. Sans ce
+  /// champ, une notification jamais partie ressemble a une notification pas
+  /// encore partie — et on la reessaie indefiniment sans savoir pourquoi.
+  sendError  String?
+
+  /// Les notifications a expedier se lisent par cet index, jamais par un
+  /// balayage : la table grandit d une ligne par evenement et par destinataire.
+  @@index([sentAt, createdAt])
 
   // Le compteur de non-lues est lu à chaque affichage de page, sur toutes les
   // pages de l'espace connecté : sans index, c'est un balayage complet de la

@@ -222,12 +222,15 @@ async function poserLesEcritures(idVendeur, idLivreur) {
 
     for (const [type, montant] of ecritures) {
       await ecrire(
-        `INSERT INTO "Transaction" (id, "orderId", type, amount, "createdAt")
-         VALUES (?, ?, ?::"TransactionType", ?, ?)`,
+        // `currency` est NOT NULL depuis que chaque ecriture porte sa monnaie :
+        // un grand livre qui fait chercher son unite ailleurs n en est pas un.
+        `INSERT INTO "Transaction" (id, "orderId", type, amount, currency, "createdAt")
+         VALUES (?, ?, ?::"TransactionType", ?, ?, ?)`,
         `ctrl-courbe-t-${suffixe}-${n}-${type}`,
         idCommande,
         type,
         montant,
+        "XOF",
         jour(lot.recul)
       );
     }

@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/prisma";
 import { MenuEspace } from "@/components/ui/MenuEspace";
-import { formatCFA } from "@/lib/format";
+import { formatMontant } from "@/lib/format";
+import { deviseDuVendeur } from "@/data/markets";
 import { chargerSoldeVendeur } from "@/lib/finance/solde";
 import { chargerCourbeVendeur } from "@/lib/finance/courbes";
 import { mettreEnForme } from "@/lib/finance/jours";
@@ -18,6 +19,16 @@ export default async function SellerDashboardPage() {
   if (!user || user.role !== "SELLER" || !user.sellerProfile) {
     redirect("/connexion");
   }
+
+  /*
+   * La devise du vendeur, une fois pour tout l'écran.
+   *
+   * Un vendeur a un pays, donc une monnaie ; et depuis que la commande suit
+   * le vendeur et non l'acheteur, TOUTES ses écritures sont dans cette
+   * monnaie. Rien ne se mélange ici — contrairement aux écrans de
+   * l'administration, qui agrègent plusieurs vendeurs.
+   */
+  const devise = deviseDuVendeur(user.sellerProfile.country);
 
   const sellerProfileId = user.sellerProfile.id;
 
@@ -54,7 +65,10 @@ export default async function SellerDashboardPage() {
 
   return (
     <div className="min-h-screen bg-cream text-ink lg:pl-[var(--largeur-menu)]">
-      <MenuEspace user={user} nomAffiche={user.sellerProfile.businessName || user.name} />
+      <MenuEspace
+        user={user}
+        nomAffiche={user.sellerProfile.businessName || user.name}
+      />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-fade-in">
         {/* Banner Or Doré */}
@@ -63,13 +77,15 @@ export default async function SellerDashboardPage() {
 
           <div className="relative z-10">
             <span className="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-white/20 text-white mb-2">
-              <Icone nom="boutique" className="w-3.5 h-3.5" /> Espace vendeur KOLI
+              <Icone nom="boutique" className="w-3.5 h-3.5" /> Espace vendeur
+              KOLI
             </span>
             <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
               Bonjour, {user.sellerProfile.businessName || user.name}
             </h1>
             <p className="text-white/90 text-xs sm:text-sm font-medium mt-1">
-              Gérez vos ventes, générez des liens de paiement sécurisés KOLI et suivez vos livraisons.
+              Gérez vos ventes, générez des liens de paiement sécurisés KOLI et
+              suivez vos livraisons.
             </p>
           </div>
           <div className="flex gap-3 relative z-10">
@@ -97,7 +113,7 @@ export default async function SellerDashboardPage() {
               Fonds sécurisés (test)
             </span>
             <div className="animate-compteur text-2xl font-bold text-brand dark:text-amber-400">
-              {formatCFA(securedAmount)}
+              {formatMontant(securedAmount, devise)}
             </div>
             <p className="text-[11px] text-ink-muted mt-1">
               En attente de confirmation de réception par le client
@@ -109,11 +125,11 @@ export default async function SellerDashboardPage() {
               Solde disponible (test)
             </span>
             <div className="animate-compteur text-2xl font-bold text-brand dark:text-emerald-400">
-              {formatCFA(releasedAmount)}
+              {formatMontant(releasedAmount, devise)}
             </div>
             <p className="text-[11px] text-ink-muted mt-1">
               {solde.commissionRetenue > 0
-                ? `Net de ${formatCFA(solde.commissionRetenue)} de commission KOLI`
+                ? `Net de ${formatMontant(solde.commissionRetenue, devise)} de commission KOLI`
                 : "Libéré après confirmation de réception par le client"}
             </p>
           </div>
@@ -160,11 +176,16 @@ export default async function SellerDashboardPage() {
               </p>
             </div>
             <span className="text-sm font-bold text-brand">
-              {formatCFA(courbe.reduce((s, p) => s + p.valeur, 0))} sur la période
+              {formatMontant(
+                courbe.reduce((s, p) => s + p.valeur, 0),
+                devise,
+              )}{" "}
+              sur la période
             </span>
           </div>
 
           <CourbePerformance
+            devise={devise}
             points={courbe}
             couleur={TEINTE_COURBE}
             libelle="Encaissements nets par jour"
@@ -179,7 +200,8 @@ export default async function SellerDashboardPage() {
                 Commandes récentes
               </h2>
               <p className="text-xs text-ink-muted dark:text-slate-400">
-                Suivi des transactions KOLI<MentionModeTest> (mode test)</MentionModeTest>
+                Suivi des transactions KOLI
+                <MentionModeTest> (mode test)</MentionModeTest>
               </p>
             </div>
             <Link
@@ -197,7 +219,8 @@ export default async function SellerDashboardPage() {
                 Aucune commande enregistrée pour l&apos;instant
               </p>
               <p className="text-xs text-ink-muted mt-1">
-                Créez votre première commande pour générer un lien de paiement KOLI.
+                Créez votre première commande pour générer un lien de paiement
+                KOLI.
               </p>
             </div>
           ) : (
@@ -217,7 +240,7 @@ export default async function SellerDashboardPage() {
               {orders.map((order) => {
                 const totalAmount = order.items.reduce(
                   (acc, item) => acc + item.unitPrice * item.quantity,
-                  order.deliveryFee
+                  order.deliveryFee,
                 );
 
                 return (
@@ -261,7 +284,7 @@ export default async function SellerDashboardPage() {
                         Montant
                       </span>
                       <span className="font-bold whitespace-nowrap">
-                        {formatCFA(totalAmount)}
+                        {formatMontant(totalAmount, devise)}
                       </span>
                     </div>
 
@@ -271,7 +294,8 @@ export default async function SellerDashboardPage() {
                         aria-label={`Ouvrir le lien de paiement de la commande ${order.reference}`}
                         className="inline-flex items-center justify-center w-full md:w-auto min-h-[44px] px-3 rounded-lg bg-brand-soft text-brand hover:bg-brand-soft dark:bg-emerald-950/60 dark:text-emerald-300 text-xs font-bold transition-all"
                       >
-                        <Icone nom="lien" className="w-4 h-4" /> Partager le lien
+                        <Icone nom="lien" className="w-4 h-4" /> Partager le
+                        lien
                       </Link>
                     </div>
                   </li>

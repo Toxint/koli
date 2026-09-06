@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { commeDevise } from "@/data/markets";
+import { commeDevise, deviseDuPays } from "@/data/markets";
+import { equivalentPourLAcheteur } from "@/lib/finance/change";
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/db/prisma";
 import { getCurrentUser } from "@/lib/auth/actions";
@@ -111,6 +112,20 @@ export default async function PayReferencePage({
             dbOrder.reference,
             montantTotal,
             dbOrder.currency
+          )}
+          /*
+           * La conversion se fait sur le SERVEUR.
+           *
+           * Elle appelle une source de taux : la faire dans le navigateur
+           * ajouterait un aller-retour réseau sur un écran de paiement, et
+           * le public visé est sur mobile lent (§70). Elle est mise en cache
+           * une heure — les taux ne bougent pas assez vite pour justifier un
+           * appel par affichage.
+           */
+          equivalent={await equivalentPourLAcheteur(
+            montantTotal,
+            commeDevise(dbOrder.currency),
+            deviseDuPays(dbOrder.buyerCountry)
           )}
         />
 

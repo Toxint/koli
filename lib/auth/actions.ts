@@ -175,6 +175,7 @@ export async function registerAction(
     vehicle: formData.get("vehicle") as string || undefined,
     zone: formData.get("zone") as string || undefined,
     city: formData.get("city") as string || undefined,
+    country: (formData.get("country") as string) || undefined,
   };
 
   const validation = registerSchema.safeParse(rawData);
@@ -223,6 +224,8 @@ export async function registerAction(
           create: {
             businessName: data.businessName || data.name,
             verificationStatus: "PENDING",
+            // Le pays du vendeur fixe la devise de TOUS ses prix.
+            country: data.country ?? null,
           },
         },
       }),
@@ -230,7 +233,15 @@ export async function registerAction(
         customerProfile: {
           create: {
             city: data.city || "Abidjan",
-            country: "Côte d'Ivoire",
+            /*
+             * Le pays DÉCLARÉ, plus « Côte d'Ivoire » en dur.
+             *
+             * Tout compte créé était enregistré comme ivoirien, quel que soit
+             * l'endroit d'où il venait. Sur une plateforme qui dessert
+             * dix-sept pays, c'est une donnée fausse dès l'inscription — et
+             * c'est elle qui décidait de la devise des commandes.
+             */
+            country: data.country ?? null,
           },
         },
       }),

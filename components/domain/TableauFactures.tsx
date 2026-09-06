@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { LigneFactureListe } from "@/lib/invoices/liste";
-import { formatCFA } from "@/lib/format";
+import { formatMontant } from "@/lib/format";
+import { commeDevise } from "@/data/markets";
 import { libelleStatut, classesBadgeStatut } from "@/lib/orders/statusLabels";
 import { Icone } from "@/components/ui/Icone";
 
@@ -91,7 +92,7 @@ export function TableauFactures({
 
           <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0">
             <span className="font-semibold tabular-nums whitespace-nowrap">
-              {formatCFA(f.total)}
+              {formatMontant(f.total, commeDevise(f.devise))}
             </span>
 
             <Link

@@ -6,6 +6,7 @@ import { getCurrentUser } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/prisma";
 import { findTransitionPath } from "@/lib/orders/statusMachine";
 import { partiesDeLaCommande, notifier } from "@/lib/notifications/envoi";
+import { declencherExpedition } from "@/lib/notifications/courriel";
 
 export type ValidateOtpResponse = {
   success: boolean;
@@ -225,6 +226,7 @@ export async function validateDeliveryOtpAction(
             orderId: delivery.orderId,
             type: "DRIVER_PAYOUT",
             amount: delivery.order.deliveryFee,
+            currency: delivery.order.currency,
           },
         });
       }
@@ -242,6 +244,9 @@ export async function validateDeliveryOtpAction(
         exclure: user.id,
       });
     });
+
+    // Le courriel part APRES la reponse (`after`), jamais dans la transaction.
+    await declencherExpedition();
 
     revalidatePath("/livreur/dashboard");
     revalidatePath("/vendeur/dashboard");

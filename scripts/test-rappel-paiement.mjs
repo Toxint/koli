@@ -238,8 +238,18 @@ const rappeler = async (corps, entetes = {}) =>
 
 // ═══════════ 5. Signature valide, reference inconnue : rien ne fuit
 {
+  /*
+   * Une reference UNIQUE a chaque execution.
+   *
+   * Avec une chaine fixe, le controle du journal plus bas retrouvait la trace
+   * laissee par la campagne PRECEDENTE : il restait vert meme quand la
+   * consignation etait desactivee. Falsifie le 6 septembre 2026, il n a rien
+   * vu — un controle qui ne peut pas echouer ne protege rien (§8).
+   */
+  const refInconnue = `reference-inconnue-${Date.now().toString(36)}`;
+
   const corps = JSON.stringify({
-    providerRef: "reference-qui-n-existe-pas",
+    providerRef: refInconnue,
     status: "SUCCEEDED",
     amount: 100,
   });
@@ -256,6 +266,54 @@ const rappeler = async (corps, entetes = {}) =>
     "et ne revele PAS que la reference est inconnue",
     contenu.slice(0, 60)
   );
+
+  /*
+   * MAIS NOUS, on doit le savoir.
+   *
+   * ┌────────────────────────────────────────────────────────────────────────┐
+   * │  Le silence de ce point d entree a coute deux vrais paiements le       │
+   * │  6 septembre 2026.                                                      │
+   * └────────────────────────────────────────────────────────────────────────┘
+   *
+   * La reponse reste indifferenciee — c est ce que le controle precedent
+   * exige, et il a raison : reveler qu une reference est inconnue apprendrait
+   * a qui sonde l adresse quelles commandes existent.
+   *
+   * Mais ne rien dire A PERSONNE est autre chose. Ce jour-la, deux rappels
+   * authentiques ont ete ecartes — l un faute de `providerRef`, l autre parce
+   * que le montant etait libelle dans une autre monnaie — et il a fallu lire
+   * les journaux de l hebergeur pour meme SAVOIR qu ils etaient arrives.
+   *
+   * Le journal d audit porte desormais la trace. Ce controle verifie qu elle
+   * est ecrite : sans lui, la ligne se perdrait au premier remaniement, et le
+   * silence reviendrait.
+   */
+  const traces = await lire(
+    `SELECT metadata FROM "AuditLog"
+      WHERE action = 'PAYMENT_CALLBACK_DISCARDED' AND "entityId" = ?
+      ORDER BY "createdAt" DESC LIMIT 1`,
+    refInconnue
+  );
+
+  verifier(
+    traces.length === 1,
+    "la tentative ecartee est CONSIGNEE au journal",
+    `${traces.length} trace(s)`
+  );
+
+  if (traces.length === 1) {
+    const details = JSON.parse(traces[0].metadata ?? "{}");
+    verifier(
+      typeof details.motif === "string" && details.motif.length > 0,
+      "la trace dit POURQUOI le rappel a ete ecarte",
+      details.motif ?? "aucun motif"
+    );
+    verifier(
+      details.montantRecu === 100,
+      "et ce que le rappel reclamait",
+      String(details.montantRecu)
+    );
+  }
 }
 
 // ═══════════ 6. Un etat inconnu n'entre pas en base
@@ -413,6 +471,72 @@ const rappeler = async (corps, entetes = {}) =>
       "un rappel rejoue n'emet pas une seconde facture",
       `${facturesApres.length}`
     );
+  }
+}
+
+// ═══════════ 10. Un paiement SANS providerRef aboutit quand meme
+//
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │  C EST LE DEFAUT QUI A FAIT PERDRE UN VRAI PAIEMENT, le 6 septembre     │
+// │  2026. Ce fichier ne pouvait pas le voir : sa fixture posait un         │
+// │  `providerRef` que le mode reel n ecrit jamais.                          │
+// └──────────────────────────────────────────────────────────────────────────┘
+//
+// En mode test, `simulatePaymentAction` enregistre `providerRef` apres avoir
+// appele `initiate()`. En mode reel, le tunnel iKeePay n a AUCUN appel serveur
+// a l initiation : `adresseDuTunnel` batit une adresse et jette la reference.
+// Personne ne l ecrit, jamais.
+//
+// La route cherchait le paiement par ce champ, ne trouvait personne, et
+// repondait 200 sans rien faire — la regle anti-oracle interdisant de reveler
+// qu une reference est inconnue. Un vrai paiement de 1 000 FC a abouti chez
+// iKeePay pendant que KOLI n en savait rien, et rien nulle part ne l a signale.
+//
+// Un test plus gentil que la production ne protege de rien.
+{
+  const cible = await preparerPaiementEnAttente(true);
+
+  if (!cible) {
+    verifier(false, "une fixture existe pour eprouver l absence de providerRef");
+  } else {
+    // On remet le champ a NUL : c est l etat d un paiement reel avant rappel.
+    await ecrire('UPDATE "Payment" SET "providerRef" = NULL WHERE id = ?', cible.id);
+
+    const avant = (
+      await lire('SELECT "providerRef" FROM "Payment" WHERE id = ?', cible.id)
+    )[0];
+    verifier(
+      avant.providerRef === null,
+      "le paiement part sans reference fournisseur, comme en mode reel"
+    );
+
+    // Le rappel porte la REFERENCE DE COMMANDE — c est ce qu iKeePay renvoie.
+    const corps = JSON.stringify({
+      providerRef: cible.reference,
+      status: "SUCCEEDED",
+      amount: cible.amount,
+    });
+    const r = await rappeler(corps, { "x-koli-signature": signer(corps) });
+    verifier(r.status === 200, "le rappel est accepte", `statut ${r.status}`);
+
+    const apres = (
+      await lire('SELECT status, "providerRef" FROM "Payment" WHERE id = ?', cible.id)
+    )[0];
+    verifier(
+      apres.status === "SUCCEEDED",
+      "LE PAIEMENT ABOUTIT MALGRE L ABSENCE DE providerRef",
+      apres.status
+    );
+    verifier(
+      apres.providerRef === cible.reference,
+      "et la reference du fournisseur est notee au passage",
+      apres.providerRef ?? "toujours nulle"
+    );
+
+    const fonds = (
+      await lire('SELECT secured FROM "Fund" WHERE "orderId" = ?', cible.orderId)
+    )[0];
+    verifier(fonds?.secured === true, "les fonds sont mis sous sequestre");
   }
 }
 

@@ -5,6 +5,7 @@ import { DeliveryStatus, OrderStatus } from "@prisma/client";
 import { getCurrentUser } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/prisma";
 import { partiesDeLaCommande, notifier } from "@/lib/notifications/envoi";
+import { declencherExpedition } from "@/lib/notifications/courriel";
 
 export type AssignDriverResult =
   | { success: true; driverName: string }
@@ -235,6 +236,10 @@ export async function assignDriverAction(
       exclure: user.id,
     });
   });
+
+  // Le livreur apprend qu on lui confie un colis. Sans cela il devait ouvrir
+  // l application et regarder — pour un metier qui se fait sur la route.
+  await declencherExpedition();
 
   revalidatePath("/vendeur/commandes");
   revalidatePath("/vendeur/dashboard");

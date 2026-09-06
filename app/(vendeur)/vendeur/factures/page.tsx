@@ -6,7 +6,8 @@ import { BarreRecherche } from "@/components/ui/BarreRecherche";
 import { Pagination } from "@/components/ui/Pagination";
 import { chargerFacturesVendeur } from "@/lib/invoices/liste";
 import { TableauFactures } from "@/components/domain/TableauFactures";
-import { formatCFA, pluriel } from "@/lib/format";
+import { formatMontant, pluriel } from "@/lib/format";
+import { deviseDuVendeur } from "@/data/markets";
 import { MentionModeTest } from "@/components/ui/MentionModeTest";
 
 export const metadata: Metadata = { title: "Factures" };
@@ -22,6 +23,16 @@ export default async function FacturesVendeurPage({
   if (!user || user.role !== "SELLER" || !user.sellerProfile) {
     redirect("/connexion");
   }
+
+  /*
+   * La devise du vendeur, une fois pour tout l'écran.
+   *
+   * Un vendeur a un pays, donc une monnaie ; et depuis que la commande suit
+   * le vendeur et non l'acheteur, TOUTES ses écritures sont dans cette
+   * monnaie. Rien ne se mélange ici — contrairement aux écrans de
+   * l'administration, qui agrègent plusieurs vendeurs.
+   */
+  const devise = deviseDuVendeur(user.sellerProfile.country);
 
   const { q, page: pageBrute } = await searchParams;
   const page = Math.max(1, Number(pageBrute) || 1);
@@ -64,7 +75,7 @@ export default async function FacturesVendeurPage({
               Montant facturé (test)
             </span>
             <div className="text-2xl font-bold text-brand">
-              {formatCFA(factures.montantTotal)}
+              {formatMontant(factures.montantTotal, devise)}
             </div>
             {/* Ce chiffre inclut les frais de livraison — c'est le total réglé
                 par le client, donc ce que porte la pièce. Il ne se confond pas

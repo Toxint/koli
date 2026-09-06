@@ -11,7 +11,8 @@ import {
   TableauJournal,
   TotauxJournal,
 } from "@/components/domain/TableauJournal";
-import { formatCFA, pluriel } from "@/lib/format";
+import { formatMontant, pluriel } from "@/lib/format";
+import { deviseDuVendeur } from "@/data/markets";
 import { Icone } from "@/components/ui/Icone";
 import { MentionModeTest } from "@/components/ui/MentionModeTest";
 
@@ -35,6 +36,16 @@ export default async function TransactionsVendeurPage({
     redirect("/connexion");
   }
 
+  /*
+   * La devise du vendeur, une fois pour tout l'écran.
+   *
+   * Un vendeur a un pays, donc une monnaie ; et depuis que la commande suit
+   * le vendeur et non l'acheteur, TOUTES ses écritures sont dans cette
+   * monnaie. Rien ne se mélange ici — contrairement aux écrans de
+   * l'administration, qui agrègent plusieurs vendeurs.
+   */
+  const devise = deviseDuVendeur(user.sellerProfile.country);
+
   const { q, type: typeBrut, page: pageBrute } = await searchParams;
   const page = Math.max(1, Number(pageBrute) || 1);
   const type = typeValide(typeBrut);
@@ -51,7 +62,10 @@ export default async function TransactionsVendeurPage({
 
   return (
     <div className="min-h-screen bg-cream text-ink lg:pl-[var(--largeur-menu)]">
-      <MenuEspace user={user} nomAffiche={user.sellerProfile.businessName || user.name} />
+      <MenuEspace
+        user={user}
+        nomAffiche={user.sellerProfile.businessName || user.name}
+      />
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
         <div>
@@ -76,11 +90,12 @@ export default async function TransactionsVendeurPage({
             />
             <p className="text-xs text-ink">
               <span className="font-semibold">
-                {formatCFA(solde.commissionRetenue)} de commission KOLI
+                {formatMontant(solde.commissionRetenue, devise)} de commission
+                KOLI
               </span>{" "}
-              ont été retenus sur {formatCFA(solde.brutLibere)} de fonds
-              libérés. La commission n&apos;est prélevée qu&apos;au moment où
-              l&apos;argent vous est versé : une commande remboursée ne vous
+              ont été retenus sur {formatMontant(solde.brutLibere, devise)} de
+              fonds libérés. La commission n&apos;est prélevée qu&apos;au moment
+              où l&apos;argent vous est versé : une commande remboursée ne vous
               coûte rien.
             </p>
           </div>
@@ -96,7 +111,7 @@ export default async function TransactionsVendeurPage({
               libelle: "Filtrer par nature d'écriture",
               libelleTous: "Toutes les natures",
               options: Object.entries(LIBELLES_TYPE).map(
-                ([valeur, libelle]) => ({ valeur, libelle })
+                ([valeur, libelle]) => ({ valeur, libelle }),
               ),
             },
           ]}

@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth/actions";
 import { MenuEspace } from "@/components/ui/MenuEspace";
-import { formatCFA } from "@/lib/format";
+import { formatMontant } from "@/lib/format";
+import { deviseDuVendeur } from "@/data/markets";
 import { chargerSoldeVendeur } from "@/lib/finance/solde";
 import { chargerJournal } from "@/lib/finance/journal";
 import { TableauJournal } from "@/components/domain/TableauJournal";
@@ -20,6 +21,16 @@ export default async function SoldeVendeurPage() {
     redirect("/connexion");
   }
 
+  /*
+   * La devise du vendeur, une fois pour tout l'écran.
+   *
+   * Un vendeur a un pays, donc une monnaie ; et depuis que la commande suit
+   * le vendeur et non l'acheteur, TOUTES ses écritures sont dans cette
+   * monnaie. Rien ne se mélange ici — contrairement aux écrans de
+   * l'administration, qui agrègent plusieurs vendeurs.
+   */
+  const devise = deviseDuVendeur(user.sellerProfile.country);
+
   const sellerId = user.sellerProfile.id;
 
   // Le solde vient d'un module partagé avec le tableau de bord (§42) : deux
@@ -31,7 +42,10 @@ export default async function SoldeVendeurPage() {
 
   return (
     <div className="min-h-screen bg-cream text-ink lg:pl-[var(--largeur-menu)]">
-      <MenuEspace user={user} nomAffiche={user.sellerProfile.businessName || user.name} />
+      <MenuEspace
+        user={user}
+        nomAffiche={user.sellerProfile.businessName || user.name}
+      />
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         <div>
@@ -51,7 +65,7 @@ export default async function SoldeVendeurPage() {
               Fonds sécurisés (test)
             </span>
             <div className="text-2xl font-bold text-brand">
-              {formatCFA(solde.fondsSecurises)}
+              {formatMontant(solde.fondsSecurises, devise)}
             </div>
             <p className="mt-1 text-xs text-ink-muted">
               Commandes payées, en attente de confirmation par le client.
@@ -63,7 +77,7 @@ export default async function SoldeVendeurPage() {
               Solde disponible (test)
             </span>
             <div className="text-2xl font-bold text-brand">
-              {formatCFA(solde.soldeDisponible)}
+              {formatMontant(solde.soldeDisponible, devise)}
             </div>
             {/* Le solde est net de commission. Le dire ici évite qu'un vendeur
                 compare ce chiffre au montant de ses ventes et croie à une
@@ -72,8 +86,9 @@ export default async function SoldeVendeurPage() {
             <p className="mt-1 text-xs text-ink-muted">
               {solde.commissionRetenue > 0 ? (
                 <>
-                  {formatCFA(solde.brutLibere)} libérés, moins{" "}
-                  {formatCFA(solde.commissionRetenue)} de commission KOLI.
+                  {formatMontant(solde.brutLibere, devise)} libérés, moins{" "}
+                  {formatMontant(solde.commissionRetenue, devise)} de commission
+                  KOLI.
                 </>
               ) : (
                 "Libéré après confirmation de réception."
@@ -86,7 +101,7 @@ export default async function SoldeVendeurPage() {
               Total gagné (test)
             </span>
             <div className="text-2xl font-bold">
-              {formatCFA(solde.totalGagne)}
+              {formatMontant(solde.totalGagne, devise)}
             </div>
             <p className="mt-1 text-xs text-ink-muted">
               Sécurisé et disponible cumulés.

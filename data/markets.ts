@@ -147,3 +147,29 @@ export function estUnMarcheConnu(nomPays: string): boolean {
 export function commeDevise(valeur: string): Devise {
   return valeur in SYMBOLE ? (valeur as Devise) : "XOF";
 }
+
+/**
+ * La devise d'un vendeur — celle de TOUS ses prix.
+ *
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │  C'est le VENDEUR qui fixe le prix, donc c'est lui qui fixe la monnaie.  │
+ * └──────────────────────────────────────────────────────────────────────────┘
+ *
+ * La commande prenait la devise de l'ACHETEUR. Tant que les sept marchés
+ * desservis étaient tous en franc CFA, cela ne se voyait pas : XOF et XAF sont
+ * arrimés à l'euro au même taux. Avec la RDC, un vendeur ivoirien vendant
+ * 2 000 XOF à un acheteur congolais aurait encaissé 2 000 CDF — environ 500
+ * XOF, le quart de son dû, et rien ne l'aurait signalé.
+ *
+ * L'acheteur voit une conversion à l'écran (`lib/finance/change.ts`) et
+ * iKeePay le débite dans sa propre monnaie ; mais le montant qui fait foi, sur
+ * la commande comme au séquestre, reste celui du vendeur.
+ *
+ * ⚠ `pays` est nul pour les comptes créés avant que ce champ n'existe. Le
+ * repli sur XOF est alors correct — ces comptes sont tous ivoiriens, le pays
+ * ayant été écrit en dur à l'inscription — mais il reste un repli : un vendeur
+ * qui n'a pas déclaré son pays vend en francs CFA sans l'avoir choisi.
+ */
+export function deviseDuVendeur(pays: string | null | undefined): Devise {
+  return pays ? deviseDuPays(pays) : "XOF";
+}

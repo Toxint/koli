@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db/prisma";
 import { ACTIONS_AUDIT, consigner } from "@/lib/audit/journal";
 import { getCurrentUser } from "@/lib/auth/actions";
 import { partiesDeLaCommande, notifier } from "@/lib/notifications/envoi";
+import { declencherExpedition } from "@/lib/notifications/courriel";
 import {
   assertTransition,
   InvalidOrderTransitionError,
@@ -143,6 +144,7 @@ export async function traiterRemboursementAction(
           orderId: commande.id,
           type: "REFUND",
           amount: -montant,
+          currency: commande.currency,
         },
       });
 
@@ -194,6 +196,9 @@ export async function traiterRemboursementAction(
     }
     throw erreur;
   }
+
+  // Le courriel part APRES la reponse (`after`), jamais dans la transaction.
+  await declencherExpedition();
 
   revalidatePath("/admin/remboursements");
   revalidatePath("/admin/dashboard");

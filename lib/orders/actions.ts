@@ -8,10 +8,11 @@ import { OrderStatus, PaymentStatus, PaymentProviderType, DeliveryStatus } from 
 import { z } from "zod";
 import { findTransitionPath } from "@/lib/orders/statusMachine";
 import { generateOrderReference } from "@/lib/orders/reference";
-import { deviseDuPays } from "@/data/markets";
+import { deviseDuVendeur } from "@/data/markets";
 import { preleverCommission } from "@/lib/finance/commission";
 import { ACTIONS_AUDIT, consigner } from "@/lib/audit/journal";
 import { partiesDeLaCommande, notifier } from "@/lib/notifications/envoi";
+import { declencherExpedition } from "@/lib/notifications/courriel";
 import { getPaymentMode } from "@/lib/config/mode";
 
 /**
@@ -196,7 +197,19 @@ export async function createOrderAction(formData: FormData) {
       buyerLandmark: data.buyerLandmark,
       buyerEmail: data.buyerEmail ? data.buyerEmail.toLowerCase() : null,
       deliveryFee: data.deliveryFee,
-      currency: deviseDuPays(data.buyerCountry),
+      /*
+       * La devise du VENDEUR, jamais celle de l'acheteur.
+       *
+       * `Product.price` est un entier sans unité : il vaut ce que le vendeur
+       * a saisi, dans SA monnaie. Prendre la devise de l'acheteur revenait à
+       * relire ce nombre dans une autre unité — 2 000 francs CFA lus comme
+       * 2 000 francs congolais, soit le quart de la somme, sans qu'aucune
+       * erreur ne se produise nulle part.
+       *
+       * L'acheteur, lui, voit une conversion à l'écran et paie dans sa propre
+       * monnaie : c'est iKeePay qui convertit, au moment du prélèvement.
+       */
+      currency: deviseDuVendeur(user.sellerProfile.country),
       status: OrderStatus.PAYMENT_PENDING,
       items: {
         create: [
@@ -422,6 +435,7 @@ export async function confirmReceptionAction(
           orderId: order.id,
           type: "FUNDS_RELEASED",
           amount: releasedAmount,
+          currency: order.currency,
         },
       });
 
@@ -432,6 +446,7 @@ export async function confirmReceptionAction(
       await preleverCommission(tx, {
         orderId: order.id,
         assiette: releasedAmount,
+        devise: order.currency,
       });
 
       // §48, dont c'est l'exemple même : « ACTION: FUNDS_RELEASE_TEST ».
@@ -486,6 +501,9 @@ export async function confirmReceptionAction(
     }
     throw error;
   }
+
+  // Le courriel part APRES la reponse (`after`), jamais dans la transaction.
+  await declencherExpedition();
 
   revalidatePath(`/pay/${order.reference}`);
   revalidatePath("/client/dashboard");

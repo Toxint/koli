@@ -46,8 +46,54 @@ function debutDeJournee(maintenant = new Date()): Date {
 const A_VENIR = ["ASSIGNED", "TO_PICK_UP"] as const;
 const EN_COURS = ["PICKED_UP", "IN_TRANSIT", "ARRIVED", "TO_CONFIRM"] as const;
 
-export async function chargerRevenusLivreur(
+/**
+ * La monnaie dans laquelle un livreur est PRINCIPALEMENT payé.
+ *
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │  Un livreur peut travailler pour des vendeurs de pays différents.        │
+ * └──────────────────────────────────────────────────────────────────────────┘
+ *
+ * Ses écrans montrent des totaux — gagné aujourd'hui, gagné en tout — qui ne
+ * peuvent porter qu'une monnaie. Additionner des francs CFA et des francs
+ * congolais donnerait un nombre qui n'est le montant de rien, et le livreur
+ * comparerait sa paie réelle à un chiffre inventé.
+ *
+ * On retient donc la dominante — par le MONTANT cumulé, pas par le nombre de
+ * courses : dix petites livraisons ne font pas la monnaie principale de
+ * quelqu'un qui gagne l'essentiel sur deux grosses — et les écrans filtrent
+ * dessus, en le disant.
+ *
+ * Sur tout l'historique, et non sur quatorze jours : « gagné en tout » remonte
+ * plus loin que la courbe, et deux fenêtres différentes donneraient deux
+ * monnaies différentes sur le même écran.
+ */
+export async function deviseDominanteLivreur(
   driverProfileId: string
+): Promise<string | null> {
+  const parDevise = await prisma.transaction.groupBy({
+    by: ["currency"],
+    where: {
+      type: "DRIVER_PAYOUT",
+      order: { delivery: { driverId: driverProfileId } },
+    },
+    _sum: { amount: true },
+  });
+
+  return (
+    parDevise.sort((a, b) => (b._sum.amount ?? 0) - (a._sum.amount ?? 0))[0]
+      ?.currency ?? null
+  );
+}
+
+export async function chargerRevenusLivreur(
+  driverProfileId: string,
+  /**
+   * Restreint les totaux à cette monnaie.
+   *
+   * `null` — un livreur qui n'a jamais été payé — ne filtre rien : il n'y a
+   * de toute façon aucune écriture à sommer.
+   */
+  devise: string | null = null
 ): Promise<RevenusLivreur> {
   const minuit = debutDeJournee();
 
@@ -57,6 +103,7 @@ export async function chargerRevenusLivreur(
   const ecritures = {
     type: "DRIVER_PAYOUT" as const,
     order: { delivery: { driverId: driverProfileId } },
+    ...(devise ? { currency: devise } : {}),
   };
 
   const [aujourdhui, total, faitesAujourdhui, faitesTotal, aVenir, enCours] =

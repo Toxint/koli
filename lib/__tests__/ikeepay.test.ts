@@ -104,6 +104,18 @@ describe("verifierRappel — la porte d'entrée", () => {
         providerRef: "KOLI-ABCDEFGH",
         status: "SUCCEEDED",
         amount: 18500,
+        /*
+         * LEUR devise, et c est nouveau.
+         *
+         * Elle peut differer de celle de la commande : ils convertissent dans
+         * leur tunnel. Le 6 septembre 2026, 796 CDF ont ete encaisses pour une
+         * commande de 200 XOF, et la route a compare 796 a 200 avant de jeter
+         * le rappel en silence — un vrai paiement perdu.
+         *
+         * Sans ce champ, la route ne peut pas savoir si les deux montants se
+         * mesurent dans la meme unite.
+         */
+        currency: "XOF",
         payerMsisdn: "2250700000000",
         payerOperator: "ORANGE",
       },

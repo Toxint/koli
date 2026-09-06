@@ -18,6 +18,7 @@ import { litigeEstClos } from "@/lib/disputes/libelles";
 import { preleverCommission } from "@/lib/finance/commission";
 import { ACTIONS_AUDIT, consigner } from "@/lib/audit/journal";
 import { comptesAdministrateurs, partiesDeLaCommande, notifier } from "@/lib/notifications/envoi";
+import { declencherExpedition } from "@/lib/notifications/courriel";
 
 export type ResultatLitige =
   | { success: true; message: string }
@@ -179,6 +180,9 @@ export async function ouvrirLitigeAction(
       exclure: utilisateur.id,
     });
   });
+
+  // Le courriel part APRES la reponse (`after`), jamais dans la transaction.
+  await declencherExpedition();
 
   revalidatePath(`/pay/${commande.reference}`);
   revalidatePath(`/litige/${commande.reference}`);
@@ -363,6 +367,7 @@ export async function trancherLitigeAction(
           orderId: commande.id,
           type: "FUNDS_RELEASED",
           amount: commande.fund!.amount,
+          currency: commande.currency,
         },
       });
 
@@ -374,6 +379,7 @@ export async function trancherLitigeAction(
       await preleverCommission(tx, {
         orderId: commande.id,
         assiette: commande.fund!.amount,
+        devise: commande.currency,
       });
     } else {
       // Le remboursement lui-même relève de la phase 22 : on inscrit la

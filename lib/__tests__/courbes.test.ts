@@ -142,13 +142,19 @@ describe("la série quotidienne du livreur", () => {
 
   it("additionne les courses d'une même journée", async () => {
     prismaMock.transaction.findMany.mockResolvedValue([
-      { amount: 1_000, createdAt: minuitMoins(0), type: "DRIVER_PAYOUT" },
-      { amount: 1_500, createdAt: minuitMoins(0), type: "DRIVER_PAYOUT" },
+      // `currency` figure ici parce qu elle est NOT NULL en base : un mock qui
+      // l omet decrit une ligne qui ne peut pas exister.
+      { amount: 1_000, createdAt: minuitMoins(0), type: "DRIVER_PAYOUT", currency: "XOF" },
+      { amount: 1_500, createdAt: minuitMoins(0), type: "DRIVER_PAYOUT", currency: "XOF" },
     ]);
 
     const serie = await chargerCourbeLivreur("l1");
 
-    expect(serie[13].montant).toBe(2_500);
+    expect(serie.points[13].montant).toBe(2_500);
+    // La courbe porte desormais sa monnaie : un livreur paye dans deux
+    // monnaies verrait sinon une ligne qui additionne des choses differentes.
+    expect(serie.devise).toBe("XOF");
+    expect(serie.melange).toBe(false);
   });
 });
 

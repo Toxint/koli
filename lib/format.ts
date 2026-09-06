@@ -81,3 +81,42 @@ export function isValidLocalPhone(phone: string): boolean {
   const digits = phone.replace(/\D/g, "");
   return digits.length >= 8 && digits.length <= 10;
 }
+
+/**
+ * Un total qui peut porter PLUSIEURS monnaies.
+ *
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │  250 000 francs CFA et 1 200 000 francs congolais ne font pas            │
+ * │  1 450 000 de quoi que ce soit.                                          │
+ * └──────────────────────────────────────────────────────────────────────────┘
+ *
+ * Le problème n'existait pas tant que KOLI ne desservait que la zone franc :
+ * XOF et XAF sont arrimés à l'euro au même taux, donc additionnables sans y
+ * penser. Avec dix-sept marchés et douze monnaies, un écran qui agrège
+ * plusieurs vendeurs — l'administration — ou plusieurs vendeurs pour un même
+ * acheteur — les factures d'un client — additionne des choses différentes.
+ *
+ * On les JUXTAPOSE au lieu de les additionner. C'est moins joli qu'un chiffre
+ * unique, et c'est la seule chose vraie : « 250 000 FCFA · 1 200 000 FC ».
+ *
+ * Convertir vers une monnaie de référence serait l'autre option. Elle est
+ * écartée ici : le taux bouge, un total affiché aujourd'hui ne vaudrait plus
+ * demain, et un registre financier dont les totaux changent tout seuls
+ * n'est pas un registre.
+ *
+ * Rend `null` quand il n'y a rien — l'appelant décide alors quoi dire, plutôt
+ * que de recevoir un « 0 » dans une monnaie qu'on aurait choisie pour lui.
+ */
+export function formatTotaux(
+  totaux: Partial<Record<Devise, number>>
+): string | null {
+  const entrees = (Object.entries(totaux) as [Devise, number][])
+    .filter(([, montant]) => montant !== 0)
+    // Ordre stable : deux affichages successifs ne doivent pas permuter les
+    // monnaies, sans quoi l'œil croit voir un changement de chiffre.
+    .sort(([a], [b]) => a.localeCompare(b));
+
+  if (entrees.length === 0) return null;
+
+  return entrees.map(([devise, montant]) => formatMontant(montant, devise)).join(" · ");
+}

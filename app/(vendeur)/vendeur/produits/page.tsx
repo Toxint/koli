@@ -6,7 +6,8 @@ import { prisma } from "@/lib/db/prisma";
 import { BarreRecherche } from "@/components/ui/BarreRecherche";
 import { Pagination } from "@/components/ui/Pagination";
 import { MenuEspace } from "@/components/ui/MenuEspace";
-import { formatCFA, pluriel } from "@/lib/format";
+import { formatMontant, pluriel } from "@/lib/format";
+import { deviseDuVendeur } from "@/data/markets";
 import { BoutonStatutProduit } from "@/components/domain/BoutonStatutProduit";
 import { Icone } from "@/components/ui/Icone";
 
@@ -21,6 +22,16 @@ export default async function CataloguePage({
   if (!user || user.role !== "SELLER" || !user.sellerProfile) {
     redirect("/connexion");
   }
+
+  /*
+   * La devise du vendeur, une fois pour tout l'écran.
+   *
+   * Un vendeur a un pays, donc une monnaie ; et depuis que la commande suit
+   * le vendeur et non l'acheteur, TOUTES ses écritures sont dans cette
+   * monnaie. Rien ne se mélange ici — contrairement aux écrans de
+   * l'administration, qui agrègent plusieurs vendeurs.
+   */
+  const devise = deviseDuVendeur(user.sellerProfile.country);
 
   const { q, statut, page: pageBrute } = await searchParams;
   const page = Math.max(1, Number(pageBrute) || 1);
@@ -188,7 +199,7 @@ export default async function CataloguePage({
                           Prix
                         </span>
                         <span className="text-base font-semibold">
-                          {formatCFA(produit.price)}
+                          {formatMontant(produit.price, devise)}
                         </span>
                       </div>
 

@@ -5,8 +5,9 @@ import { MenuEspace } from "@/components/ui/MenuEspace";
 import { ValidateOtpModal } from "@/components/driver/ValidateOtpModal";
 import { JalonLivraison } from "@/components/domain/JalonLivraison";
 import { prochainJalonLivreur, JALONS } from "@/lib/deliveries/jalons";
-import { pluriel, formatCFA } from "@/lib/format";
-import { chargerRevenusLivreur } from "@/lib/finance/revenus-livreur";
+import { pluriel, formatMontant } from "@/lib/format";
+import { commeDevise, SYMBOLE } from "@/data/markets";
+import { chargerRevenusLivreur, deviseDominanteLivreur } from "@/lib/finance/revenus-livreur";
 import { chargerCourbeLivreur } from "@/lib/finance/courbes";
 import { mettreEnForme } from "@/lib/finance/jours";
 import { TEINTE_COURBE } from "@/lib/finance/teintes-courbes";
@@ -22,8 +23,23 @@ export default async function DriverDashboardPage() {
 
   const driverProfileId = user.driverProfile.id;
 
-  const revenus = await chargerRevenusLivreur(driverProfileId);
-  const courbe = mettreEnForme(await chargerCourbeLivreur(driverProfileId));
+  /*
+   * La monnaie du livreur, calculée UNE fois et partagée par tous ses
+   * chiffres. Deux fenêtres de calcul différentes donneraient deux monnaies
+   * différentes sur le même écran.
+   */
+  const deviseLivreur = await deviseDominanteLivreur(driverProfileId);
+  const revenus = await chargerRevenusLivreur(driverProfileId, deviseLivreur);
+  /*
+   * La courbe du livreur porte SA monnaie, et dit si elle en écarte d'autres.
+   *
+   * Un livreur peut travailler pour des vendeurs de pays différents ; ses
+   * paies sont alors dans plusieurs monnaies, et les empiler sur une même
+   * courbe donnerait une ligne qui ne mesure rien.
+   */
+  const paie = await chargerCourbeLivreur(driverProfileId);
+  const courbe = mettreEnForme(paie.points);
+  const deviseCourbe = commeDevise(deviseLivreur ?? paie.devise ?? "XOF");
 
   const deliveries = await prisma.delivery.findMany({
     where: { driverId: driverProfileId },
@@ -102,11 +118,11 @@ export default async function DriverDashboardPage() {
                 Gagné aujourd&apos;hui
               </p>
               <p className="mt-2 text-2xl font-bold sm:text-3xl">
-                {formatCFA(revenus.gagneAujourdhui)}
+                {formatMontant(revenus.gagneAujourdhui, deviseCourbe)}
               </p>
               <p className="mt-1 text-[11px] text-white/80">
                 {revenus.coursesAujourdhui > 0
-                  ? `${formatCFA(revenus.moyenneAujourdhui)} en moyenne par course`
+                  ? `${formatMontant(revenus.moyenneAujourdhui, deviseCourbe)} en moyenne par course`
                   : "Aucune course terminée pour l'instant"}
               </p>
             </div>
@@ -142,7 +158,7 @@ export default async function DriverDashboardPage() {
                 Gagné au total
               </p>
               <p className="mt-2 text-2xl font-bold text-brand sm:text-3xl">
-                {formatCFA(revenus.gagneTotal)}
+                {formatMontant(revenus.gagneTotal, deviseCourbe)}
               </p>
               {/* Dire franchement que cet argent n'est pas encaissable. Un
                   chiffre qui grossit sans jamais arriver sur un compte serait
@@ -168,15 +184,35 @@ export default async function DriverDashboardPage() {
                 </p>
               </div>
               <span className="text-sm font-bold text-brand">
-                {formatCFA(courbe.reduce((s, p) => s + p.valeur, 0))} sur la période
+                {formatMontant(
+                  courbe.reduce((s, p) => s + p.valeur, 0),
+                  deviseCourbe
+                )}{" "}
+                sur la période
               </span>
             </div>
 
             <CourbePerformance
               points={courbe}
+              devise={deviseCourbe}
               couleur={TEINTE_COURBE}
               libelle="Frais de livraison acquis par jour"
             />
+
+            {/*
+              * On DIT ce que la courbe laisse de côté.
+              *
+              * Sans cette phrase, un livreur payé dans deux monnaies verrait un
+              * total inférieur à ce qu'il a réellement gagné, sans rien pour le
+              * lui expliquer — et conclurait que KOLI le sous-paie.
+              */}
+            {paie.melange && (
+              <p className="mt-2 text-xs text-ink-muted">
+                Cette courbe ne montre que vos courses payées en{" "}
+                {SYMBOLE[deviseCourbe]}. Vous avez aussi été payé dans une autre
+                monnaie sur la période — le détail figure dans vos livraisons.
+              </p>
+            )}
           </div>
 
           <p className="text-xs leading-relaxed text-ink-muted">

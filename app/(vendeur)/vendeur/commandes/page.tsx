@@ -5,7 +5,8 @@ import { prisma } from "@/lib/db/prisma";
 import { BarreRecherche } from "@/components/ui/BarreRecherche";
 import { Pagination } from "@/components/ui/Pagination";
 import { MenuEspace } from "@/components/ui/MenuEspace";
-import { formatCFA, pluriel } from "@/lib/format";
+import { formatMontant, pluriel } from "@/lib/format";
+import { deviseDuVendeur } from "@/data/markets";
 import { libelleStatut, classesBadgeStatut } from "@/lib/orders/statusLabels";
 import { listAvailableDriversAction } from "@/lib/deliveries/assign";
 import { AssignerLivreur } from "@/components/domain/AssignerLivreur";
@@ -25,6 +26,16 @@ export default async function SellerOrdersPage({
   if (!user || user.role !== "SELLER" || !user.sellerProfile) {
     redirect("/connexion");
   }
+
+  /*
+   * La devise du vendeur, une fois pour tout l'écran.
+   *
+   * Un vendeur a un pays, donc une monnaie ; et depuis que la commande suit
+   * le vendeur et non l'acheteur, TOUTES ses écritures sont dans cette
+   * monnaie. Rien ne se mélange ici — contrairement aux écrans de
+   * l'administration, qui agrègent plusieurs vendeurs.
+   */
+  const devise = deviseDuVendeur(user.sellerProfile.country);
 
   const { q, statut, page: pageBrute } = await searchParams;
   const page = Math.max(1, Number(pageBrute) || 1);
@@ -217,7 +228,7 @@ export default async function SellerOrdersPage({
                     <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0">
                       <div className="text-right">
                         <span className="text-xs text-ink-muted block">Total</span>
-                        <span className="text-base font-semibold">{formatCFA(totalAmount)}</span>
+                        <span className="text-base font-semibold">{formatMontant(totalAmount, devise)}</span>
                       </div>
 
                       {/* §38 : le recu n'existe qu'une fois le paiement

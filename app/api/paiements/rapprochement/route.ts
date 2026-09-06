@@ -1,6 +1,7 @@
 import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { rapprocherPaiements } from "@/lib/payments/rapprochement";
+import { expedierNotificationsEnAttente } from "@/lib/notifications/courriel";
 
 /**
  * Le rattrapage des paiements restés en suspens (§29, §52).
@@ -85,5 +86,18 @@ export async function GET(requete: Request) {
 
   const resultat = await rapprocherPaiements();
 
-  return NextResponse.json({ ok: true, ...resultat });
+  /*
+   * Le FILET des notifications, en plus du rattrapage des paiements.
+   *
+   * L expedition se declenche normalement juste apres chaque evenement, par
+   * `after()`. Mais un redeploiement au mauvais instant, une coupure chez
+   * Resend, une adresse temporairement refusee : il faut un second passage,
+   * sinon une notification manquee ne repart jamais.
+   *
+   * ⚠ Une fois par jour seulement — le plan Hobby ne permet pas mieux. Ce
+   * filet rattrape, il ne remplace pas le declenchement immediat.
+   */
+  const courriels = await expedierNotificationsEnAttente();
+
+  return NextResponse.json({ ok: true, ...resultat, courriels });
 }

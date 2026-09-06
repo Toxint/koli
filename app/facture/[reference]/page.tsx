@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { chargerFacture } from "@/lib/invoices/facture";
-import { formatCFA } from "@/lib/format";
+import { formatMontant } from "@/lib/format";
+import { commeDevise } from "@/data/markets";
 import { libelleStatut } from "@/lib/orders/statusLabels";
 import { getCurrentUser } from "@/lib/auth/actions";
 import { BarreCompte } from "@/components/ui/BarreCompte";
@@ -61,6 +62,9 @@ export default async function PageFacture({
 }) {
   const { reference } = await params;
   const facture = await chargerFacture(reference);
+  // La devise de la commande, telle que la piece la porte. Une facture est
+  // un document fiscal : une monnaie fausse n y est pas un detail d affichage.
+  const devise = facture ? commeDevise(facture.devise) : "XOF";
   // Le recu est ouvrable par toute personne detenant la reference — l'achat en
   // mode invite est prevu. La deconnexion n'a donc de sens que si une session
   // existe.
@@ -180,10 +184,10 @@ export default async function PageFacture({
                   </span>
                   <span className="block sm:text-right text-xs text-ink-muted sm:text-ink">
                     <span className="sm:hidden">Prix unitaire : </span>
-                    {formatCFA(ligne.prixUnitaire)}
+                    {formatMontant(ligne.prixUnitaire, devise)}
                   </span>
                   <span className="block sm:text-right font-semibold">
-                    {formatCFA(ligne.total)}
+                    {formatMontant(ligne.total, devise)}
                   </span>
                 </li>
               ))}
@@ -194,19 +198,19 @@ export default async function PageFacture({
             <div className="flex justify-between gap-6">
               <dt className="text-sm text-ink-muted">Sous-total</dt>
               <dd className="text-sm font-medium">
-                {formatCFA(facture.sousTotal)}
+                {formatMontant(facture.sousTotal, devise)}
               </dd>
             </div>
             <div className="flex justify-between gap-6">
               <dt className="text-sm text-ink-muted">Livraison</dt>
               <dd className="text-sm font-medium">
-                {formatCFA(facture.livraison)}
+                {formatMontant(facture.livraison, devise)}
               </dd>
             </div>
             <div className="flex justify-between gap-6 pt-2 border-t border-hairline">
               <dt className="text-sm font-semibold">Total réglé</dt>
               <dd className="text-lg font-bold text-brand">
-                {formatCFA(facture.total)}
+                {formatMontant(facture.total, devise)}
               </dd>
             </div>
           </dl>

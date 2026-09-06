@@ -68,7 +68,8 @@
     "ikeepay:verifier": "node scripts/verifier-ikeepay.mjs",
     "ikeepay:repetition": "node scripts/repetition-ikeepay.mjs",
     "supabase:registre": "node scripts/nettoyer-registre.mjs",
-    "ikeepay:surveiller": "node scripts/surveiller-paiement.mjs"
+    "ikeepay:surveiller": "node scripts/surveiller-paiement.mjs",
+    "admin:motdepasse": "node scripts/mot-de-passe-admin.mjs"
   },
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.0",

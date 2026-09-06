@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/prisma";
 import { FormulaireCommande } from "@/components/domain/FormulaireCommande";
+import { deviseDuVendeur } from "@/data/markets";
 
 /**
  * Page serveur : elle charge le catalogue du vendeur (§16) et le confie au
@@ -19,5 +20,17 @@ export default async function NouvelleCommandePage() {
     orderBy: { name: "asc" },
   });
 
-  return <FormulaireCommande produits={produits} />;
+  /*
+   * La devise du vendeur descend jusqu au formulaire.
+   *
+   * Il affiche des prix et un total en direct, dans un composant client qui
+   * n a acces ni a la base ni a la session. Sans ce prop, il ecrivait « FCFA »
+   * sous les prix d un vendeur congolais.
+   */
+  return (
+    <FormulaireCommande
+      produits={produits}
+      devise={deviseDuVendeur(user.sellerProfile.country)}
+    />
+  );
 }

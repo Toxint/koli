@@ -4,6 +4,9 @@ import { prisma } from "@/lib/db/prisma";
 import { getPaymentProvider } from "@/lib/config/mode";
 import { ENTETE_JETON_RAPPEL } from "@/lib/payments/IkeePayProvider";
 import { appliquerAboutissement } from "@/lib/payments/aboutissement";
+import { convertir } from "@/lib/finance/change";
+import { commeDevise } from "@/data/markets";
+import { ACTIONS_AUDIT, consigner } from "@/lib/audit/journal";
 
 /**
  * Rappel du fournisseur de paiement (webhook) — §29, §52.
@@ -87,29 +90,197 @@ export async function POST(requete: Request) {
 
   const { intent } = verification;
 
-  const paiement = await prisma.payment.findUnique({
-    where: { providerRef: intent.providerRef },
-    select: {
-      id: true,
-      status: true,
-      amount: true,
-      orderId: true,
-      // La reference, et pas seulement l'identifiant : c'est elle que prend
-      // `appliquerAboutissement`, comme partout ailleurs. L'identifiant interne
-      // d'une commande n'est jamais cense circuler (voir la note d'autorisation
-      // de `simulatePaymentAction`).
-      order: { select: { reference: true } },
-    },
-  });
+  /*
+   * ── ON RETROUVE LE PAIEMENT PAR DEUX CHEMINS, ET C'EST NÉCESSAIRE ─────────
+   *
+   * ┌──────────────────────────────────────────────────────────────────────────┐
+   * │  `providerRef` n'est JAMAIS écrit en mode réel. Cette route ne trouvait  │
+   * │  donc aucun paiement, et répondait 200 sans rien faire.                  │
+   * └──────────────────────────────────────────────────────────────────────────┘
+   *
+   * Le 6 septembre 2026, un vrai paiement de 1 000 FC a abouti chez iKeePay —
+   * leur tableau de bord affichait « COMPLETED » — et KOLI n'en a rien su. Le
+   * rappel est bien arrivé, avec le bon jeton ; il n'a simplement trouvé
+   * personne à qui l'attribuer.
+   *
+   * La cause : en mode test, c'est `simulatePaymentAction` qui enregistre
+   * `providerRef` après `initiate()`. En mode réel, le tunnel n'a pas d'appel
+   * serveur à l'initiation — `adresseDuTunnel` bâtit l'adresse et jette la
+   * référence. Personne ne l'écrit, jamais.
+   *
+   * Et l'échec était MUET : la règle anti-oracle interdit de révéler qu'une
+   * référence est inconnue, donc la réponse est 200 dans les deux cas. Un
+   * défaut invisible sur le chemin par lequel arrive tout l'argent.
+   *
+   * On résout donc aussi par la RÉFÉRENCE DE COMMANDE. Chez iKeePay, les deux
+   * sont la même chaîne — `IkeePayProvider.initiate()` pose
+   * `providerRef = orderReference`, faute d'identifiant fourni par eux avant le
+   * rappel. Le second chemin n'invente rien : il lit ce que l'agrégateur
+   * renvoie, sous le nom qu'il lui donne.
+   */
+  const selection = {
+    id: true,
+    status: true,
+    amount: true,
+    orderId: true,
+    providerRef: true,
+    // La reference, et pas seulement l'identifiant : c'est elle que prend
+    // `appliquerAboutissement`, comme partout ailleurs. L'identifiant interne
+    // d'une commande n'est jamais cense circuler (voir la note d'autorisation
+    // de `simulatePaymentAction`).
+    // La devise de la commande : sans elle, impossible de savoir si le
+    // montant du rappel est comparable au nôtre.
+    order: { select: { reference: true, currency: true } },
+  } as const;
 
+  const paiement =
+    (await prisma.payment.findUnique({
+      where: { providerRef: intent.providerRef },
+      select: selection,
+    })) ??
+    (await prisma.payment.findFirst({
+      where: { order: { reference: intent.providerRef } },
+      select: selection,
+    }));
+
+  /*
+   * On note la référence du prestataire si elle manquait.
+   *
+   * Sans cela, chaque rappel rejoué repasserait par la seconde requête, et
+   * surtout le registre ne porterait aucune trace de ce qui relie notre
+   * paiement à leur transaction — la seule chose qui permette un
+   * rapprochement à la main le jour où il faudra en faire un.
+   */
+  if (paiement && !paiement.providerRef) {
+    await prisma.payment.update({
+      where: { id: paiement.id },
+      data: { providerRef: intent.providerRef },
+    });
+  }
+
+  /*
+   * ÉCARTER un rappel, en le DISANT au journal.
+   *
+   * ┌────────────────────────────────────────────────────────────────────────┐
+   * │  Deux vrais paiements ont été perdus le 6 septembre 2026, et aucun     │
+   * │  des deux n'a laissé la moindre trace.                                 │
+   * └────────────────────────────────────────────────────────────────────────┘
+   *
+   * La réponse reste indifférenciée — la règle anti-oracle interdit de révéler
+   * qu'une référence est inconnue, sans quoi ce point d'entrée apprendrait à
+   * qui le sonde quelles commandes existent. Ce qui change, c'est que NOUS le
+   * savons désormais.
+   *
+   * Le journal n'est écrit qu'au-delà de la porte du jeton : en deçà,
+   * n'importe qui pourrait le remplir en frappant l'adresse.
+   */
+  const ecarter = async (
+    motif: string,
+    details: Record<string, unknown> = {}
+  ) => {
+    try {
+      await consigner(prisma, {
+        acteur: null,
+        action: ACTIONS_AUDIT.PAYMENT_CALLBACK_DISCARDED,
+        entite: "Payment",
+        // La référence du rappel, même si elle ne correspond à rien : c'est
+        // elle qu'on cherchera pour comprendre.
+        entiteId: intent.providerRef,
+        details: {
+          motif,
+          montantRecu: intent.amount,
+          deviseRecue: intent.currency ?? null,
+          statutRecu: intent.status,
+          ...details,
+        },
+      });
+    } catch {
+      // Une panne d'écriture du journal ne doit pas changer la réponse au
+      // prestataire : il rejouerait, sans que cela répare quoi que ce soit.
+    }
+    return NextResponse.json({ recu: true, traite: false });
+  };
   // Règle 3 : réponse indifférenciée.
   if (!paiement) {
+    await ecarter("aucun paiement ne porte cette reference");
     return NextResponse.json({ recu: true });
   }
 
-  // Règle 4 : le montant doit correspondre.
-  if (intent.amount > 0 && intent.amount !== paiement.amount) {
-    return NextResponse.json({ recu: true, traite: false });
+  // Apres la garde : la commande existe forcement, c est une jointure obligee.
+  const commande = paiement.order;
+
+  /*
+   * ── Règle 4 : le montant doit correspondre — MAIS DANS QUELLE MONNAIE ? ───
+   *
+   * ┌──────────────────────────────────────────────────────────────────────────┐
+   * │  Cette règle comparait des nombres bruts. Elle a fait perdre un vrai     │
+   * │  paiement le 6 septembre 2026.                                           │
+   * └──────────────────────────────────────────────────────────────────────────┘
+   *
+   * La commande valait **200 XOF**. iKeePay a encaissé **796 CDF** — leur
+   * propre conversion, faite dans leur tunnel. Le rappel portait donc 796, la
+   * commande 200, et la comparaison les a déclarés différents.
+   *
+   * Réponse : `{ recu: true, traite: false }`. Un 200 poli, aucune trace, et un
+   * acheteur débité de 796 CDF pendant que le vendeur ne voyait rien.
+   *
+   * La règle reste nécessaire — sans elle, un rappel forgé pourrait attribuer
+   * n'importe quelle somme à n'importe quelle commande. Mais elle ne peut
+   * comparer que des grandeurs comparables.
+   */
+  const deviseRecue = intent.currency?.trim().toUpperCase() ?? "";
+  const memeDevise = !deviseRecue || deviseRecue === commande.currency;
+
+  if (intent.amount > 0) {
+    if (memeDevise) {
+      // Même monnaie : la comparaison exacte garde tout son sens.
+      if (intent.amount !== paiement.amount) {
+        return ecarter("montant different, meme monnaie", {
+          montantAttendu: paiement.amount,
+          deviseCommande: commande.currency,
+        });
+      }
+    } else {
+      /*
+       * Monnaies différentes : on convertit et on tolère un écart.
+       *
+       * ±25 %, et c'est large exprès. Le taux du prestataire n'est pas le
+       * nôtre — 1,8 % d'écart mesuré le 6 septembre —, il inclut leur marge,
+       * il bouge entre l'affichage et le prélèvement, et les arrondis pèsent
+       * lourd sur de petits montants. Une bande étroite rejetterait de vrais
+       * paiements, ce qui est exactement le défaut qu'on répare.
+       *
+       * Ce que la bande attrape encore : un rappel qui attribuerait une somme
+       * sans rapport — un ordre de grandeur d'écart, pas quelques pour cent.
+       */
+      const attendu = await convertir(
+        paiement.amount,
+        commeDevise(commande.currency),
+        commeDevise(deviseRecue)
+      );
+
+      if (attendu) {
+        const ecart = Math.abs(intent.amount - attendu.montant) / attendu.montant;
+        if (ecart > 0.25) {
+          return ecarter("montant hors tolerance apres conversion", {
+            montantAttendu: paiement.amount,
+            deviseCommande: commande.currency,
+            equivalentCalcule: attendu.montant,
+            ecartPourCent: Math.round(ecart * 100),
+          });
+        }
+      }
+      /*
+       * Taux indisponible : on NE REJETTE PAS.
+       *
+       * Le choix est délibéré et il penche du côté qui ne perd pas d'argent.
+       * Rejeter ferait dépendre l'aboutissement d'un vrai paiement de la
+       * disponibilité d'une API de change — un service tiers, sans rapport
+       * avec la transaction, dont la panne coûterait un client débité pour
+       * rien. Le jeton et la référence restent la porte ; le montant encaissé
+       * est enregistré juste en dessous, et un écart se verra au rapprochement.
+       */
+    }
   }
 
   // Règle 5 : un paiement déjà conclu ne se reprend pas.
@@ -120,12 +291,14 @@ export async function POST(requete: Request) {
   ];
 
   if (conclu.includes(paiement.status)) {
-    return NextResponse.json({ recu: true, traite: false });
+    // Pas une anomalie : les agrégateurs rejouent leurs rappels. On le note
+    // quand même, pour que le journal montre la séquence complète.
+    return ecarter("paiement deja conclu", { statutActuel: paiement.status });
   }
 
   const nouveau = CORRESPONDANCE[intent.status];
   if (!nouveau) {
-    return NextResponse.json({ recu: true, traite: false });
+    return ecarter("statut sans correspondance");
   }
 
   /*
@@ -142,6 +315,16 @@ export async function POST(requete: Request) {
     where: { id: paiement.id, status: { notIn: conclu } },
     data: {
       lastCheckedAt: new Date(),
+      /*
+       * Ce que le prestataire a REELLEMENT prélevé.
+       *
+       * `amount` reste le montant de notre commande. Les deux chiffres sont
+       * vrais et ne se remplacent pas : l'un est ce que le vendeur recevra,
+       * l'autre ce qui a quitté le compte de l'acheteur. Sans cette ligne, le
+       * second n'existe nulle part et aucun rapprochement n'est possible.
+       */
+      ...(intent.amount > 0 ? { collectedAmount: intent.amount } : {}),
+      ...(deviseRecue ? { collectedCurrency: deviseRecue } : {}),
       ...(intent.failureReason ? { failureReason: intent.failureReason } : {}),
       ...(intent.payerMsisdn ? { payerMsisdn: intent.payerMsisdn } : {}),
       ...(intent.payerOperator ? { payerOperator: intent.payerOperator } : {}),

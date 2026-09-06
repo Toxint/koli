@@ -1,5 +1,6 @@
 import { OrderStatus, PaymentStatus } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
+import { declencherExpedition } from "@/lib/notifications/courriel";
 import { partiesDeLaCommande, notifier } from "@/lib/notifications/envoi";
 import { formaterNumeroFacture, rangSuivant } from "@/lib/invoices/numero";
 import {
@@ -229,8 +230,20 @@ export async function appliquerAboutissement(
         // personne.
         await tx.transaction.createMany({
           data: [
-            { orderId: order.id, type: "PAYMENT", amount: montantPaye },
-            { orderId: order.id, type: "FUNDS_SECURED", amount: montantSequestre },
+            {
+              orderId: order.id,
+              type: "PAYMENT",
+              amount: montantPaye,
+              // La devise de la commande, recopiée sur l'écriture : un grand
+              // livre porte son unité, il ne la fait pas chercher ailleurs.
+              currency: order.currency,
+            },
+            {
+              orderId: order.id,
+              type: "FUNDS_SECURED",
+              amount: montantSequestre,
+              currency: order.currency,
+            },
           ],
         });
 
@@ -311,6 +324,19 @@ export async function appliquerAboutissement(
     }
     throw error;
   }
+
+  /*
+   * Les courriels partent APRES la transaction, jamais dedans.
+   *
+   * `notifier()` a ecrit les lignes a l interieur — c est voulu, aucune
+   * notification ne doit exister sans l ecriture qu elle annonce. Mais un
+   * courriel parti ne se rappelle pas : envoye depuis l interieur, un echec
+   * ulterieur laisserait un vendeur prevenu d une vente annulee.
+   *
+   * `after()` execute l envoi une fois la reponse partie : l acheteur n attend
+   * pas Resend pour voir « paiement confirme ».
+   */
+  await declencherExpedition();
 
   return { ok: true, status: statutFinal };
 }
