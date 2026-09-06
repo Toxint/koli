@@ -1210,6 +1210,16 @@ une cascade absente laisserait des lignes orphelines, et une ligne orpheline
 dans un registre financier est pire qu'une ligne fausse : elle n'apparaît plus
 nulle part.
 
+**Le stock ne revient pas tout seul.** Une vente simulée DÉCRÉMENTE le stock,
+comme une vraie — le décompte se fait au paiement (§17). Effacer la commande ne
+le rend pas : la première version du script a laissé le produit « Robe » à zéro
+après avoir supprimé la fausse vente qui l'avait vidé. Un article invendable
+pour une vente qui n'a jamais eu lieu, et rien pour le signaler.
+
+Le script rend désormais le stock, et **seulement pour les paiements ABOUTIS** :
+une simulation en échec n'a rien décrémenté, lui rendre du stock en inventerait.
+Falsifié contre la base locale : Pagne 6 → 7, Robe 15 → 16.
+
 ⚠ **Le vrai correctif n'est pas le nettoyage.** Tant que production, mode test
 et base de production coexistent, la pollution revient. Elle cesse le jour où la
 production bascule en `ikeepay` : il n'y a alors plus de bouton à appuyer.
