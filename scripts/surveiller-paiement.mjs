@@ -58,7 +58,21 @@ if (!REFERENCE) {
 const pool = new Pool({ connectionString: process.env.DATABASE_URL, max: 1 });
 const q = async (sql, params = []) => (await pool.query(sql, params)).rows;
 
-const lire = async () =>
+/*
+ * La lecture SURVIT aux pannes passageres, et c est tout l interet.
+ *
+ * La premiere version mourait sur la premiere erreur reseau. Une coupure DNS
+ * d une seconde — le VPN de ce poste en produit — tuait une surveillance de
+ * quarante-cinq minutes, et le script rendait la main sans rien dire. Pire :
+ * l enveloppe npm rapportait un code de sortie 0, donc un succes. Un veilleur
+ * qui meurt en silence est plus dangereux que pas de veilleur du tout : on
+ * conclut « rien n est arrive » alors que personne ne regardait.
+ *
+ * On reessaie donc, et on COMPTE les echecs pour les dire a la fin.
+ */
+let pannes = 0;
+
+const lireBrut = async () =>
   (
     await q(
       `SELECT o.status AS commande, o."updatedAt",
@@ -77,10 +91,38 @@ const lire = async () =>
     )
   )[0];
 
-const depart = await lire();
+const lire = async () => {
+  try {
+    const r = await lireBrut();
+    return r;
+  } catch (e) {
+    pannes++;
+    console.log("  · lecture impossible (" + String(e.code ?? e.message).slice(0, 40) + ") — je reessaie");
+    return null;
+  }
+};
+
+/*
+ * La premiere lecture a droit a trois essais.
+ *
+ * Sans cela, une panne reseau au demarrage faisait annoncer « cette commande
+ * n existe pas » — une affirmation FAUSSE, et sur laquelle on aurait agi. Une
+ * lecture qui echoue et une commande absente ne se ressemblent que dans le
+ * code : il faut les distinguer avant de parler.
+ */
+let depart = null;
+for (let essai = 1; essai <= 3 && !depart; essai++) {
+  depart = await lire();
+  if (!depart && essai < 3) await new Promise((r) => setTimeout(r, 4000));
+}
 
 if (!depart) {
-  console.log(`\n  ${REFERENCE} n'existe pas dans la base en ligne.\n`);
+  console.log(
+    pannes > 0
+      ? `\n  Impossible de lire la base apres 3 essais — reseau.` +
+        `\n  On ne sait RIEN de ${REFERENCE} : ce n est pas un silence, c est une cecite.\n`
+      : `\n  ${REFERENCE} n existe pas dans la base en ligne.\n`
+  );
   await pool.end();
   process.exit(2);
 }
@@ -100,7 +142,9 @@ let bouge = false;
 
 while (Date.now() < echeance) {
   await new Promise((r) => setTimeout(r, INTERVALLE_MS));
-  etat = await lire();
+  const lu = await lire();
+  if (!lu) continue; // panne passagere : on reessaie au tour suivant
+  etat = lu;
   if (empreinte(etat) !== depuis) {
     bouge = true;
     break;
@@ -111,6 +155,10 @@ console.log("=== VERDICT ===\n");
 
 if (!bouge) {
   console.log("  RIEN N'EST ARRIVE.\n");
+  if (pannes > 0) {
+    console.log(`  ⚠ ${pannes} lecture(s) ont echoue pendant la surveillance.`);
+    console.log("    Ce silence est donc moins sur qu il n en a l air.\n");
+  }
   console.log("  Deux causes possibles, et elles ne se distinguent pas d'ici :");
   console.log("    · personne n'a paye ;");
   console.log("    · quelqu'un a paye et le rappel s'est perdu — adresse mal");
