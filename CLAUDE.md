@@ -353,6 +353,7 @@ L'adresse Wi-Fi change souvent. La relire avec
 ```bash
 npm run verif:tout       # la campagne complète
 npm run verif:latence    # la base répond-elle assez vite ?
+npm run verif:prealables # le jeu de données permet-il d'éprouver quoi que ce soit ?
 npm run verif:requetes   # chaque requête SQL est-elle valide contre le schéma ?
 npm run verif:schema     # intégrité : clefs étrangères, orphelins, migrations
 npm run verif:parcours   # le parcours complet — le critère du §80
@@ -375,7 +376,7 @@ npm run ikeepay:surveiller   # attendre un vrai paiement et dire ce qui arrive
 npm run admin:motdepasse     # changer le mot de passe administrateur, en local ou en ligne
 ```
 
-36 commandes `verif:*` au total. Elles pilotent un **vrai navigateur**
+37 commandes `verif:*` au total. Elles pilotent un **vrai navigateur**
 (Playwright) contre le **vrai serveur** et lisent la **vraie base**. Un écran
 peut mentir sans que la base bouge, et l'inverse.
 
@@ -1262,6 +1263,55 @@ peut pas la sauver. `ikeepay:verifier` refuse de dire « prêt » tant que
 `NEXT_PUBLIC_APP_URL` désigne une adresse privée.
 
 La marche à suivre complète est en `docs/deploiement.md`, §5 ter.
+
+### La campagne CONSOMME ce qu'elle éprouve
+
+Chaque passage vend des produits, et le stock ne se rend pas tout seul — le
+décompte se fait au paiement (§17). Après quelques campagnes d'affilée, le
+catalogue est à sec.
+
+Le 7 septembre 2026, « Robe Wax » était tombée à **1** et les autres à zéro.
+Deux contrôles sont tombés, et aucun ne disait pourquoi :
+
+| Contrôle | Ce qu'il annonçait | Ce qui se passait |
+|---|---|---|
+| `verif:etapes` | « l'étape 1 ne mène pas à l'étape 2 » | le formulaire refusait une quantité de 2 |
+| `verif:clients` | délai dépassé sur un menu déroulant | l'option était `disabled` (rupture) |
+
+Vingt minutes de campagne pour un diagnostic faux, deux fois de suite.
+
+**`npm run verif:prealables`** passe désormais juste après `verif:latence`, et
+pour la même raison qu'elle : *un test qui échoue pour une cause étrangère à ce
+qu'il vérifie est pire qu'aucun test* — il envoie chercher un défaut qui
+n'existe pas. Il vérifie les cinq comptes de démonstration, un produit d'au
+moins 2 en stock **par vendeur**, et le taux de commission.
+
+Trois choses qui se déferaient sans être écrites :
+
+- **Le stock se compte PAR VENDEUR.** Le menu déroulant d'une commande ne
+  montre que les produits du vendeur connecté (§16) : un catalogue global bien
+  fourni ne prouve rien si c'est le vendeur de démonstration qui est à sec — et
+  c'est lui que les contrôles utilisent.
+- **Deux, et pas un.** `verif:etapes` commande une quantité de 2 pour éprouver
+  la multiplication du sous-total ; avec un seul article, « prix × quantité »
+  et « prix » donneraient le même nombre.
+- **Il ne répare RIEN, délibérément.** Réamorcer tout seul effacerait la base
+  sans que personne ne l'ait demandé. Un script qui décide seul de vider une
+  base est un script qu'on finit par lancer contre la mauvaise — et `.env`
+  contre `.env.local` est précisément le piège documenté plus bas.
+
+⚠ **`npm run base:preparer` est un PRÉALABLE de la campagne, pas une option.**
+C'était écrit au §5 comme une description ; c'est maintenant vérifié.
+
+**Deux contrôles ont été rendus indépendants du jeu de données au passage :**
+
+- `verif:etapes` choisissait « Robe Wax » par son nom. Il prend désormais le
+  produit qui a **le plus de stock**, en lisant le nombre annoncé dans le
+  libellé de l'option — et s'il n'en trouve aucun, il le dit.
+- Son total attendu valait « 38 500 » en dur, soit 2 × 18 500 + 1 500. Il est
+  **calculé** depuis le produit réellement choisi : un attendu codé en dur
+  décrit le jeu de données, pas la règle.
+
 
 ### Un contrôle qui lit les restes d'un autre test
 

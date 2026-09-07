@@ -215,7 +215,24 @@ export function FormulaireInscription({
                 * bon, il sortirait de l'ordre de tabulation et deviendrait
                 * inatteignable au clavier.
                 */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/*
+                * `radiogroup` et `aria-labelledby` : sans eux, un lecteur
+                * d'ecran annonce trois radios isolees, sans dire ce qu'on
+                * demande. La question — « Vous souhaitez vous inscrire en tant
+                * que : » — est un `<span>` au-dessus, et rien ne l'y relie
+                * autrement.
+                *
+                * ⚠ Perdus en passant des `<button role="radio">` aux vraies
+                * radios, et rattrapes par `verif:livreurs` : les radios
+                * natives forment bien un groupe pour le NAVIGATEUR — les
+                * fleches y circulent — mais pas pour les technologies
+                * d'assistance, qui ne voient aucun nom accessible.
+                */}
+              <div
+                role="radiogroup"
+                aria-labelledby="libelle-role"
+                className="grid grid-cols-1 sm:grid-cols-3 gap-3"
+              >
                 <label className={CARTE_ROLE}>
                   <input
                     type="radio"
