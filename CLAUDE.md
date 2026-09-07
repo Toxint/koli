@@ -1665,6 +1665,39 @@ qu'on ne peut pas lancer est un contrôle qu'on ne lance pas. Dix-huit contrôle
 Falsifié en glissant `${m.sequestre}` dans le message du livreur : le contrôle du
 §25 tombe, seul, en nommant le montant qu'il a trouvé.
 
+
+**La clef Resend est sur l'APERÇU seulement** — décision de l'utilisateur, le 7
+septembre 2026. `koli-essai.vercel.app` est le seul site qui encaisse pour de
+vrai : les courriels y annoncent de vraies ventes.
+
+⚠ **La production reste muette, et ce n'est pas un oubli.** Elle tourne en
+`PAYMENT_MODE=test` et elle est ouverte au public : n'importe quel visiteur qui
+appuie sur « simuler un paiement réussi » y fabrique une commande dans le
+registre réel (§8). Y poser la clef ferait partir un courriel annonçant cette
+vente inventée, à une vraie adresse. La clef s'y posera le jour où la
+production bascule sur `ikeepay` — il n'y aura alors plus de bouton à appuyer.
+
+**Éprouvé en production le 7 septembre 2026, et non déduit.** La route de
+rattrapage a été déclenchée à la main sur l'essai, clef valide en place :
+
+```
+{"courriels":{"envoyees":0,"echouees":0,"ignorees":4}}
+```
+
+Les quatre notifications qui dormaient en ligne depuis avant l'existence du
+canal ont été écartées et marquées, chacune avec son motif :
+
+| Commande | Adresse | Motif |
+|---|---|---|
+| `KOLI-M6BDYA9F` | une **vraie** adresse | commande absente du registre |
+| `KOLI-B68YSD5C` | `koli.ci` | adresse de demonstration |
+| `KOLI-E5ZNYA6R` | `koli.ci` | adresse de demonstration |
+| `KOLI-E5ZNYA6R` | `koli.ci` | adresse de demonstration |
+
+La première est celle qui comptait : c'est la vente FABRIQUÉE du 2 septembre,
+effacée depuis du registre, dont la notification a survécu. Zéro courriel parti,
+zéro notification en attente.
+
 ### Le vendeur fixe SA monnaie, l'acheteur lit la sienne
 
 C'est la demande d'origine, le 6 septembre 2026 : « le vendeur ivoirien vend
