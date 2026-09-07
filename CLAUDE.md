@@ -1774,9 +1774,26 @@ Portée vérifiée, et non supposée :
 | Envoyer depuis `premiummarketafrica.com` (l'autre projet) | **403** — `not authorized to send emails from…` |
 | Lire les domaines, lister les clefs | **401** — `restricted to only send emails` |
 
-⚠ **L'ancienne clef `Full access` existe toujours.** Elle est dans `.env` de
-personne désormais, mais elle vit chez Resend et ouvre tout le compte, y
-compris le domaine du second projet. À révoquer dans leur tableau de bord.
+**L'ancienne clef `Full access` est RÉVOQUÉE** (7 septembre 2026). Trois clefs
+existaient au compte ; seule celle nommée `koli`, créée la veille et posée dans
+`.env`, a été supprimée :
+
+| Clef | Sort |
+|---|---|
+| `koli-envoi` — restreinte, créée ce jour | **gardée** — c'est celle qui sert |
+| `koli` — `Full access`, celle de `.env` | **supprimée** |
+| `Onboarding` — créée le 2 septembre, avant que KOLI existe chez Resend | **laissée** : elle n'est pas à nous, et c'est vraisemblablement celle du second projet |
+
+⚠ **Une clef supprimée rend `400`, pas `401`.** « *API key is invalid* », avec
+le statut d'une requête mal formée. Un contrôle qui cherche `401` conclurait
+qu'elle marche encore — c'est ce qu'a fait le premier essai, et c'est le corps
+de la réponse qui a tranché, pas le code.
+
+**Conséquence à connaître** : plus aucune clef de ce poste ne peut administrer
+le compte Resend. Créer un domaine, lire les clefs, en révoquer une — tout cela
+passe désormais par leur tableau de bord, à la main. C'est le but, et c'est
+aussi ce qui rendra la prochaine rotation moins commode : il faudra créer la
+nouvelle clef dans leur interface avant de pouvoir échanger quoi que ce soit.
 
 ⚠ **Resend est en `eu-west-1`** et le domaine y est `verified`. Le quota
 mesuré : **10 requêtes par seconde** (`ratelimit-policy: 10;w=1`). Les plafonds
