@@ -6,6 +6,7 @@ import {
   creerProduitAction,
   modifierProduitAction,
 } from "@/lib/products/actions";
+import { SYMBOLE, type Devise } from "@/data/markets";
 
 export interface ProduitInitial {
   id: string;
@@ -37,8 +38,18 @@ const CATEGORIES = [
 
 export function FormulaireProduit({
   initial,
+  devise,
 }: {
   initial?: ProduitInitial;
+  /*
+   * La monnaie du VENDEUR, pas une valeur par défaut.
+   *
+   * Le champ était étiqueté « Prix unitaire ({SYMBOLE[devise]}) » pour tout le monde. Un
+   * commerçant de Kinshasa qui saisit 5 000 francs congolais lisait donc qu'il
+   * demandait 5 000 francs CFA — quatre fois plus. Il ne s'en apercevrait qu'à
+   * la première vente, et son client avant lui.
+   */
+  devise: Devise;
 }) {
   const router = useRouter();
   const [erreur, setErreur] = useState<string | null>(null);
@@ -142,7 +153,7 @@ export function FormulaireProduit({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <div>
           <label htmlFor="price" className="block text-xs font-semibold mb-1.5">
-            Prix unitaire (FCFA)
+            Prix unitaire ({SYMBOLE[devise]})
           </label>
           {/* inputMode numeric : sur telephone, ouvre le pave numerique sans
               les fleches de type="number" qui font varier le prix par erreur. */}

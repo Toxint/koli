@@ -197,7 +197,27 @@ async function parcourir(largeur) {
    * le nom des autres. C'est exact au lieu d'etre approximatif, et cela reste
    * le seul controle capable de voir une abreviation retiree.
    */
-  const NOM_ABREGE = /^(\S+)(?: (\p{Lu})\.)? (?:vient de|a reçu)/u;
+  /*
+   * L'initiale n'est pas forcement une LETTRE.
+   *
+   * Elle l'etait — p{Lu} —, et le controle a crie a tort sur « Livreur 8. »,
+   * l'abreviation de « Livreur Invite 87494 » que verif:livreurs laisse en
+   * passant. Ce n'etait pas une fuite : le dernier mot etait bien reduit a un
+   * seul caractere.
+   *
+   * Le defaut etait dans l'attente, pas dans le code. `abreger` reduit le
+   * dernier mot a SON PREMIER CARACTERE, quel qu'il soit — et deux noms
+   * parfaitement reels le prennent en defaut :
+   *
+   *   · une enseigne comme « Boutique 225 » donne « Boutique 2. » ;
+   *   · un patronyme en ecriture arabe ou chinoise n'a pas de majuscule, et
+   *     toUpperCase() le rend inchange.
+   *
+   * Ce qui protege n'est pas la NATURE du caractere, c'est qu'il y en ait UN
+   * SEUL : « Awa Kone » echoue toujours, parce qu'un mot entier ne tient pas
+   * dans S suivi d'un point.
+   */
+  const NOM_ABREGE = /^(\S+)(?: (\S)\.)? (?:vient de|a reçu)/u;
   const malAbrege = [...vues].find((v) => !NOM_ABREGE.test(v));
   verifier(
     !malAbrege,

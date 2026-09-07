@@ -7,6 +7,8 @@ import { prisma } from "@/lib/db/prisma";
 import { ACTIONS_AUDIT, consigner } from "@/lib/audit/journal";
 import { getCurrentUser } from "@/lib/auth/actions";
 import { partiesDeLaCommande, notifier } from "@/lib/notifications/envoi";
+import { commeDevise } from "@/data/markets";
+import { formatMontant } from "@/lib/format";
 import { declencherExpedition } from "@/lib/notifications/courriel";
 import {
   assertTransition,
@@ -173,7 +175,7 @@ export async function traiterRemboursementAction(
         entite: "Order",
         entiteId: commande.reference,
         details: {
-          montant: `${montant} FCFA`,
+          montant: formatMontant(montant, commeDevise(commande.currency)),
           stockRestitue: validation.data.restituerStock ? "oui" : "non",
         },
       });

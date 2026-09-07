@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { createOrderAction } from "@/lib/orders/actions";
 import { formatMontant } from "@/lib/format";
-import { MARCHES, type Marche, type Devise } from "@/data/markets";
+import { MARCHES, SYMBOLE, type Marche, type Devise } from "@/data/markets";
 import { Icone } from "@/components/ui/Icone";
 import { BarreCompte } from "@/components/ui/BarreCompte";
 
@@ -86,10 +86,29 @@ function LigneResume({ libelle, valeur }: { libelle: string; valeur: string }) {
 export function FormulaireCommande({
   produits,
   devise,
+  paysVendeur,
 }: {
   produits: ProduitCatalogue[];
   /** La monnaie du vendeur — celle de ses prix, et donc de cette commande. */
   devise: Devise;
+  /*
+   * Le pays du VENDEUR, qui sert de défaut au pays de l'acheteur.
+   *
+   * ┌────────────────────────────────────────────────────────────────────┐
+   * │  Il valait « Côte d'Ivoire » pour tout le monde.                   │
+   * └────────────────────────────────────────────────────────────────────┘
+   *
+   * Un commerçant de Kinshasa qui ne touche pas à ce menu créait donc une
+   * commande en francs congolais pour un acheteur déclaré ivoirien — et la
+   * page de paiement annonçait à ce Congolais un équivalent en francs CFA,
+   * c'est-à-dire l'inverse exact de ce que cette conversion existe pour
+   * faire.
+   *
+   * Le défaut juste est « chez moi » : sur une plateforme de commerce local,
+   * la vente est domestique bien plus souvent qu'elle ne traverse une
+   * frontière. Le menu reste là pour l'autre cas.
+   */
+  paysVendeur: string;
 }) {
   const [etape, setEtape] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -110,7 +129,7 @@ export function FormulaireCommande({
   const [buyerName, setBuyerName] = useState("");
   const [buyerPhone, setBuyerPhone] = useState("");
   const [buyerEmail, setBuyerEmail] = useState("");
-  const [buyerCountry, setBuyerCountry] = useState("Côte d'Ivoire");
+  const [buyerCountry, setBuyerCountry] = useState(paysVendeur);
   const [buyerCity, setBuyerCity] = useState("");
   const [buyerAddress, setBuyerAddress] = useState("");
   const [buyerLandmark, setBuyerLandmark] = useState("");
@@ -144,7 +163,7 @@ export function FormulaireCommande({
     if (n === 1) {
       if (productName.trim().length < 2) return "Indiquez le nom de l'article.";
       if (!Number.isInteger(unitPrice) || unitPrice < 100)
-        return "Le prix unitaire doit être d'au moins 100 FCFA.";
+        return `Le prix unitaire doit être d'au moins 100 ${SYMBOLE[devise]}.`;
       if (!Number.isInteger(quantity) || quantity < 1)
         return "La quantité doit être d'au moins 1.";
       if (produitChoisi && quantity > produitChoisi.quantity)
@@ -364,7 +383,7 @@ export function FormulaireCommande({
                     htmlFor="unitPrice"
                     className="block text-xs font-semibold mb-1"
                   >
-                    Prix unitaire (FCFA)
+                    Prix unitaire ({SYMBOLE[devise]})
                   </label>
                   {/* Le prix d'un produit du catalogue ne se modifie qu'au
                       catalogue : c'est ce qui évite que deux commandes du même
@@ -571,7 +590,7 @@ export function FormulaireCommande({
                   htmlFor="deliveryFee"
                   className="block text-xs font-semibold mb-1"
                 >
-                  Frais de livraison (FCFA)
+                  Frais de livraison ({SYMBOLE[devise]})
                 </label>
                 <input
                   id="deliveryFee"

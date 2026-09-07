@@ -4,6 +4,7 @@ import { getCurrentUser } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/prisma";
 import { MenuEspace } from "@/components/ui/MenuEspace";
 import { FormulaireProduit } from "@/components/domain/FormulaireProduit";
+import { deviseDuVendeur } from "@/data/markets";
 
 export default async function ModifierProduitPage({
   params,
@@ -48,6 +49,7 @@ export default async function ModifierProduitPage({
 
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-hairline dark:border-slate-800 shadow-sm p-6">
           <FormulaireProduit
+            devise={deviseDuVendeur(user.sellerProfile.country)}
             initial={{
               id: produit.id,
               name: produit.name,

@@ -24,7 +24,7 @@ const produitSchema = z.object({
   price: z
     .coerce.number()
     .int("Le prix doit être un nombre entier.")
-    .min(100, "Le prix doit être d'au moins 100 FCFA."),
+    .min(100, "Le prix doit être d'au moins 100."),
   quantity: z
     .coerce.number()
     .int("La quantité doit être un nombre entier.")

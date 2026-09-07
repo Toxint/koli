@@ -31,6 +31,12 @@ export default async function NouvelleCommandePage() {
     <FormulaireCommande
       produits={produits}
       devise={deviseDuVendeur(user.sellerProfile.country)}
+      /*
+       * Un vendeur sans pays retombe sur la Côte d'Ivoire — le repli documenté
+       * au §8, celui des comptes créés avant que `SellerProfile.country`
+       * n'existe. C'est un repli, pas un choix : à corriger sur le profil.
+       */
+      paysVendeur={user.sellerProfile.country || "Côte d'Ivoire"}
     />
   );
 }

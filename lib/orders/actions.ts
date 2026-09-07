@@ -8,7 +8,8 @@ import { OrderStatus, PaymentStatus, PaymentProviderType, DeliveryStatus } from 
 import { z } from "zod";
 import { findTransitionPath } from "@/lib/orders/statusMachine";
 import { generateOrderReference } from "@/lib/orders/reference";
-import { deviseDuVendeur } from "@/data/markets";
+import { commeDevise, deviseDuVendeur } from "@/data/markets";
+import { formatMontant } from "@/lib/format";
 import { preleverCommission } from "@/lib/finance/commission";
 import { ACTIONS_AUDIT, consigner } from "@/lib/audit/journal";
 import { partiesDeLaCommande, notifier } from "@/lib/notifications/envoi";
@@ -45,7 +46,8 @@ const orderSchema = z.object({
   // Facultatif : la plupart des acheteurs n'en ont pas. Chaine vide toleree,
   // le champ etant optionnel dans le formulaire.
   buyerEmail: z.string().email("Email du client invalide").optional().or(z.literal("")),
-  // Montants en FCFA : entiers obligatoires, la base les stocke en Int.
+  // Montants en unites ENTIERES de la devise de la commande : la base les
+  // stocke en Int, et aucune monnaie desservie n'a de centimes en usage.
   // Sans `.int()`, une saisie comme 1500.7 passait la validation et faisait
   // echouer Prisma a l'ecriture.
   deliveryFee: z.coerce.number().int("Frais de livraison invalides").min(0, "Frais de livraison invalides"),
@@ -53,7 +55,7 @@ const orderSchema = z.object({
   // vente ponctuelle d'un article non catalogue.
   productId: z.string().optional(),
   productName: z.string().min(2, "Le nom du produit est requis"),
-  unitPrice: z.coerce.number().int("Le prix unitaire doit être un nombre entier").min(100, "Le prix unitaire doit être d'au moins 100 FCFA"),
+  unitPrice: z.coerce.number().int("Le prix unitaire doit être un nombre entier").min(100, "Le prix unitaire doit être d'au moins 100"),
   quantity: z.coerce.number().int("La quantité doit être un nombre entier").min(1, "La quantité doit être d'au moins 1"),
 });
 
@@ -457,7 +459,11 @@ export async function confirmReceptionAction(
         action: ACTIONS_AUDIT.FUNDS_RELEASE_TEST,
         entite: "Order",
         entiteId: order.reference,
-        details: { montant: `${releasedAmount} FCFA` },
+        // La devise de la COMMANDE, pas une monnaie supposée : ce journal
+        // est ce qu'on relit pour rapprocher les écritures.
+        details: {
+          montant: formatMontant(releasedAmount, commeDevise(order.currency)),
+        },
       });
 
       // §44 : le vendeur apprend qu'il est regle. C'est l'aboutissement de

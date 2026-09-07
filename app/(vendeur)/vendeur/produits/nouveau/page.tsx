@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth/actions";
 import { MenuEspace } from "@/components/ui/MenuEspace";
 import { FormulaireProduit } from "@/components/domain/FormulaireProduit";
+import { deviseDuVendeur } from "@/data/markets";
 
 export default async function NouveauProduitPage() {
   const user = await getCurrentUser();
@@ -31,7 +32,7 @@ export default async function NouveauProduitPage() {
         </div>
 
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-hairline dark:border-slate-800 shadow-sm p-6">
-          <FormulaireProduit />
+          <FormulaireProduit devise={deviseDuVendeur(user.sellerProfile.country)} />
         </div>
       </main>
     </div>

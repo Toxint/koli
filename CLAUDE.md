@@ -353,6 +353,7 @@ npm run verif:parcours   # le parcours complet — le critère du §80
 npm run verif:courbes    # les courbes disent-elles ce que porte le registre ?
 npm run verif:annonces   # les vignettes de la vitrine se lisent-elles en entier ?
 npm run verif:livreurs   # chaque vendeur n'a-t-il QUE ses livreurs ?
+npm run verif:devises    # une monnaie est-elle ecrite en dur quelque part ?
 ```
 
 Et trois outils qui ne sont pas des vérifications mais des préparatifs — ils
@@ -367,11 +368,11 @@ npm run ikeepay:surveiller   # attendre un vrai paiement et dire ce qui arrive
 npm run admin:motdepasse     # changer le mot de passe administrateur, en local ou en ligne
 ```
 
-34 commandes `verif:*` au total. Elles pilotent un **vrai navigateur**
+35 commandes `verif:*` au total. Elles pilotent un **vrai navigateur**
 (Playwright) contre le **vrai serveur** et lisent la **vraie base**. Un écran
 peut mentir sans que la base bouge, et l'inverse.
 
-**338 tests unitaires** par ailleurs (`npm test`, Vitest).
+**352 tests unitaires** par ailleurs (`npm test`, Vitest).
 
 ---
 
@@ -740,6 +741,31 @@ du même genre : il comparait un écran à une base qui bougeait sous lui.
   coïncidence. Il éprouve désormais la **forme** de ce qui s'affiche —
   `Prénom I.` — ce qui est exact au lieu d'être approximatif. Falsifié en
   retirant l'abréviation : il nomme la phrase fautive.
+
+**Une troisième, le 7 septembre 2026, et du genre inverse : le contrôle était
+trop STRICT.** Il exigeait que l'initiale soit une lettre majuscule
+(`\p{Lu}`). Il a donc crié à la fuite sur « Livreur 8. » — l'abréviation de
+« Livreur Invité 87494 », le compte que `verif:livreurs` laisse en passant.
+Aucun nom n'était exposé : le dernier mot était bien réduit à un caractère.
+
+Le défaut était dans l'attente, pas dans le code. `abreger` réduit le dernier
+mot à **son premier caractère, quel qu'il soit** — et deux noms parfaitement
+réels le prennent en défaut : une enseigne comme « Boutique 225 » donne
+« Boutique 2. », et un patronyme en écriture arabe ou chinoise n'a pas de
+majuscule, `toUpperCase()` le rendant inchangé. Sur ce marché, ce n'est pas
+une hypothèse d'école.
+
+Le motif accepte désormais `\S` : ce qui protège n'est pas la NATURE du
+caractère, c'est qu'il y en ait **un seul**. « Awa Kone » échoue toujours,
+parce qu'un mot entier ne tient pas dans un caractère suivi d'un point.
+Falsifié en faisant rendre le nom complet à `abreger` : sept contrôles
+tombent, dont celui-ci, en nommant la phrase fautive.
+
+⚠ **Un contrôle trop strict coûte autant qu'un contrôle trop laxiste**, et se
+repère moins vite : il ne laisse rien passer, il crie sur du sain. On finit
+par lire ses échecs comme du bruit — et le jour où il a raison, personne
+n'écoute.
+
 
 ### La marque : un anneau ouvert, et un comma dedans
 
@@ -1638,6 +1664,141 @@ qu'on ne peut pas lancer est un contrôle qu'on ne lance pas. Dix-huit contrôle
 
 Falsifié en glissant `${m.sequestre}` dans le message du livreur : le contrôle du
 §25 tombe, seul, en nommant le montant qu'il a trouvé.
+
+### Le vendeur fixe SA monnaie, l'acheteur lit la sienne
+
+C'est la demande d'origine, le 6 septembre 2026 : « le vendeur ivoirien vend
+2000 fcfa et le client congolais doit voir le prix en cdf automatiquement ».
+
+KOLI dessert 17 pays et 12 monnaies — la couverture d'iKeePay. La devise d'une
+commande est celle du **pays du vendeur** (`SellerProfile.country` →
+`deviseDuVendeur`), figée à la création et jamais relue : un registre ne se
+relit pas.
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│  LA CONVERSION AFFICHÉE EST INDICATIVE. Elle ne fait jamais foi.           │
+└────────────────────────────────────────────────────────────────────────────┘
+
+Le vendeur fixe 2 000 FCFA : c'est ce qu'il reçoit, et c'est le montant que
+porte la commande. L'acheteur congolais voit « ≈ 8 100 FC » pour savoir ce que
+cela représente chez lui — mais c'est **iKeePay** qui convertit au moment du
+prélèvement, à SON taux.
+
+**L'écart est mesuré, pas supposé** : le 6 septembre 2026, notre source donnait
+1 XOF = 4,0506 CDF quand leur tunnel affichait 796 CDF pour 200 XOF, soit 3,98.
+Environ 2 %, leur marge de change. Annoncer notre chiffre comme définitif ferait
+mentir l'écran d'un acheteur sur deux.
+
+Cinq décisions, et chacune se déferait sans être écrite :
+
+- **Le « ≈ » n'est pas décoratif**, et il DISPARAÎT entre deux francs CFA. XOF
+  et XAF sont arrimés à l'euro au même taux : le montant y est exact, et un
+  « environ » serait une fausse modestie qui ferait douter d'un chiffre qui ne
+  le mérite pas.
+- **Une parité fixe ne passe JAMAIS par le réseau.** Aller demander à une API
+  que 1 = 1, c'est payer un aller-retour sur un écran de paiement vu sur réseau
+  lent (§70), et s'ouvrir une panne là où il n'y en avait aucune. Un test
+  vérifie que `fetch` n'est pas appelé — c'est le contrôle qui compte, pas le
+  résultat.
+- **Taux hors d'atteinte ⇒ l'écran n'affiche RIEN de plus.** Pas de taux
+  périmé, pas de « — ». Un montant absent se remarque ; un montant faux se
+  croit.
+- **Un taux à ZÉRO est refusé**, d'où `> 0` et non `!= null`. Zéro passerait
+  toute vérification d'existence et rendrait un montant nul — « 0 FC » sur un
+  écran de paiement se lit « gratuit ». Falsifié en retirant la garde : le
+  contrôle rend `montant: +0`, et le voisin `montant: -8000`, un prix négatif.
+- **`formatTotaux` JUXTAPOSE, il n'additionne pas.** Un tableau de bord qui
+  mêle des commandes en XOF et en CDF ne peut pas en faire une somme : les
+  totaux s'affichent côte à côte, séparés par « · ». Une addition y serait un
+  nombre qui ne veut rien dire, présenté comme un solde.
+
+**Le pays de l'ACHETEUR décide de ce qu'il lit ; son défaut valait « Côte
+d'Ivoire » pour tout le monde.** `app/pay/[reference]` lit
+`deviseDuPays(dbOrder.buyerCountry)` — c'est ce champ, et lui seul, qui
+déclenche la conversion. Un commerçant de Kinshasa qui ne touchait pas au menu
+créait donc une commande en francs congolais pour un acheteur déclaré ivoirien,
+et la page annonçait à ce Congolais un équivalent en FCFA : l'inverse exact de
+ce que cette conversion existe pour faire.
+
+Le défaut est désormais **le pays du vendeur**. Sur une plateforme de commerce
+local, la vente est domestique bien plus souvent qu'elle ne traverse une
+frontière ; le menu reste là pour l'autre cas.
+
+⚠ **Le défaut du SCHÉMA reste « Côte d'Ivoire »** (`lib/orders/actions.ts`),
+et c'est voulu : c'est un dernier recours pour une soumission sans le champ,
+pas un choix offert à quelqu'un. Il rejoint le repli de `deviseDuVendeur(null)`
+— voir « Un vendeur sans pays vend en francs CFA sans l'avoir choisi ».
+
+
+⚠ **`lib/finance/change.ts` dépend d'une API tierce et fait de l'arithmétique
+sur de l'argent affiché.** Ses quatorze contrôles remplacent `fetch` : un test
+qui interrogerait vraiment `open.er-api.com` échouerait un jour parce qu'ils
+sont en panne, et on chercherait le défaut chez nous.
+
+### « FCFA » restait écrit en dur là où personne ne regarde
+
+Le travail sur les devises a d'abord traité ce qui se voit : les prix, les
+totaux, les factures, le tunnel de paiement. Il restait **34 occurrences**, et
+les plus graves n'étaient pas les plus visibles.
+
+**Trois écrivaient une monnaie fausse dans un enregistrement.**
+
+- `lib/orders/actions.ts` et `lib/refunds/actions.ts` consignaient au journal
+  d'audit `details: { montant: "20500 FCFA" }` — pour une commande en francs
+  congolais aussi. Ce journal est ce qu'on relit pour **rapprocher les
+  écritures** (§48) ; une unité fausse y vaut un chiffre faux.
+- `lib/notifications/activite.ts` formatait en FCFA les vignettes de la page
+  d'**accueil publique**. Un vendeur de Kinshasa réglé en francs congolais s'y
+  affichait comme ayant reçu des francs CFA — quatre fois plus. La vitrine
+  affirme des faits ; celui-là était faux, et c'était le plus visible du site.
+
+**Quatre trompaient le vendeur au moment où il saisit.** Les formulaires de
+produit et de commande étiquetaient « Prix unitaire (FCFA) » pour tout le monde.
+Un commerçant de Kinshasa qui tape 5 000 lit qu'il demande 5 000 francs CFA. Il
+ne s'en apercevrait qu'à la première vente, et son client avant lui.
+`FormulaireCommande` **recevait déjà** `devise` et ne s'en servait pas pour
+ses étiquettes ; `FormulaireProduit` ne la recevait pas du tout.
+
+**Deux messages de validation ne peuvent nommer aucune monnaie.** Les schémas
+Zod de `lib/orders/actions.ts` et `lib/products/actions.ts` sont statiques, au
+niveau du module : ils ne connaissent ni le vendeur ni son pays. Plutôt que d'en
+supposer une — ce qui était le défaut —, « d'au moins 100 FCFA » est devenu
+« d'au moins 100 ». L'étiquette du champ, elle, porte le symbole : le lecteur a
+l'unité sous les yeux à l'instant où il saisit.
+
+⚠ **Ce qui reste, et c'est voulu** : les commentaires qui citent « FCFA » comme
+exemple, et `SYMBOLE.XOF`/`SYMBOLE.XAF` qui valent « FCFA » parce que c'est le
+nom de ces monnaies. Le jeu de démonstration est ivoirien : les contrôles qui
+cherchent « FCFA » à l'écran ont donc toujours raison de le trouver.
+
+⚠ **Un balayage comme celui-ci ne se termine pas par un `grep` vide.** Il se
+termine quand on a répondu, pour chaque occurrence, à « qui lit ceci, et dans
+quelle monnaie pense-t-il ? ». Les trois plus graves étaient invisibles à
+l'écran — dans un journal d'audit et sur une page d'accueil que le vendeur
+concerné ne regarde jamais.
+
+**`npm run verif:devises` garde le terrain repris.** Même famille que
+`verif:mentions` : un contrôle STATIQUE qui lit les sources et refuse une
+phrase écrite en dur. L'éprouver dans un navigateur demanderait un compte
+vendeur par monnaie, donc douze parcours complets à chaque passage de la
+campagne — et cela ne couvrirait toujours pas le journal d'audit, qui n'est un
+écran pour personne.
+
+Trois choses qui se déferaient sans être écrites :
+
+- **Il cherche le symbole COLLÉ À UN AFFICHAGE**, pas le symbole nu. « FC »
+  seul signalerait « FCFA », « FComplet » et la moitié des identifiants du
+  projet ; seules comptent les tournures où il sert d'unité à un montant. Un
+  contrôle qui crie à tort finit par ne plus être lu — c'est ce qui a coûté
+  deux faux positifs à `verif:mentions`.
+- **La liste des symboles est RECOPIÉE, pas importée** de `data/markets.ts`.
+  L'importer ferait dépendre le contrôle du fichier qu'il surveille : un
+  symbole retiré là-bas cesserait d'être cherché ici, en silence.
+- **Les tests et `markets.ts` sont épargnés.** Le jeu de démonstration est
+  ivoirien : un test qui attend « 16 000 FCFA » a raison de l'écrire.
+
+Falsifié en remettant un « FCFA » en dur dans le journal des remboursements :
+il le nomme, avec son fichier et sa ligne, et sort en échec.
 
 ### Les identifiants SQL sont guillemetés
 

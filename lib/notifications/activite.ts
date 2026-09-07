@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
+import { commeDevise } from "@/data/markets";
+import { formatMontant } from "@/lib/format";
 
 /**
  * Ce qui vient réellement de se passer sur KOLI.
@@ -61,9 +63,16 @@ function abreger(nomComplet: string): string {
   return `${morceaux[0]} ${morceaux[morceaux.length - 1][0].toUpperCase()}.`;
 }
 
-/** Le séparateur de milliers de `lib/format`, sans importer tout le module. */
-function montant(v: number): string {
-  return `${Math.round(v).toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ")} FCFA`;
+/**
+ * Le montant, DANS SA MONNAIE.
+ *
+ * Il était formaté en FCFA quelle que soit l'écriture. Un vendeur de Kinshasa
+ * réglé en francs congolais s'affichait donc, sur la page d'accueil publique,
+ * comme ayant reçu des francs CFA — quatre fois plus. La vitrine affirme des
+ * faits (§8) ; celui-là était faux, et c'était le plus visible du site.
+ */
+function montant(v: number, devise: string): string {
+  return formatMontant(Math.round(v), commeDevise(devise));
 }
 
 /**
@@ -95,6 +104,7 @@ export async function annoncesActivite(): Promise<Annonce[]> {
       where: { type: "FUNDS_RELEASED", createdAt: { gte: depuis } },
       select: {
         amount: true,
+        currency: true,
         createdAt: true,
         order: {
           select: { seller: { select: { user: { select: { name: true } } } } },
@@ -120,9 +130,9 @@ export async function annoncesActivite(): Promise<Annonce[]> {
         icone: "argent" as const,
         titre: "Fonds libérés",
         // `amount` est signé : un crédit est positif, mais on affiche une
-        // somme reçue — la valeur absolue évite un « a reçu -32 000 FCFA »
+        // somme reçue — la valeur absolue évite un « a reçu -32 000 »
         // si la convention de signe change un jour.
-        detail: `${abreger(t.order.seller.user.name)} a reçu ${montant(Math.abs(t.amount))}`,
+        detail: `${abreger(t.order.seller.user.name)} a reçu ${montant(Math.abs(t.amount), t.currency)}`,
       },
     })),
   ];
