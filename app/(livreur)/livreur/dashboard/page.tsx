@@ -110,14 +110,35 @@ export default async function DriverDashboardPage() {
             </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
+          {/*
+            * UNE colonne sous 380px, et ce n'est pas un detail d'esthetique.
+            *
+            * `formatMontant` assemble ses montants avec des espaces
+            * INSECABLES — « 8 000 FCFA » est un seul bloc qui ne peut pas
+            * revenir a la ligne, seulement deborder. A 320px, deux colonnes
+            * laissent 96px de contenu par carte pour un chiffre qui en fait
+            * 133 : la page gagnait un defilement horizontal, que le §8
+            * interdit.
+            *
+            * Mesure, pas estimee : voir le tableau dans le commentaire de
+            * `min-w-0` ci-dessous.
+            */}
+          <div className="grid grid-cols-1 min-[380px]:grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
             {/* Le chiffre du jour, mis en avant : c'est celui qu'un livreur
                 regarde en premier, et souvent le seul. */}
-            <div className="carte-koli rounded-2xl bg-brand p-5 text-white">
+            {/*
+              * `min-w-0` : dans une grille, un element refuse par defaut de
+              * descendre sous la largeur de son contenu (`min-width: auto`).
+              * Sans lui, la carte pousse la grille, qui pousse la page — et
+              * c'est la page entiere qui defile lateralement, pas la carte.
+              */}
+            <div className="carte-koli min-w-0 rounded-2xl bg-brand p-4 text-white sm:p-5">
               <p className="text-[11px] font-bold uppercase tracking-wider text-white/80">
                 Gagné aujourd&apos;hui
               </p>
-              <p className="mt-2 text-2xl font-bold sm:text-3xl">
+              {/* Le filet de securite : un montant enorme casse au lieu de
+                  pousser la page. Il ne s'exerce que s'il ne rentre pas. */}
+              <p className="mt-2 text-2xl font-bold [overflow-wrap:anywhere] sm:text-3xl">
                 {formatMontant(revenus.gagneAujourdhui, deviseCourbe)}
               </p>
               <p className="mt-1 text-[11px] text-white/80">
@@ -127,11 +148,11 @@ export default async function DriverDashboardPage() {
               </p>
             </div>
 
-            <div className="carte-koli rounded-2xl bg-white p-5">
+            <div className="carte-koli min-w-0 rounded-2xl bg-white p-4 sm:p-5">
               <p className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">
                 Courses du jour
               </p>
-              <p className="mt-2 text-2xl font-bold text-brand sm:text-3xl">
+              <p className="mt-2 text-2xl font-bold text-brand [overflow-wrap:anywhere] sm:text-3xl">
                 {revenus.coursesAujourdhui}
               </p>
               <p className="mt-1 text-[11px] text-ink-muted">
@@ -139,11 +160,11 @@ export default async function DriverDashboardPage() {
               </p>
             </div>
 
-            <div className="carte-koli rounded-2xl bg-white p-5">
+            <div className="carte-koli min-w-0 rounded-2xl bg-white p-4 sm:p-5">
               <p className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">
                 En cours
               </p>
-              <p className="mt-2 text-2xl font-bold text-brand sm:text-3xl">
+              <p className="mt-2 text-2xl font-bold text-brand [overflow-wrap:anywhere] sm:text-3xl">
                 {revenus.enCours}
               </p>
               <p className="mt-1 text-[11px] text-ink-muted">
@@ -153,11 +174,11 @@ export default async function DriverDashboardPage() {
               </p>
             </div>
 
-            <div className="carte-koli rounded-2xl bg-white p-5">
+            <div className="carte-koli min-w-0 rounded-2xl bg-white p-4 sm:p-5">
               <p className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">
                 Gagné au total
               </p>
-              <p className="mt-2 text-2xl font-bold text-brand sm:text-3xl">
+              <p className="mt-2 text-2xl font-bold text-brand [overflow-wrap:anywhere] sm:text-3xl">
                 {formatMontant(revenus.gagneTotal, deviseCourbe)}
               </p>
               {/* Dire franchement que cet argent n'est pas encaissable. Un

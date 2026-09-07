@@ -1893,6 +1893,52 @@ regarder sur leur tableau de bord avant de compter dessus, car une commande
 complète produit cinq à six courriels sur sa vie.
 
 
+### Un montant ne peut pas revenir à la ligne, seulement déborder
+
+`formatMontant` assemble ses montants avec des espaces **insécables** — entre
+les groupes de chiffres et avant le symbole. C'est la bonne typographie : « 8 »
+et « 000 » ne doivent jamais se séparer, ni « 8 000 » et « FCFA ».
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│  Conséquence : « 8 000 FCFA » est UN SEUL BLOC. Dans un conteneur trop     │
+│  étroit, il ne se replie pas — il déborde, et la PAGE défile.              │
+└────────────────────────────────────────────────────────────────────────────┘
+
+Trouvé le 7 septembre 2026 sur le tableau de bord livreur, à 320 px : deux
+colonnes laissaient 96 px de contenu par carte pour un chiffre qui en faisait
+133. Le §8 interdit le défilement horizontal ; la page en avait un.
+
+⚠ **Ce défaut est APPARU SANS QUE LE CODE CHANGE.** Il dépend du montant :
+tant que le livreur avait gagné trois chiffres, tout tenait. C'est la
+signature d'une classe entière de bugs — un écran juste aujourd'hui, faux
+demain, sans qu'aucun commit ne soit en cause.
+
+Trois corrections, et l'ordre compte :
+
+- **`min-w-0` sur les cartes.** Dans une grille, un élément refuse par défaut
+  de descendre sous la largeur de son contenu (`min-width: auto`). Sans lui, la
+  carte pousse la grille, qui pousse la page : ce n'est pas la carte qui
+  défile, c'est le document.
+- **Une seule colonne sous 380 px.** Deux colonnes à 320 px ne peuvent pas
+  porter un montant à cinq chiffres à une taille lisible — ce n'est pas un
+  réglage à trouver, c'est une place qui n'existe pas. Le tableau de bord
+  vendeur était déjà en `grid-cols-1 sm:grid-cols-2` ; le livreur était le seul
+  à forcer deux colonnes dès 320.
+- **`[overflow-wrap:anywhere]` sur les montants**, en dernier recours. Il ne
+  s'exerce que si le texte ne rentre pas : un montant énorme casse au lieu de
+  pousser la page. Laid, mais borné — et le défilement horizontal, lui, ne
+  l'est pas.
+
+Mesuré à 320, 360, 380, 420, 768, 1024 et 1280 px : le document fait exactement
+la largeur de la fenêtre, et aucun paragraphe ne déborde. Comme pour les
+couleurs, la valeur n'est pas approchée à l'œil.
+
+⚠ **La règle générale, pour tout écran qui affiche de l'argent** : un montant
+est un bloc insécable, il faut donc lui donner la place ou l'autoriser à
+casser. `min-w-0` sur le conteneur, et jamais deux colonnes serrées pour un
+chiffre qu'on veut voir en grand.
+
+
 ### Le vendeur fixe SA monnaie, l'acheteur lit la sienne
 
 C'est la demande d'origine, le 6 septembre 2026 : « le vendeur ivoirien vend
