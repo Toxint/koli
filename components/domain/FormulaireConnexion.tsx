@@ -1,13 +1,49 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState, useRef, useState } from "react";
+import { useFormStatus } from "react-dom";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+
 import { AuthHeader } from "@/components/ui/AuthHeader";
 import { loginAction } from "@/lib/auth/actions";
 import { BoutonGoogle } from "@/components/ui/BoutonGoogle";
 import { useSearchParams } from "next/navigation";
 import { Icone } from "@/components/ui/Icone";
+
+/**
+ * Le bouton d'envoi, separe pour une seule raison.
+ *
+ * `useFormStatus` ne lit l'etat que d'un formulaire PARENT : appele dans le
+ * composant qui porte le `<form>`, il rend toujours `pending: false`. D'ou ce
+ * petit composant — ce n'est pas un decoupage esthetique, c'est la seule
+ * facon de faire fonctionner ce hook.
+ *
+ * Sans JavaScript il ne fait rien de special, et c'est tres bien : le
+ * navigateur affiche sa propre attente pendant qu'il charge la page suivante.
+ */
+function BoutonEnvoyer() {
+  const { pending } = useFormStatus();
+
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="w-full py-3.5 px-4 rounded-xl bg-brand hover:bg-brand-strong text-white font-semibold text-sm shadow-md shadow-brand/25 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+    >
+      {pending ? (
+        <>
+          <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          <span>Connexion en cours...</span>
+        </>
+      ) : (
+        "Se connecter"
+      )}
+    </button>
+  );
+}
 
 export function FormulaireConnexion({
   googleConfigure,
@@ -27,46 +63,40 @@ export function FormulaireConnexion({
    */
   raccourcisDemo?: boolean;
 }) {
-  const router = useRouter();
-  const [identifier, setIdentifier] = useState("");
-  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
   const params = useSearchParams();
+
+  /*
+   * `useActionState` plutot qu'un `onSubmit`.
+   *
+   * ┌──────────────────────────────────────────────────────────────────────┐
+   * │  Un `onSubmit` n'existe QU'APRES l'hydratation. Avant, le formulaire │
+   * │  ne part pas — on tape, on clique, et rien ne se passe.              │
+   * └──────────────────────────────────────────────────────────────────────┘
+   *
+   * Sur un telephone d'entree de gamme et un reseau lent (§70), ce moment
+   * dure. Avec `<form action={…}>`, le navigateur sait soumettre tout seul :
+   * le formulaire marche avant que React arrive, et mieux ensuite.
+   */
+  const [etat, envoyer] = useActionState(loginAction, null);
+
   // La connexion Google echoue par une redirection ; sans cette lecture, le
   // visiteur revenait sur un formulaire muet, sans savoir ce qui a rate.
-  const [error, setError] = useState<string | null>(
-    params.get("erreur")
-  );
+  const error = etat?.error ?? params.get("erreur");
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-
-    const formData = new FormData();
-    formData.append("identifier", identifier);
-    formData.append("password", password);
-
-    try {
-      const res = await loginAction(null, formData);
-      if (res.success && res.redirectTo) {
-        router.push(res.redirectTo);
-        router.refresh();
-      } else {
-        setError(res.error || "Une erreur est survenue lors de la connexion.");
-      }
-    } catch {
-      setError("Erreur réseau ou serveur. Veuillez réessayer.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  /*
+   * Les raccourcis de demonstration ecrivent dans le DOM, pas dans un etat.
+   *
+   * Les champs sont desormais NON CONTROLES — c'est ce qui leur permet de
+   * garder ce qu'on y tape sans que React soit charge. Un `setState` n'aurait
+   * plus rien a piloter.
+   */
+  const champIdentifiant = useRef<HTMLInputElement>(null);
+  const champMotDePasse = useRef<HTMLInputElement>(null);
 
   const fillDemoAccount = (demoIdentifier: string) => {
-    setIdentifier(demoIdentifier);
-    setPassword("Password123!");
-    setError(null);
+    if (champIdentifiant.current) champIdentifiant.current.value = demoIdentifier;
+    if (champMotDePasse.current) champMotDePasse.current.value = "Password123!";
   };
 
   return (
@@ -87,7 +117,7 @@ export function FormulaireConnexion({
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form action={envoyer} className="space-y-5">
             <div>
               <label htmlFor="identifier" className="block text-xs font-semibold text-brand dark:text-slate-300 uppercase tracking-wider mb-2">
                 Téléphone ou Email
@@ -98,8 +128,11 @@ export function FormulaireConnexion({
                 type="text"
                 autoComplete="username"
                 required
-                value={identifier}
-                onChange={(e) => setIdentifier(e.target.value)}
+                ref={champIdentifiant}
+                // `defaultValue` et non `value` : le champ garde ce qu'on y
+                // tape sans React, et l'action rend la saisie pour qu'un refus
+                // ne renvoie pas un formulaire vide.
+                defaultValue={etat?.saisie?.identifier ?? ""}
                 // Placeholder court : l'ancien (38 caracteres) etait tronque
                 // dans le champ sur un ecran de 320px, et un placeholder ne
                 // passe pas a la ligne.
@@ -139,8 +172,7 @@ export function FormulaireConnexion({
                   type={showPassword ? "text" : "password"}
                   autoComplete="current-password"
                   required
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  ref={champMotDePasse}
                   placeholder="••••••••"
                   // `pr-24` : le bouton « Afficher » recouvrait le texte saisi,
                   // l'ancien `pr-12` ne reservait que 48px pour un bouton de 68px.
@@ -161,23 +193,7 @@ export function FormulaireConnexion({
               </div>
             </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3.5 px-4 rounded-xl bg-brand hover:bg-brand-strong text-white font-semibold text-sm shadow-md shadow-brand/25 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  <span>Connexion en cours...</span>
-                </>
-              ) : (
-                "Se connecter"
-              )}
-            </button>
+            <BoutonEnvoyer />
           </form>
 
           <div className="mt-6">

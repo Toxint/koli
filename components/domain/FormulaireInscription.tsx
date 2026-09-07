@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useActionState } from "react";
+import { useFormStatus } from "react-dom";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { AuthHeader } from "@/components/ui/AuthHeader";
 import { registerAction } from "@/lib/auth/actions";
 import { BoutonGoogle } from "@/components/ui/BoutonGoogle";
@@ -18,6 +18,40 @@ export interface InvitationLivreur {
   boutique: string;
 }
 
+/** Voir `FormulaireConnexion` : `useFormStatus` n'ecoute qu'un `<form>` parent. */
+function BoutonEnvoyer() {
+  const { pending } = useFormStatus();
+
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="w-full py-3.5 px-4 rounded-xl bg-brand hover:bg-brand-strong text-white font-semibold text-sm shadow-md shadow-brand/25 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+    >
+      {pending ? (
+        <>
+          <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+          </svg>
+          <span>Création du compte...</span>
+        </>
+      ) : (
+        "Créer mon compte"
+      )}
+    </button>
+  );
+}
+
+/** L'apparence d'une carte de role, selectionnee ou non — par le CSS, pas par React. */
+const CARTE_ROLE =
+  "block p-4 rounded-xl border-2 text-left transition-all cursor-pointer " +
+  "border-hairline dark:border-slate-800 bg-white dark:bg-slate-800 text-brand dark:text-slate-300 " +
+  "hover:border-hairline " +
+  "has-[:checked]:border-brand-border has-[:checked]:bg-brand-soft/50 " +
+  "dark:has-[:checked]:bg-emerald-950/30 dark:has-[:checked]:text-emerald-200 has-[:checked]:shadow-sm " +
+  "has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-brand has-[:focus-visible]:ring-offset-2";
+
 export function FormulaireInscription({
   googleConfigure,
   motifGoogle,
@@ -31,7 +65,6 @@ export function FormulaireInscription({
   /** Un jeton était présent, mais il ne vaut plus rien. */
   invitationRefusee?: boolean;
 }) {
-  const router = useRouter();
   /*
    * Un lien d'invitation FIXE le rôle sur « livreur ».
    *
@@ -42,70 +75,31 @@ export function FormulaireInscription({
    * de livreur — `registerAction` refuserait en silence, sans que personne ne
    * comprenne pourquoi.
    */
-  const [role, setRole] = useState<RoleType>(invitation ? "DRIVER" : "SELLER");
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [businessName, setBusinessName] = useState("");
-  const [vehicle, setVehicle] = useState("");
-  const [zone, setZone] = useState("");
-  const [city, setCity] = useState("Abidjan");
   /*
-   * Le pays, DEMANDÉ et non supposé.
+   * Le role initial. Un lien d'invitation le FIXE sur « livreur ».
    *
-   * Il était écrit en dur — « Côte d'Ivoire » — pour tout compte créé.
-   * Un commerçant de Kinshasa était donc enregistré comme ivoirien, et
-   * ses prix libellés en francs CFA : quatre fois leur valeur réelle.
-   *
-   * Aucune valeur par défaut ici. La liste s'ouvre sur le premier marché,
-   * mais c'est un choix visible que l'utilisateur peut corriger — pas une
-   * supposition invisible.
+   * Le lien ne dit pas « inscris-toi », il dit « rejoins mon equipe de
+   * livraison ». Laisser le choix ouvert produirait le cas absurde d'un
+   * vendeur qui s'inscrit par le lien d'un autre vendeur, et que
+   * l'application essaierait ensuite de rattacher a une equipe alors qu'il
+   * n'a pas de profil de livreur.
    */
-  const [country, setCountry] = useState(MARCHES[0].name);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const roleInitial: RoleType = invitation ? "DRIVER" : "SELLER";
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
+  /*
+   * `useActionState` plutot qu'un `onSubmit` — meme raison qu'a la connexion.
+   *
+   * ┌──────────────────────────────────────────────────────────────────────┐
+   * │  Un `onSubmit` n'existe QU'APRES l'hydratation. Avant, on remplit,   │
+   * │  on clique, et rien ne part.                                         │
+   * └──────────────────────────────────────────────────────────────────────┘
+   */
+  const [etat, envoyer] = useActionState(registerAction, null);
+  const error = etat?.error ?? null;
 
-    const formData = new FormData();
-    formData.append("name", name);
-    formData.append("phone", phone);
-    formData.append("email", email);
-    formData.append("password", password);
-    formData.append("role", role);
-
-    if (role === "SELLER") formData.append("businessName", businessName);
-    if (role === "DRIVER") {
-      formData.append("vehicle", vehicle);
-      formData.append("zone", zone);
-    }
-    if (role === "CLIENT") formData.append("city", city);
-    formData.append("country", country);
-
-    // Le jeton part avec l'inscription. `registerAction` le revalide contre la
-    // base : entre l'ouverture de cette page et l'envoi du formulaire, le
-    // vendeur a pu révoquer son lien, et c'est le contrôle au moment d'écrire
-    // qui fait foi — pas celui qui a permis d'afficher l'écran.
-    if (invitation) formData.append("invitation", invitation.jeton);
-
-    try {
-      const res = await registerAction(null, formData);
-      if (res.success && res.redirectTo) {
-        router.push(res.redirectTo);
-        router.refresh();
-      } else {
-        setError(res.error || "Une erreur est survenue lors de l'inscription.");
-      }
-    } catch {
-      setError("Erreur réseau ou serveur. Veuillez réessayer.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  /* Ce que la personne venait de taper, pour ne pas le lui faire retaper. */
+  const saisi = (champ: string, defaut = "") => etat?.saisie?.[champ] ?? defaut;
+  const roleChoisi = (etat?.saisie?.role as RoleType) || roleInitial;
 
   return (
     <div className="min-h-screen bg-cream flex flex-col justify-center px-4 py-8 sm:px-6 lg:px-8">
@@ -176,7 +170,19 @@ export function FormulaireInscription({
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          {/* `data-inscription` : c'est par lui que `globals.css` montre le
+              bloc de champs correspondant au role coche — sans JavaScript. */}
+          <form action={envoyer} data-inscription className="space-y-6">
+            {/*
+              * Le jeton part avec le formulaire. `registerAction` le revalide
+              * contre la base : entre l'ouverture de cette page et l'envoi, le
+              * vendeur a pu revoquer son lien, et c'est le controle au moment
+              * d'ECRIRE qui fait foi — pas celui qui a permis d'afficher
+              * l'ecran.
+              */}
+            {invitation && (
+              <input type="hidden" name="invitation" value={invitation.jeton} />
+            )}
             {/* Choix du role — `radiogroup` et `aria-checked` : l'etat
                 selectionne n'etait signale que par la couleur, donc invisible
                 pour un lecteur d'ecran comme pour un daltonien (§69).
@@ -191,64 +197,69 @@ export function FormulaireInscription({
               >
                 Vous souhaitez vous inscrire en tant que :
               </span>
-              <div
-                role="radiogroup"
-                aria-labelledby="libelle-role"
-                className="grid grid-cols-1 sm:grid-cols-3 gap-3"
-              >
-                <button
-                  type="button"
-                  onClick={() => setRole("SELLER")}
-                  role="radio"
-                  aria-checked={role === "SELLER"}
-                  className={`p-4 rounded-xl border-2 text-left transition-all ${
-                    role === "SELLER"
-                      ? "border-brand-border bg-brand-soft/50 dark:bg-emerald-950/30 text-brand dark:text-emerald-200 shadow-sm"
-                      : "border-hairline dark:border-slate-800 hover:border-hairline bg-white dark:bg-slate-800 text-brand dark:text-slate-300"
-                  }`}
-                >
+              {/*
+                * De VRAIES radios, et non des `<button role="radio">`.
+                *
+                * ┌──────────────────────────────────────────────────────────┐
+                * │  Un bouton ne change d'etat que par JavaScript. Avant    │
+                * │  l'hydratation, ces trois cartes ne repondaient a rien.  │
+                * └──────────────────────────────────────────────────────────┘
+                *
+                * Une radio est cochee par le NAVIGATEUR, et sa valeur part
+                * avec le formulaire sans que personne n'ait a l'y mettre. Le
+                * role selectionne se voit par `has-[:checked]` en CSS, et les
+                * champs qui en dependent par une regle de `globals.css` —
+                * donc sans JavaScript la aussi.
+                *
+                * L'`input` est en `sr-only` et non `hidden` : masque pour de
+                * bon, il sortirait de l'ordre de tabulation et deviendrait
+                * inatteignable au clavier.
+                */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <label className={CARTE_ROLE}>
+                  <input
+                    type="radio"
+                    name="role"
+                    value="SELLER"
+                    defaultChecked={roleChoisi === "SELLER"}
+                    className="sr-only"
+                  />
                   <Icone nom="boutique" className="w-6 h-6 mb-1 text-brand" />
                   <span className="font-bold text-sm block">Vendeur</span>
                   <span className="text-[11px] text-ink-muted dark:text-slate-400 block mt-0.5">
-                    Sécurisez vos ventes WhatsApp & RS
+                    Sécurisez vos ventes WhatsApp &amp; RS
                   </span>
-                </button>
+                </label>
 
-                <button
-                  type="button"
-                  onClick={() => setRole("DRIVER")}
-                  role="radio"
-                  aria-checked={role === "DRIVER"}
-                  className={`p-4 rounded-xl border-2 text-left transition-all ${
-                    role === "DRIVER"
-                      ? "border-brand-border bg-brand-soft/50 dark:bg-emerald-950/30 text-brand dark:text-emerald-200 shadow-sm"
-                      : "border-hairline dark:border-slate-800 hover:border-hairline bg-white dark:bg-slate-800 text-brand dark:text-slate-300"
-                  }`}
-                >
+                <label className={CARTE_ROLE}>
+                  <input
+                    type="radio"
+                    name="role"
+                    value="DRIVER"
+                    defaultChecked={roleChoisi === "DRIVER"}
+                    className="sr-only"
+                  />
                   <Icone nom="livreur" className="w-6 h-6 mb-1 text-brand" />
                   <span className="font-bold text-sm block">Livreur</span>
                   <span className="text-[11px] text-ink-muted dark:text-slate-400 block mt-0.5">
                     Effectuez les livraisons et validez par OTP
                   </span>
-                </button>
+                </label>
 
-                <button
-                  type="button"
-                  onClick={() => setRole("CLIENT")}
-                  role="radio"
-                  aria-checked={role === "CLIENT"}
-                  className={`p-4 rounded-xl border-2 text-left transition-all ${
-                    role === "CLIENT"
-                      ? "border-brand-border bg-brand-soft/50 dark:bg-emerald-950/30 text-brand dark:text-emerald-200 shadow-sm"
-                      : "border-hairline dark:border-slate-800 hover:border-hairline bg-white dark:bg-slate-800 text-brand dark:text-slate-300"
-                  }`}
-                >
+                <label className={CARTE_ROLE}>
+                  <input
+                    type="radio"
+                    name="role"
+                    value="CLIENT"
+                    defaultChecked={roleChoisi === "CLIENT"}
+                    className="sr-only"
+                  />
                   <Icone nom="client" className="w-6 h-6 mb-1 text-brand" />
                   <span className="font-bold text-sm block">Client</span>
                   <span className="text-[11px] text-ink-muted dark:text-slate-400 block mt-0.5">
                     Achetez en toute confiance
                   </span>
-                </button>
+                </label>
               </div>
             </div>
 
@@ -265,8 +276,8 @@ export function FormulaireInscription({
                   autoComplete="name"
                   type="text"
                   required
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  name="name"
+                  defaultValue={saisi("name")}
                   placeholder="Ex: Koffi Emmanuel"
                   className="w-full px-4 py-3 rounded-xl border border-hairline dark:border-slate-700 bg-white dark:bg-slate-800 text-brand dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand-border transition-all text-sm"
                 />
@@ -285,8 +296,8 @@ export function FormulaireInscription({
                   inputMode="tel"
                   type="tel"
                   required
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  name="phone"
+                  defaultValue={saisi("phone")}
                   placeholder="+225 07 00 00 00 00"
                   className="w-full px-4 py-3 rounded-xl border border-hairline dark:border-slate-700 bg-white dark:bg-slate-800 text-brand dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand-border transition-all text-sm"
                 />
@@ -306,8 +317,8 @@ export function FormulaireInscription({
                   autoComplete="email"
                   inputMode="email"
                   type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  name="email"
+                  defaultValue={saisi("email")}
                   placeholder="exemple@domaine.com"
                   className="w-full px-4 py-3 rounded-xl border border-hairline dark:border-slate-700 bg-white dark:bg-slate-800 text-brand dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand-border transition-all text-sm"
                 />
@@ -327,8 +338,7 @@ export function FormulaireInscription({
                   type="password"
                   required
                   minLength={6}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
+                  name="password"
                   placeholder="Au moins 6 caractères"
                   className="w-full px-4 py-3 rounded-xl border border-hairline dark:border-slate-700 bg-white dark:bg-slate-800 text-brand dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand-border transition-all text-sm"
                 />
@@ -344,8 +354,17 @@ export function FormulaireInscription({
             </div>
 
             {/* Role Specific Additional Fields */}
-            {role === "SELLER" && (
-              <div>
+            {/*
+              * Les trois blocs sont TOUS rendus, et `globals.css` montre celui
+              * qui correspond au role coche.
+              *
+              * Un rendu conditionnel en React ne produirait que le bloc du
+              * role initial : sans JavaScript, changer de role ne ferait rien
+              * apparaitre. Aucun de ces champs n'est `required` — un champ
+              * obligatoire masque bloque l'envoi avec une erreur que personne
+              * ne peut voir ni corriger.
+              */}
+            <div data-champs-role="SELLER">
                 <label
                   htmlFor="businessName"
                   className="block text-xs font-semibold text-brand dark:text-slate-300 uppercase tracking-wider mb-1.5"
@@ -356,16 +375,14 @@ export function FormulaireInscription({
                   id="businessName"
                   autoComplete="organization"
                   type="text"
-                  value={businessName}
-                  onChange={(e) => setBusinessName(e.target.value)}
+                  name="businessName"
+                  defaultValue={saisi("businessName")}
                   placeholder="Ex: Abidjan Mode Express"
                   className="w-full px-4 py-3 rounded-xl border border-hairline dark:border-slate-700 bg-white dark:bg-slate-800 text-brand dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand-border transition-all text-sm"
                 />
-              </div>
-            )}
+            </div>
 
-            {role === "DRIVER" && (
-              <div>
+            <div data-champs-role="DRIVER">
                 <label
                   htmlFor="vehicle"
                   className="block text-xs font-semibold text-brand dark:text-slate-300 uppercase tracking-wider mb-1.5"
@@ -375,8 +392,8 @@ export function FormulaireInscription({
                 <input
                   id="vehicle"
                   type="text"
-                  value={vehicle}
-                  onChange={(e) => setVehicle(e.target.value)}
+                  name="vehicle"
+                  defaultValue={saisi("vehicle")}
                   placeholder="Ex: Moto Yamaha YBR - AB-999-CI"
                   className="w-full px-4 py-3 rounded-xl border border-hairline dark:border-slate-700 bg-white dark:bg-slate-800 text-brand dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand-border transition-all text-sm"
                 />
@@ -406,8 +423,7 @@ export function FormulaireInscription({
                   name="zone"
                   type="text"
                   maxLength={80}
-                  value={zone}
-                  onChange={(e) => setZone(e.target.value)}
+                  defaultValue={saisi("zone")}
                   placeholder="Ex: Yopougon, Adjamé et Plateau"
                   aria-describedby="aide-zone"
                   className="w-full px-4 py-3 rounded-xl border border-hairline dark:border-slate-700 bg-white dark:bg-slate-800 text-brand dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand-border transition-all text-sm"
@@ -416,8 +432,7 @@ export function FormulaireInscription({
                   Les vendeurs de votre équipe le verront pour savoir quelles
                   courses vous confier.
                 </p>
-              </div>
-            )}
+            </div>
 
             <div>
               <label
@@ -429,8 +444,8 @@ export function FormulaireInscription({
               <select
                 id="country"
                 autoComplete="country-name"
-                value={country}
-                onChange={(e) => setCountry(e.target.value)}
+                name="country"
+                defaultValue={saisi("country", MARCHES[0].name)}
                 className="w-full px-4 py-3 rounded-xl border border-hairline dark:border-slate-700 bg-white dark:bg-slate-800 text-brand dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand-border transition-all text-sm"
               >
                 {MARCHES.map((marche: Marche) => (
@@ -445,8 +460,7 @@ export function FormulaireInscription({
               </p>
             </div>
 
-            {role === "CLIENT" && (
-              <div>
+            <div data-champs-role="CLIENT">
                 <label
                   htmlFor="city"
                   className="block text-xs font-semibold text-brand dark:text-slate-300 uppercase tracking-wider mb-1.5"
@@ -457,31 +471,14 @@ export function FormulaireInscription({
                   id="city"
                   autoComplete="address-level2"
                   type="text"
-                  value={city}
-                  onChange={(e) => setCity(e.target.value)}
+                  name="city"
+                  defaultValue={saisi("city", "Abidjan")}
                   placeholder="Ex: Abidjan, Bouaké, San-Pédro"
                   className="w-full px-4 py-3 rounded-xl border border-hairline dark:border-slate-700 bg-white dark:bg-slate-800 text-brand dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand-border transition-all text-sm"
                 />
-              </div>
-            )}
+            </div>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3.5 px-4 rounded-xl bg-brand hover:bg-brand-strong text-white font-semibold text-sm shadow-md shadow-brand/25 hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-brand focus:ring-offset-2 transition-all disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  <span>Création du compte...</span>
-                </>
-              ) : (
-                "Créer mon compte"
-              )}
-            </button>
+            <BoutonEnvoyer />
           </form>
 
           <div className="mt-6">

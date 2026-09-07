@@ -590,6 +590,42 @@ body:not([data-mode-paiement="test"]) [data-mention-test] {
   display: none !important;
 }
 
+/*
+ * Les champs propres a chaque role, montres SANS JavaScript.
+ *
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │  Le formulaire d'inscription rend les TROIS blocs. C'est le CSS qui     │
+ * │  montre celui du role coche, en lisant la radio elle-meme.               │
+ * └──────────────────────────────────────────────────────────────────────────┘
+ *
+ * Un rendu conditionnel en React ne produirait que le bloc du role initial :
+ * avant l'hydratation — sur un telephone d'entree de gamme et un reseau lent
+ * (§70), cela dure — changer de role ne ferait rien apparaitre, et le
+ * formulaire mentirait sur ce qu'il demande.
+ *
+ * `:has()` regarde en AVANT dans le document : la radio cochee est plus haut
+ * dans le formulaire que les champs qu'elle commande, et aucun selecteur de
+ * voisinage ne remonte. C'est ce qui rend la regle possible sans deplacer le
+ * balisage ni dupliquer les champs.
+ *
+ * ⚠ Aucun de ces champs n'est `required`, et cela ne peut pas changer : un
+ * champ obligatoire en `display: none` fait echouer l'envoi avec une erreur
+ * que le navigateur ne peut afficher nulle part — « An invalid form control is
+ * not focusable ». Le formulaire refuserait de partir, sans rien dire.
+ */
+[data-inscription] [data-champs-role] {
+  display: none;
+}
+
+[data-inscription]:has(input[name="role"][value="SELLER"]:checked)
+  [data-champs-role="SELLER"],
+[data-inscription]:has(input[name="role"][value="DRIVER"]:checked)
+  [data-champs-role="DRIVER"],
+[data-inscription]:has(input[name="role"][value="CLIENT"]:checked)
+  [data-champs-role="CLIENT"] {
+  display: block;
+}
+
 /* §69 : navigation clavier. Aucun element focalisable n'avait d'indicateur. */
 :focus-visible {
   outline: 2px solid var(--color-brand-accent);

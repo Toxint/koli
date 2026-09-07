@@ -360,6 +360,7 @@ npm run verif:courbes    # les courbes disent-elles ce que porte le registre ?
 npm run verif:annonces   # les vignettes de la vitrine se lisent-elles en entier ?
 npm run verif:livreurs   # chaque vendeur n'a-t-il QUE ses livreurs ?
 npm run verif:devises    # une monnaie est-elle ecrite en dur quelque part ?
+npm run verif:sansjs     # peut-on entrer sans JavaScript ?
 ```
 
 Et trois outils qui ne sont pas des vérifications mais des préparatifs — ils
@@ -374,7 +375,7 @@ npm run ikeepay:surveiller   # attendre un vrai paiement et dire ce qui arrive
 npm run admin:motdepasse     # changer le mot de passe administrateur, en local ou en ligne
 ```
 
-35 commandes `verif:*` au total. Elles pilotent un **vrai navigateur**
+36 commandes `verif:*` au total. Elles pilotent un **vrai navigateur**
 (Playwright) contre le **vrai serveur** et lisent la **vraie base**. Un écran
 peut mentir sans que la base bouge, et l'inverse.
 
@@ -544,11 +545,95 @@ absence de mouvement.
 Trois `goto` gardent délibérément `domcontentloaded` : ils cliquent un lien ou
 lisent une redirection du serveur, deux choses qui n'attendent aucun JavaScript.
 
-⚠ **Ce que cela dit du PRODUIT, et qui reste vrai** : sur un téléphone d'entrée
-de gamme et un réseau lent (§70), quelqu'un qui tape « Se connecter » très vite
-peut ne rien déclencher. Un humain met des secondes à remplir un formulaire,
-donc le cas est rare — mais seul un formulaire fonctionnant **sans JavaScript**
-le fermerait tout à fait.
+✓ **Ce que cela disait du PRODUIT est CORRIGÉ depuis le 7 septembre 2026.** Sur
+un téléphone d'entrée de gamme et un réseau lent (§70), quelqu'un qui tapait
+« Se connecter » avant l'hydratation ne déclenchait rien. Les deux portes —
+connexion et inscription — fonctionnent désormais sans une ligne de
+JavaScript : voir « Les deux portes s'ouvrent sans JavaScript ».
+
+⚠ **La remarque reste vraie pour tout NOUVEAU formulaire** soumis par un
+`onSubmit`. Le réflexe à garder : `<form action={…}>`, jamais
+`onSubmit` seul.
+
+### Les deux portes s'ouvrent sans JavaScript
+
+C'était écrit ici depuis des jours, en avertissement : « seul un formulaire
+fonctionnant sans JavaScript le fermerait tout à fait ». Fait le 7 septembre
+2026, pour la connexion et l'inscription.
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│  Un `onSubmit` n'existe QU'APRÈS l'hydratation. Avant, on remplit, on      │
+│  clique, et rien ne part — sans erreur, sans message.                      │
+└────────────────────────────────────────────────────────────────────────────┘
+
+Le public de KOLI est sur téléphone d'entrée de gamme et réseau mobile lent
+(§70), où ce moment dure. Et c'est le genre de panne le plus coûteux : la
+personne ne voit pas d'erreur, elle conclut que le service ne marche pas.
+
+**`<form action={…}>` et `useActionState`** remplacent le `onSubmit`. Le
+navigateur sait soumettre seul ; React reprend la main quand il arrive. C'est
+le même code pour les deux chemins, et c'est pour cela qu'ils ne peuvent pas
+diverger.
+
+Cinq décisions, et chacune se déferait sans être écrite :
+
+- **La redirection se fait dans l'ACTION, côté serveur.** Rendre
+  `{ redirectTo }` suppose un navigateur qui l'utilise. Sans JavaScript,
+  personne ne le fait : à la connexion le cookie est posé et la personne reste
+  devant le formulaire ; à l'inscription le compte est **créé** et elle
+  recommence, ce qui lui répond « un compte existe déjà ».
+  ⚠ `redirect()` lève `NEXT_REDIRECT` : jamais dans un `try/catch` qui avale
+  tout, sinon le succès se change en « erreur réseau ».
+- **Les champs sont NON CONTRÔLÉS**, et l'action rend la saisie (`saisie`).
+  Sans React, un `value` piloté par un état n'a personne pour le piloter ; et
+  un refus recharge la page, donc renvoie un formulaire vide. Retaper un numéro
+  de téléphone sur un clavier de téléphone après s'être trompé, c'est ce qui
+  fait abandonner.
+  ⚠ **Le mot de passe n'est JAMAIS rendu.** Il traverserait le réseau une
+  seconde fois pour se poser dans un attribut du document — lisible dans le
+  cache, dans un mandataire, et par-dessus l'épaule. Un contrôle l'exige.
+- **Le rôle est une VRAIE radio**, plus un `<button role="radio">`. Un bouton
+  ne change d'état que par JavaScript : avant l'hydratation, les trois cartes
+  ne répondaient à rien. L'`input` est en `sr-only` et non `hidden` — masqué
+  pour de bon, il sortirait de l'ordre de tabulation.
+- **Les trois blocs de champs sont TOUS rendus**, et `globals.css` montre celui
+  du rôle coché, par `:has()`. Un rendu conditionnel en React ne produirait que
+  le bloc initial : changer de rôle ne ferait rien apparaître, et le formulaire
+  demanderait le nom d'une boutique à un client.
+  ⚠ **Aucun de ces champs ne peut devenir `required`.** Un champ obligatoire en
+  `display: none` fait échouer l'envoi sur « An invalid form control is not
+  focusable » — le formulaire refuse de partir, et le navigateur n'a nulle part
+  où l'afficher.
+- **`useFormStatus` vit dans un composant SÉPARÉ.** Appelé dans celui qui porte
+  le `<form>`, il rend toujours `pending: false` : il n'écoute qu'un formulaire
+  **parent**. Ce n'est pas un découpage esthétique.
+
+**`npm run verif:sansjs`** — quatorze contrôles dans un navigateur à
+`javaScriptEnabled: false`. C'est la seule façon d'éprouver la chose : un
+navigateur normal hydrate en quelques millisecondes sur cette machine, et le
+test passerait en exerçant exactement le chemin qu'on ne veut pas éprouver.
+
+⚠ **Il clique l'ÉTIQUETTE, pas la radio.** Celle-ci est un carré d'un pixel
+recouvert par l'icône de la carte ; `.check()` vise sa boîte et se heurte au
+pictogramme. Forcer le clic (`force: true`) ferait passer le test en cessant de
+dire ce qu'un doigt peut faire.
+
+**La falsification a montré pire que ce qu'elle cherchait.** En remettant le
+`onSubmit`, les trois contrôles tombent — et l'adresse devient :
+
+```
+/connexion?identifier=vendeur%40koli.ci&password=MauvaisMotDePasse%21
+```
+
+Un `<form>` sans `action`, privé de son JavaScript, retombe sur un **GET** : le
+mot de passe part dans l'URL, donc dans l'historique du navigateur, les
+journaux du serveur et tout mandataire sur le chemin. Le défaut n'était pas
+seulement « on ne peut pas se connecter ».
+
+⚠ **Ce qui reste délibérément tributaire de JavaScript** : le tunnel de
+paiement, l'assistant de commande en cinq étapes, les courbes. Ils ne se font
+pas sans. La règle n'est pas « tout doit marcher sans JavaScript », c'est « on
+doit pouvoir ENTRER » — si la porte ne s'ouvre pas, le reste ne compte pas.
 
 ### L'identité est violette sur blanc, et les jetons sont mesurés
 

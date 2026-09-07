@@ -14,6 +14,23 @@ export interface ActionResponse {
   error?: string;
   fieldErrors?: Record<string, string>;
   redirectTo?: string;
+  /**
+   * Ce que la personne venait de taper, pour le lui rendre.
+   *
+   * ┌──────────────────────────────────────────────────────────────────────┐
+   * │  SANS JavaScript, un formulaire refuse revient VIDE.                 │
+   * └──────────────────────────────────────────────────────────────────────┘
+   *
+   * Le navigateur recharge la page : React n'est pas la pour garder l'etat,
+   * et rien ne subsiste. Retaper un numero de telephone sur un clavier de
+   * telephone apres s'etre trompe de mot de passe, c'est le genre de detail
+   * qui fait abandonner.
+   *
+   * Le mot de passe n'y figure JAMAIS : il traverserait le reseau une
+   * seconde fois, dans une reponse, pour se poser dans un attribut du
+   * document.
+   */
+  saisie?: Record<string, string>;
 }
 
 /** §47 — limitation des tentatives de connexion. */
@@ -45,7 +62,12 @@ export async function loginAction(
         fieldErrors[issue.path[0] as string] = issue.message;
       }
     });
-    return { success: false, fieldErrors, error: "Formulaire invalide" };
+    return {
+      success: false,
+      fieldErrors,
+      error: "Formulaire invalide",
+      saisie: { identifier: rawData.identifier ?? "" },
+    };
   }
 
   const { identifier, password } = validation.data;
@@ -75,6 +97,7 @@ export async function loginAction(
     return {
       success: false,
       error: "Identifiant ou mot de passe incorrect.",
+      saisie: { identifier },
     };
   }
 
@@ -82,6 +105,7 @@ export async function loginAction(
     return {
       success: false,
       error: "Votre compte a été suspendu. Veuillez contacter le support.",
+      saisie: { identifier },
     };
   }
 
@@ -94,6 +118,7 @@ export async function loginAction(
     return {
       success: false,
       error: `Trop de tentatives. Réessayez dans ${minutes} minute(s).`,
+      saisie: { identifier },
     };
   }
 
@@ -106,6 +131,7 @@ export async function loginAction(
       success: false,
       error:
         "Ce compte se connecte avec Google. Utilisez le bouton « Continuer avec Google ».",
+      saisie: { identifier },
     };
   }
 
@@ -128,6 +154,7 @@ export async function loginAction(
       return {
         success: false,
         error: `Trop de tentatives. Compte bloqué pendant ${DUREE_VERROUILLAGE_MS / 60000} minutes.`,
+        saisie: { identifier },
       };
     }
 
@@ -135,6 +162,7 @@ export async function loginAction(
     return {
       success: false,
       error: `Identifiant ou mot de passe incorrect. Il vous reste ${restantes} tentative(s).`,
+      saisie: { identifier },
     };
   }
 
@@ -157,8 +185,23 @@ export async function loginAction(
     driverId: user.driverProfile?.id,
   });
 
-  const redirectTo = espaceParDefaut(user.role);
-  return { success: true, redirectTo };
+  /*
+   * La redirection se fait ICI, et non en rendant une adresse au navigateur.
+   *
+   * ┌──────────────────────────────────────────────────────────────────────┐
+   * │  Rendre { redirectTo } suppose que quelqu'un l'utilise. Sans         │
+   * │  JavaScript, personne ne le fait : le cookie est pose, la session    │
+   * │  existe, et la personne reste devant le formulaire de connexion.     │
+   * └──────────────────────────────────────────────────────────────────────┘
+   *
+   * `redirect()` sert les DEUX chemins : le navigateur sans JavaScript suit
+   * une reponse 303, et le routeur de Next fait la navigation quand il est
+   * la. C'est le meme code, et c'est pour cela qu'il ne peut pas diverger.
+   *
+   * ⚠ Elle leve `NEXT_REDIRECT` : ne jamais l'entourer d'un try/catch qui
+   * avale tout, sinon le succes se change en « erreur reseau ».
+   */
+  redirect(espaceParDefaut(user.role));
 }
 
 export async function registerAction(
@@ -186,7 +229,22 @@ export async function registerAction(
         fieldErrors[issue.path[0] as string] = issue.message;
       }
     });
-    return { success: false, fieldErrors, error: "Veuillez corriger les erreurs ci-dessous." };
+    return {
+      success: false,
+      fieldErrors,
+      error: "Veuillez corriger les erreurs ci-dessous.",
+      saisie: {
+        name: rawData.name ?? "",
+        phone: rawData.phone ?? "",
+        email: rawData.email ?? "",
+        role: rawData.role ?? "",
+        businessName: rawData.businessName ?? "",
+        vehicle: rawData.vehicle ?? "",
+        zone: rawData.zone ?? "",
+        city: rawData.city ?? "",
+        country: rawData.country ?? "",
+      },
+    };
   }
 
   const data = validation.data;
@@ -206,6 +264,17 @@ export async function registerAction(
     return {
       success: false,
       error: "Un compte avec ce numéro de téléphone ou cet email existe déjà.",
+      saisie: {
+        name: rawData.name ?? "",
+        phone: rawData.phone ?? "",
+        email: rawData.email ?? "",
+        role: rawData.role ?? "",
+        businessName: rawData.businessName ?? "",
+        vehicle: rawData.vehicle ?? "",
+        zone: rawData.zone ?? "",
+        city: rawData.city ?? "",
+        country: rawData.country ?? "",
+      },
     };
   }
 
@@ -303,7 +372,15 @@ export async function registerAction(
   }
 
   const redirectTo = espaceParDefaut(user.role);
-  return { success: true, redirectTo };
+  /*
+   * Meme raison qu'a la connexion : la redirection se fait ICI.
+   *
+   * Rendre { redirectTo } suppose un navigateur qui l'utilise. Sans
+   * JavaScript, le compte serait CREE et la personne resterait devant le
+   * formulaire d'inscription — sans savoir si elle a reussi, et tentee de
+   * recommencer, ce qui lui repondrait « un compte existe deja ».
+   */
+  redirect(redirectTo);
 }
 
 export async function logoutAction(): Promise<void> {

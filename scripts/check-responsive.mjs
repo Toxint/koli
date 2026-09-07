@@ -159,8 +159,26 @@ async function auditerPage(page, largeur) {
       const interactifs = document.querySelectorAll(
         "button, a[href], input:not([type=hidden]), select, textarea, [role=button]"
       );
+      /*
+       * La cible d'un doigt, c'est la ZONE QUI ACTIVE — pas la boite de la
+       * commande.
+       *
+       * Une radio dans un `<label>` peut faire un pixel : c'est l'etiquette
+       * entiere qui la coche, et c'est elle qu'on vise. Le formulaire
+       * d'inscription en a trois, en `sr-only` pour rester atteignables au
+       * clavier tout en laissant la carte porter le dessin.
+       *
+       * Sans cette regle, le controle criait « INPUT 1px » sur un bloc de
+       * 96 pixels de haut, parfaitement tapable. Un controle qui crie a tort
+       * finit par ne plus etre lu.
+       */
+      const zoneActivante = (el) => {
+        const etiquette = el.closest("label");
+        return etiquette ? etiquette.getBoundingClientRect() : el.getBoundingClientRect();
+      };
+
       for (const el of interactifs) {
-        const r = el.getBoundingClientRect();
+        const r = zoneActivante(el);
         if (r.width === 0 || r.height === 0) continue;
         if (r.height < 44) {
           const libelle = (el.textContent || el.getAttribute("aria-label") || el.tagName).trim().slice(0, 28);
@@ -306,9 +324,19 @@ async function seConnecter(page, compte) {
   const { identifiant, motDePasse } = COMPTES[compte];
   await page.goto(`${BASE}/connexion`, { waitUntil: "networkidle" });
 
-  const champs = page.locator("input");
-  await champs.nth(0).fill(identifiant);
-  await champs.nth(1).fill(motDePasse);
+  /*
+   * Les champs sont vises par leur IDENTIFIANT, jamais par leur rang.
+   *
+   * `input.nth(0)` designait le premier champ de la page — jusqu'au jour ou
+   * le formulaire est passe en `<form action={…}>` : Next y injecte alors ses
+   * propres champs caches (`$ACTION_REF_1`) en tete, et le rang 0 est devenu
+   * un `type="hidden"` que Playwright ne peut pas remplir.
+   *
+   * Le test a echoue pour une raison etrangere a ce qu'il verifie — la mise en
+   * page. Un selecteur positionnel depend de choses qu'on ne controle pas.
+   */
+  await page.locator("#identifier").fill(identifiant);
+  await page.locator("#password").fill(motDePasse);
   await page.locator('button[type="submit"]').first().click();
   await page
     .waitForURL((u) => !u.pathname.includes("/connexion"), { timeout: 15000 })
