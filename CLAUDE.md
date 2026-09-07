@@ -211,15 +211,21 @@ Vercel existe aussi et le poste y est lié (`.vercel/`, projet `koli`) —
 suivre, sinon il tourne contre un schéma qu'il ne connaît pas. Après
 `supabase:migrer`, redéployer.
 
-⚠ `NEXT_PUBLIC_APP_URL` vaut encore `http://localhost:3000` dans `.env`. Cette
-valeur sert aux **liens de paiement partagés** : telle quelle, un lien envoyé à
-un client pointerait vers sa propre machine. À renseigner côté Vercel avec
-l'adresse réelle du site.
+✓ **`NEXT_PUBLIC_APP_URL` et `AUTH_SECRET` sont réglés côté Vercel** — vérifié
+le 7 septembre 2026, par `vercel env pull` et non déduit : la production porte
+`https://koli-zeta.vercel.app` et un `AUTH_SECRET` de 44 caractères tiré au
+sort. Les deux avertissements qui vivaient ici depuis le 26 août sont donc
+levés.
 
-⚠ `AUTH_SECRET` vaut `koli-dev-…` : ce n'est pas un tirage aléatoire. Il signe
-les jetons de session — en production, une valeur devinable permettrait de
-forger la session de n'importe quel compte, administrateur compris. **À
-régénérer avant la mise en ligne.**
+⚠ **`.env` garde `NEXT_PUBLIC_APP_URL=http://localhost:3000`, et c'est
+volontaire** : ce fichier sert l'outillage depuis ce poste. C'est la valeur
+côté **hébergeur** qui construit les liens de paiement partagés et l'adresse de
+retour Google. Ne pas « corriger » `.env` en croyant réparer quelque chose.
+
+⚠ **Le dépôt `github.com/Toxint/koli` est PUBLIC.** Seul le préfixe
+`koli-dev-…` a jamais été écrit dans un fichier suivi, jamais une valeur — mais
+c'est la raison pour laquelle aucun secret ne doit y entrer, même en exemple,
+même commenté.
 
 ### Ensuite
 
