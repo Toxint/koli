@@ -372,7 +372,7 @@ npm run admin:motdepasse     # changer le mot de passe administrateur, en local 
 (Playwright) contre le **vrai serveur** et lisent la **vraie base**. Un écran
 peut mentir sans que la base bouge, et l'inverse.
 
-**352 tests unitaires** par ailleurs (`npm test`, Vitest).
+**358 tests unitaires** par ailleurs (`npm test`, Vitest).
 
 ---
 
@@ -1697,6 +1697,93 @@ canal ont été écartées et marquées, chacune avec son motif :
 La première est celle qui comptait : c'est la vente FABRIQUÉE du 2 septembre,
 effacée depuis du registre, dont la notification a survécu. Zéro courriel parti,
 zéro notification en attente.
+
+### La file d'envoi pouvait se bloquer, définitivement et en silence
+
+Trouvé le 7 septembre 2026, en cherchant quoi proposer sur Resend. C'est un
+défaut du travail de la veille, et le plus grave qu'il portait.
+
+Sur échec, `sentAt` restait nul — voulu : une coupure réseau ne doit pas faire
+disparaître l'annonce d'une vente. Mais **rien ne comptait les tentatives**.
+Éprouvé avec une clef invalide, deux notifications en tête de file :
+
+```
+passage 1 : envoyees=0 echouees=2   file-1 EN ATTENTE
+passage 2 : envoyees=0 echouees=2   file-1 EN ATTENTE
+passage 3 : envoyees=0 echouees=2   file-1 EN ATTENTE
+```
+
+Un 401 ne guérit jamais, et il repassait quand même. Or la requête lit les
+**vingt-cinq plus anciennes** : vingt-cinq lignes définitivement en échec
+occupaient toute la fournée, et plus aucune vente n'était annoncée. Aucune
+erreur, aucun écran, rien — exactement la forme des deux paiements perdus du
+6 septembre.
+
+**Le statut HTTP tranche, et c'est plus juste qu'un compteur aveugle**
+(`lib/notifications/reessai.ts`) :
+
+| Réponse | Ce qu'on en fait |
+|---|---|
+| 4xx sauf 429 — clef révoquée, domaine non autorisé, adresse illisible | définitif : on marque, la file avance |
+| **429** — trop vite | passager : Resend accorde 10 requêtes/seconde, la boucle en enchaîne 25 |
+| 5xx, coupure, délai | passager : on repasse |
+
+Trois décisions qui se déferaient sans être écrites :
+
+- **Le 429 est l'exception qui compte.** Le traiter comme définitif jetterait
+  des ventes pour la seule raison qu'elles arrivent en même temps que d'autres
+  — c'est-à-dire un jour de forte activité, le pire moment. Falsifié en le
+  retirant : le contrôle le voit.
+- **L'ordre est `sendAttempts` PUIS `createdAt`.** Une ligne déjà en échec
+  passe après celles jamais tentées : une panne passagère ne doit pas retarder
+  l'annonce des ventes qui arrivent pendant qu'elle dure.
+- **`TENTATIVES_MAX` vaut 8, pas 3.** Le compteur monte à chaque tentative, et
+  une panne chez le prestataire pendant une heure chargée en brûlerait
+  plusieurs pour rien. Ce plafond n'arbitre aucun cas réel — `refusDefinitif`
+  s'en charge ; il empêche une boucle infinie sur un échec imprévu.
+
+Éprouvé dans les deux sens, contre le vrai serveur : clef invalide ⇒ tout est
+clos au premier passage, `echouees=0` au second ; API pointée sur un port mort
+⇒ la ligne reste en attente, `tentatives` monte 1 → 2 → 3.
+
+### Une adresse d'envoi ne reçoit rien
+
+`notifications@koli.premiummarketafrica.com` émet ; personne n'y lit. Un vendeur
+qui apprend une vente répond — c'est le premier réflexe devant un courriel, et
+sur un service dont le sujet est la confiance, écrire à quelqu'un sans pouvoir
+être répondu est un mauvais début.
+
+`RESEND_REPLY_TO` porte l'adresse de réponse.
+
+⚠ **Non renseignée ⇒ AUCUN `reply_to`**, et surtout pas un repli inventé. Une
+adresse de réponse qui rebondit est pire que pas d'adresse : elle promet une
+écoute qui n'existe pas, et le rebond abîme la réputation d'envoi du domaine.
+
+### La clef Resend ne sait QUE envoyer, et depuis un seul domaine
+
+Elle était en `Full access` : elle pouvait supprimer les domaines et créer
+d'autres clefs. Remplacée le 7 septembre 2026 par une clef `sending_access`
+liée à `koli.premiummarketafrica.com` — créée par l'API, avec l'ancienne, ce
+qui était précisément le seul usage légitime de son accès total.
+
+Portée vérifiée, et non supposée :
+
+| Tentative | Réponse |
+|---|---|
+| Envoyer depuis `koli.premiummarketafrica.com` | **200** |
+| Envoyer depuis `premiummarketafrica.com` (l'autre projet) | **403** — `not authorized to send emails from…` |
+| Lire les domaines, lister les clefs | **401** — `restricted to only send emails` |
+
+⚠ **L'ancienne clef `Full access` existe toujours.** Elle est dans `.env` de
+personne désormais, mais elle vit chez Resend et ouvre tout le compte, y
+compris le domaine du second projet. À révoquer dans leur tableau de bord.
+
+⚠ **Resend est en `eu-west-1`** et le domaine y est `verified`. Le quota
+mesuré : **10 requêtes par seconde** (`ratelimit-policy: 10;w=1`). Les plafonds
+journalier et mensuel du forfait gratuit ne se lisent pas par l'API — à
+regarder sur leur tableau de bord avant de compter dessus, car une commande
+complète produit cinq à six courriels sur sa vie.
+
 
 ### Le vendeur fixe SA monnaie, l'acheteur lit la sienne
 

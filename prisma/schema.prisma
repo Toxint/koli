@@ -758,9 +758,24 @@ model Notification {
   /// encore partie — et on la reessaie indefiniment sans savoir pourquoi.
   sendError  String?
 
+  /// Combien de fois on a DEJA essaye d expedier cette ligne.
+  ///
+  /// Sans ce compteur, un echec restait `sentAt = null` et repassait a chaque
+  /// tour — indefiniment. La requete lit les 25 plus anciennes : vingt-cinq
+  /// lignes definitivement en echec occupaient donc toute la fournee, et plus
+  /// aucune vente n etait annoncee. Sans erreur, sans ecran, sans rien.
+  ///
+  /// Eprouve le 7 septembre 2026 avec une clef invalide : les deux memes
+  /// lignes revenaient a chaque passage, « echouees=2 » trois fois de suite.
+  sendAttempts Int @default(0)
+
   /// Les notifications a expedier se lisent par cet index, jamais par un
   /// balayage : la table grandit d une ligne par evenement et par destinataire.
-  @@index([sentAt, createdAt])
+  ///
+  /// `sendAttempts` vient EN TETE : une ligne qui a deja echoue passe apres
+  /// celles qui n ont jamais ete tentees. Une panne passagere ne doit pas
+  /// retarder l annonce des ventes qui arrivent pendant qu elle dure.
+  @@index([sentAt, sendAttempts, createdAt])
 
   // Le compteur de non-lues est lu à chaque affichage de page, sur toutes les
   // pages de l'espace connecté : sans index, c'est un balayage complet de la

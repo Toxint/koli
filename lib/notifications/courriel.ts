@@ -5,6 +5,7 @@ import {
   motifDeNonEnvoi,
   type MontantsDeLaCommande,
 } from "@/lib/notifications/textes";
+import { TENTATIVES_MAX, refusDefinitif } from "@/lib/notifications/reessai";
 import { commeDevise } from "@/data/markets";
 import { formatMontant } from "@/lib/format";
 
@@ -61,8 +62,28 @@ const EXPEDITEUR =
   process.env.RESEND_FROM?.trim() ||
   "KOLI <notifications@koli.premiummarketafrica.com>";
 
+/**
+ * Où atterrit une RÉPONSE, quand il y en a une.
+ *
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │  `notifications@koli.…` est une adresse d'ENVOI. Elle ne reçoit rien.    │
+ * └──────────────────────────────────────────────────────────────────────────┘
+ *
+ * Un vendeur qui apprend une vente répond — « j'ai une question », « ce n'est
+ * pas mon client ». C'est le premier réflexe devant un courriel, et sur un
+ * service dont le sujet est la confiance, écrire à quelqu'un sans pouvoir être
+ * répondu est un mauvais début.
+ *
+ * ⚠ **Non renseignée ⇒ AUCUN `reply_to`**, et surtout pas un repli inventé.
+ * Une adresse de réponse qui rebondit est pire que pas d'adresse : elle promet
+ * une écoute qui n'existe pas, et le rebond abîme la réputation d'envoi du
+ * domaine (§8).
+ */
+const REPONDRE_A = process.env.RESEND_REPLY_TO?.trim() || null;
+
 /** Combien de notifications par passage. Assez pour rattraper, pas pour saturer. */
 const PAR_FOURNEE = 25;
+
 
 /**
  * Les montants d'une commande, lus dans le REGISTRE et non recalculés.
@@ -163,12 +184,20 @@ export async function expedierNotificationsEnAttente(): Promise<Resultat> {
 
   const enAttente = await prisma.notification.findMany({
     where: { sentAt: null },
-    orderBy: { createdAt: "asc" },
+    /*
+     * Les tentatives d'abord, la date ensuite.
+     *
+     * Une ligne qui a deja echoue passe APRES celles qu'on n'a jamais
+     * essayees. Sinon une panne passagere retarde l'annonce des ventes qui
+     * arrivent pendant qu'elle dure — et ce sont justement les plus urgentes.
+     */
+    orderBy: [{ sendAttempts: "asc" }, { createdAt: "asc" }],
     take: PAR_FOURNEE,
     select: {
       id: true,
       type: true,
       entityId: true,
+      sendAttempts: true,
       user: { select: { email: true, name: true } },
     },
   });
@@ -233,6 +262,7 @@ export async function expedierNotificationsEnAttente(): Promise<Resultat> {
         },
         body: JSON.stringify({
           from: EXPEDITEUR,
+          ...(REPONDRE_A ? { reply_to: REPONDRE_A } : {}),
           to: [adresse],
           subject: `${message.objet} — ${reference}`,
           text: [
@@ -249,9 +279,18 @@ export async function expedierNotificationsEnAttente(): Promise<Resultat> {
 
       if (!reponse.ok) {
         const detail = (await reponse.text()).slice(0, 200);
+        const tentatives = n.sendAttempts + 1;
+        const renonce = refusDefinitif(reponse.status) || tentatives >= TENTATIVES_MAX;
+
         await prisma.notification.update({
           where: { id: n.id },
-          data: { sendError: `HTTP ${reponse.status} — ${detail}` },
+          data: {
+            sendAttempts: tentatives,
+            sendError: `HTTP ${reponse.status} — ${detail}`,
+            // Marquee : la file avance. La ligne reste visible dans
+            // l'application, ou elle porte son contexte.
+            ...(renonce ? { sentAt: new Date() } : {}),
+          },
         });
         echouees++;
         continue;
@@ -259,7 +298,7 @@ export async function expedierNotificationsEnAttente(): Promise<Resultat> {
 
       await prisma.notification.update({
         where: { id: n.id },
-        data: { sentAt: new Date(), sendError: null },
+        data: { sentAt: new Date(), sendError: null, sendAttempts: n.sendAttempts + 1 },
       });
       envoyees++;
     } catch (e) {
@@ -270,9 +309,19 @@ export async function expedierNotificationsEnAttente(): Promise<Resultat> {
        * l'annonce d'une vente — mieux vaut un courriel en retard, ou en double,
        * qu'un vendeur qui n'apprend jamais qu'il a été payé.
        */
+      const tentatives = n.sendAttempts + 1;
+
       await prisma.notification.update({
         where: { id: n.id },
-        data: { sendError: String(e).slice(0, 200) },
+        data: {
+          sendAttempts: tentatives,
+          sendError: String(e).slice(0, 200),
+          // Le plafond vaut aussi ici : une adresse dont le serveur ne repond
+          // jamais bloquerait la file exactement comme un refus.
+          ...(tentatives >= TENTATIVES_MAX
+            ? { sentAt: new Date() }
+            : {}),
+        },
       });
       echouees++;
     }
