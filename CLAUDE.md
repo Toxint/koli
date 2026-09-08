@@ -552,6 +552,28 @@ absence de mouvement.
 Trois `goto` gardent délibérément `domcontentloaded` : ils cliquent un lien ou
 lisent une redirection du serveur, deux choses qui n'attendent aucun JavaScript.
 
+⚠ **Un `Promise.race` entre une navigation et un texte est PIÉGÉ**, et c'est ma
+modification qui l'a révélé. Depuis que le formulaire est un vrai
+`<form action={…}>`, un clic arrivé avant l'hydratation déclenche une
+navigation réelle. Or une course se résout au premier **règlement, rejet
+compris** : la navigation interrompt `waitForURL`, qui rejette, la course se
+termine aussitôt, et l'on lit la page pendant qu'elle change encore — donc sans
+message.
+
+`verif:motdepasse` a échoué ainsi une fois, en annonçant « le formulaire a-t-il
+seulement été soumis ? ». C'était la bonne question et la mauvaise réponse : il
+l'avait bien été. Il **sonde** désormais l'aboutissement au lieu de courser deux
+attentes — chaque tour relit l'état réel, une navigation en cours fait échouer
+une lecture et non le contrôle.
+
+Falsifié en rendant la réinitialisation inopérante : l'ancien mot de passe
+ouvre `/vendeur/dashboard`, et les deux assertions tombent. Le détail affiché
+distingue maintenant les deux cas — « sans message de refus » quand on reste
+sur `/connexion`, « L'ANCIEN MOT DE PASSE A OUVERT … » quand on en sort. Un
+message d'échec qui envoie chercher le mauvais défaut coûte le temps qu'il
+prétend faire gagner.
+
+
 ✓ **Ce que cela disait du PRODUIT est CORRIGÉ depuis le 7 septembre 2026.** Sur
 un téléphone d'entrée de gamme et un réseau lent (§70), quelqu'un qui tapait
 « Se connecter » avant l'hydratation ne déclenchait rien. Les deux portes —

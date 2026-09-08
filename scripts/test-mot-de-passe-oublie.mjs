@@ -171,18 +171,43 @@ const essayer = async (motDePasse) => {
     .filter({ visible: true })
     .first()
     .click();
-  // Une connexion reussie quitte /connexion ; une connexion refusee y reste et
-  // affiche son motif. On attend l'un OU l'autre, borne dans le temps : le cas
-  // legitime coute ce qu'il prend, et seul le silence coute le delai entier.
-  await Promise.race([
-    p.waitForURL((u) => !u.pathname.startsWith("/connexion"), { timeout: 15000 }),
-    p
-      .getByText(/mot de passe incorrect/i)
-      .first()
-      .waitFor({ state: "visible", timeout: 15000 }),
-  ]).catch(() => {});
-  const chemin = new URL(p.url()).pathname;
-  const texte = await p.evaluate(() => document.body.innerText);
+  /*
+   * On SONDE l'aboutissement, on ne COURSE pas deux attentes.
+   *
+   * ┌──────────────────────────────────────────────────────────────────────────┐
+   * │  Depuis que le formulaire est un vrai `<form action={…}>`, un clic       │
+   * │  arrive AVANT l'hydratation declenche une navigation reelle.             │
+   * └──────────────────────────────────────────────────────────────────────────┘
+   *
+   * Un `Promise.race` se resout au PREMIER reglement, rejet compris. Une
+   * navigation interrompt `waitForURL`, qui rejette ; la course se termine
+   * aussitot, le `.catch()` l'avale, et l'on lit la page pendant qu'elle
+   * change encore — donc sans message. Le controle rapportait alors « le
+   * formulaire a-t-il seulement ete soumis ? », qui est la bonne question mais
+   * la mauvaise reponse : il avait bien ete soumis.
+   *
+   * Une boucle de sondage n'a pas ce defaut. Chaque tour relit l'etat REEL ; une
+   * navigation en cours fait echouer une lecture, pas le controle, et le tour
+   * suivant la reprend.
+   */
+  const aboutir = async () => {
+    for (let reste = 15000; reste > 0; reste -= 250) {
+      const chemin = new URL(p.url()).pathname;
+      if (!chemin.startsWith("/connexion")) return { chemin, texte: "" };
+
+      // Une navigation en cours fait lever `evaluate` : on reessaie.
+      const texte = await p.evaluate(() => document.body.innerText).catch(() => "");
+      if (/mot de passe incorrect/i.test(texte)) return { chemin, texte };
+
+      await p.waitForTimeout(250);
+    }
+    return {
+      chemin: new URL(p.url()).pathname,
+      texte: await p.evaluate(() => document.body.innerText).catch(() => ""),
+    };
+  };
+
+  const { chemin, texte } = await aboutir();
   await c.close();
   return { chemin, refuse: /mot de passe incorrect/i.test(texte) };
 };
@@ -198,9 +223,19 @@ const avecAncien = await essayer(COMPTE.ancien);
 verifier(
   avecAncien.chemin === "/connexion" && avecAncien.refuse,
   "l'ancien mot de passe est refuse, et le refus est affiche",
+  /*
+   * Le detail doit nommer LE defaut, pas envoyer chercher l'autre.
+   *
+   * « Le formulaire a-t-il seulement ete soumis ? » est la bonne question quand
+   * on est reste sur /connexion sans message. Elle devient trompeuse quand
+   * l'ancien mot de passe a OUVERT le tableau de bord : il a evidemment ete
+   * soumis, et il a marche — ce qui est exactement le defaut guette.
+   */
   avecAncien.refuse
     ? avecAncien.chemin
-    : `${avecAncien.chemin} sans message de refus — le formulaire a-t-il seulement ete soumis ?`
+    : avecAncien.chemin.startsWith("/connexion")
+      ? `${avecAncien.chemin} sans message de refus — le formulaire a-t-il seulement ete soumis ?`
+      : `L'ANCIEN MOT DE PASSE A OUVERT ${avecAncien.chemin} — la reinitialisation ne l'a pas invalide`
 );
 
 // ------------------------------------------------ 6. Le lien ne sert qu'une fois
