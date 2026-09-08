@@ -173,8 +173,13 @@ assigne un livreur ; le livreur livre ; OTP ; le client confirme ; les fonds
 sont libérés ; transaction enregistrée, facture émise, notifications envoyées,
 audit consigné. Le scénario de litige passe également.
 
-La campagne complète — `npm run verif:tout`, plus de 450 contrôles — passe sans
-un seul échec.
+La campagne complète — `npm run verif:tout`, **33 suites et 586 contrôles** —
+passe sans un seul échec. Relevé le 8 septembre 2026.
+
+⚠ **Elle exige `npm run base:preparer` d'abord**, et ce n'est pas une
+politesse : elle consomme ce qu'elle éprouve. `verif:prealables` le vérifie
+maintenant et le dit tout de suite — voir « La campagne CONSOMME ce qu'elle
+éprouve ».
 
 ### En cours
 
