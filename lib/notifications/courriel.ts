@@ -198,7 +198,7 @@ export async function expedierNotificationsEnAttente(): Promise<Resultat> {
       type: true,
       entityId: true,
       sendAttempts: true,
-      user: { select: { email: true, name: true } },
+      user: { select: { email: true, name: true, emailBouncedAt: true } },
     },
   });
 
@@ -219,6 +219,7 @@ export async function expedierNotificationsEnAttente(): Promise<Resultat> {
       adresse: n.user.email,
       type: n.type,
       reference: n.entityId,
+      rebond: n.user.emailBouncedAt,
     });
 
     if (motif || !message) {
@@ -296,9 +297,36 @@ export async function expedierNotificationsEnAttente(): Promise<Resultat> {
         continue;
       }
 
+      /*
+       * On GARDE l'identifiant que Resend vient de rendre.
+       *
+       * ┌──────────────────────────────────────────────────────────────────┐
+       * │  Il était jeté : la réponse n'était même pas lue.                │
+       * └──────────────────────────────────────────────────────────────────┘
+       *
+       * C'est le seul lien entre ce courriel et le rappel de rebond qui
+       * arrivera peut-être demain. Sans lui, on apprend qu'UN message a
+       * rebondi sans savoir lequel, pour quelle vente, ni chez qui.
+       *
+       * Illisible ⇒ `null`, et l'envoi reste un succès : le courriel est
+       * parti, c'est le fait qui compte. Perdre la trace du rebond est
+       * regrettable ; refuser un envoi abouti serait pire.
+       */
+      let identifiant: string | null = null;
+      try {
+        identifiant = ((await reponse.json()) as { id?: string }).id ?? null;
+      } catch {
+        identifiant = null;
+      }
+
       await prisma.notification.update({
         where: { id: n.id },
-        data: { sentAt: new Date(), sendError: null, sendAttempts: n.sendAttempts + 1 },
+        data: {
+          sentAt: new Date(),
+          sendError: null,
+          sendAttempts: n.sendAttempts + 1,
+          providerMessageId: identifiant,
+        },
       });
       envoyees++;
     } catch (e) {

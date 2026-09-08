@@ -193,6 +193,29 @@ model User {
   name         String
   phone        String     @unique
   email        String?    @unique
+
+  /// Quand cette adresse a DEFINITIVEMENT refuse le courrier.
+  ///
+  /// ┌──────────────────────────────────────────────────────────────────────┐
+  /// │  Ecrire a une adresse morte coute la reputation du domaine, donc la  │
+  /// │  remise des courriels de TOUS les autres.                            │
+  /// └──────────────────────────────────────────────────────────────────────┘
+  ///
+  /// Renseignee par le rappel de Resend, sur un rebond DUR ou une plainte
+  /// pour pourriel. Un rebond passager — boite pleine, serveur indisponible —
+  /// ne la renseigne pas : l adresse est bonne, c est le moment qui ne l est
+  /// pas.
+  ///
+  /// Elle n efface pas l adresse : le compte garde son identifiant de
+  /// connexion, et la personne peut la corriger depuis son profil.
+  emailBouncedAt DateTime?
+
+  /// Ce que le serveur d en face a repondu, mot pour mot.
+  ///
+  /// Sans lui, l ecran dirait « votre adresse ne recoit plus » sans pouvoir
+  /// dire pourquoi — et personne ne saurait si c est une faute de frappe ou
+  /// une boite fermee.
+  emailBounceReason String?
   // Nullable : un compte cree via Google n'a pas de mot de passe. Le laisser
   // obligatoire aurait force a stocker un faux hachage, indistinguable d'un
   // vrai mot de passe pour le reste du code.
@@ -757,6 +780,23 @@ model Notification {
   /// champ, une notification jamais partie ressemble a une notification pas
   /// encore partie — et on la reessaie indefiniment sans savoir pourquoi.
   sendError  String?
+
+  /// L identifiant que Resend rend a l envoi.
+  ///
+  /// Sans lui, un rappel de rebond arrive avec un identifiant qui ne
+  /// correspond a rien chez nous : on apprend qu UN courriel a rebondi sans
+  /// savoir lequel, ni pour quelle vente, ni chez qui.
+  ///
+  /// Il etait simplement jete — la reponse de l envoi n etait meme pas lue.
+  providerMessageId String? @unique
+
+  /// Quand le prestataire a confirme la REMISE.
+  ///
+  /// `sentAt` dit « nous avons confie le message », pas « il est arrive ».
+  /// Un 200 de Resend veut dire ACCEPTE : le rebond, lui, se produit apres,
+  /// et n arrive que par leur rappel. Les deux dates sont vraies et ne se
+  /// remplacent pas.
+  deliveredAt DateTime?
 
   /// Combien de fois on a DEJA essaye d expedier cette ligne.
   ///

@@ -367,6 +367,7 @@ npm run verif:annonces   # les vignettes de la vitrine se lisent-elles en entier
 npm run verif:livreurs   # chaque vendeur n'a-t-il QUE ses livreurs ?
 npm run verif:devises    # une monnaie est-elle ecrite en dur quelque part ?
 npm run verif:sansjs     # peut-on entrer sans JavaScript ?
+npm run verif:rebonds    # une adresse morte cesse-t-elle de recevoir ?
 ```
 
 Et trois outils qui ne sont pas des vérifications mais des préparatifs — ils
@@ -381,11 +382,11 @@ npm run ikeepay:surveiller   # attendre un vrai paiement et dire ce qui arrive
 npm run admin:motdepasse     # changer le mot de passe administrateur, en local ou en ligne
 ```
 
-37 commandes `verif:*` au total. Elles pilotent un **vrai navigateur**
+38 commandes `verif:*` au total. Elles pilotent un **vrai navigateur**
 (Playwright) contre le **vrai serveur** et lisent la **vraie base**. Un écran
 peut mentir sans que la base bouge, et l'inverse.
 
-**358 tests unitaires** par ailleurs (`npm test`, Vitest).
+**373 tests unitaires** par ailleurs (`npm test`, Vitest).
 
 ---
 
@@ -1891,6 +1892,82 @@ Trois décisions qui se déferaient sans être écrites :
 Éprouvé dans les deux sens, contre le vrai serveur : clef invalide ⇒ tout est
 clos au premier passage, `echouees=0` au second ; API pointée sur un port mort
 ⇒ la ligne reste en attente, `tentatives` monte 1 → 2 → 3.
+
+### Un « 200 » de Resend veut dire ACCEPTÉ, pas ARRIVÉ
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│  Le rebond se produit APRÈS, chez le serveur d'en face, et n'arrive que    │
+│  par leur rappel. Sans lui, `sentAt` était le dernier mot.                 │
+└────────────────────────────────────────────────────────────────────────────┘
+
+Une adresse morte recevait donc un courriel à chaque vente, indéfiniment — et
+chaque rebond abîmait la réputation du domaine, celle qui décide si les VRAIS
+vendeurs trouvent le message dans leur boîte plutôt que dans leurs
+indésirables. Un expéditeur neuf n'a droit qu'à peu d'erreurs.
+
+`app/api/courriels/resend` reçoit `email.delivered`, `email.bounced` et
+`email.complained`. Le reste — `sent`, `opened`, `clicked` — est reçu poliment
+sans rien faire : les ouvertures et les clics ne nous regardent pas.
+
+**Resend SIGNE ses rappels**, contrairement à iKeePay. La différence n'est pas
+théorique : un jeton dans une URL prouve seulement que l'appelant connaît un
+secret, et il voyage dans les journaux de tout ce qui se trouve entre eux et
+nous. Une signature prouve que le CORPS vient d'eux et n'a pas été modifié.
+
+Sept décisions, et chacune se déferait sans être écrite :
+
+- **Ce qu'on protège : une porte de désabonnement forcé.** Un rappel accepté
+  sans preuve d'origine permettrait à quiconque de FERMER l'adresse courriel de
+  n'importe quel compte — donc d'empêcher un vendeur d'apprendre ses ventes.
+  C'est pourquoi `verif:rebonds` éprouve surtout des refus.
+- **Sans secret configuré, on REFUSE.** Pas de « on fait confiance en
+  attendant » : ce serait exactement la porte ci-dessus, grande ouverte.
+- **Le corps est lu BRUT**, avant tout `JSON.parse` : re-sérialiser réordonne
+  les clefs et invalide une signature pourtant correcte.
+- **L'horodatage est vérifié AVANT la signature**, avec cinq minutes de
+  tolérance. Une signature reste valable éternellement : sans cette borne, un
+  rappel capté une fois se rejoue des mois plus tard, authentique.
+- **PLUSIEURS signatures peuvent arriver**, séparées par un espace. C'est ainsi
+  que Svix fait tourner ses clefs — n'en lire qu'une ferait échouer tous les
+  rappels le jour du changement, à une date qu'on ne choisit pas.
+- **`timingSafeEqual`, jamais `===`.** Une comparaison ordinaire s'arrête au
+  premier octet différent : le temps de réponse révèle combien d'octets sont
+  justes, et permet de reconstruire une signature valable, octet par octet.
+- **200 dès que la signature est bonne**, même si la ligne est introuvable. Un
+  4xx ferait rejouer Svix pendant des jours pour un message qu'on ne veut pas
+  traiter. La réponse n'a pas à être opaque ici, contrairement au rappel de
+  paiement : l'appelant est déjà authentifié, il n'apprend rien.
+
+**Un rebond DÉFINITIF ferme l'adresse, un rebond PASSAGER non.** Resend reprend
+le vocabulaire de SES : `Permanent` (l'adresse n'existe pas), `Transient`
+(boîte pleine, serveur indisponible), `Undetermined`. Seul `Permanent` ferme —
+et `Undetermined` ne ferme pas, le défaut penchant du côté qui n'empêche
+personne d'être prévenu de sa vente. Confondre les deux coûterait l'adresse
+d'un vrai vendeur pour une boîte momentanément pleine.
+
+⚠ **Une PLAINTE ferme toujours.** Quelqu'un a marqué le message comme
+indésirable ; continuer à écrire après cela est ce qui fait classer un domaine
+entier comme indésirable.
+
+⚠ **On ferme le COMPTE destinataire, pas l'adresse annoncée dans le corps.**
+`data.to` vient du rappel ; le compte, lui, vient de notre propre registre.
+
+⚠ **L'identifiant de Resend était JETÉ** — la réponse de l'envoi n'était même
+pas lue. Sans `providerMessageId`, un rebond arrive avec un identifiant qui ne
+correspond à rien : on apprend qu'UN message a rebondi sans savoir lequel, pour
+quelle vente, ni chez qui. Illisible ⇒ `null`, et l'envoi reste un succès :
+perdre la trace du rebond est regrettable, refuser un envoi abouti serait pire.
+
+`npm run verif:rebonds` — dix-sept contrôles contre le vrai serveur et la vraie
+base, avec de vraies signatures. Falsifié en neutralisant la vérification :
+huit tombent, dont « un rappel sans signature est refusé » et « il n'a RIEN
+fermé » — le rebond forgé ferme alors l'adresse pour de bon.
+
+⚠ **`RESEND_WEBHOOK_SECRET` vient de LEUR tableau de bord**, à la création du
+webhook (Webhooks → Add Endpoint, adresse `/api/courriels/resend`). Il ne se
+tire pas au sort de notre côté, et la nouvelle clef d'envoi ne peut pas le
+créer par l'API : c'est un geste manuel, dans un navigateur.
+
 
 ### Une adresse d'envoi ne reçoit rien
 

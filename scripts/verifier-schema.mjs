@@ -96,6 +96,10 @@ const clefs = await lire(`
     // Identifiant STABLE fourni par Google (claim `sub`) : ce n est pas une
     // reference vers une table a nous.
     ["User.googleId", "identifiant externe Google"],
+    // L identifiant que Resend rend a l envoi. Il designe un message CHEZ EUX
+    // — il n existe aucune table a referencer — et c est le seul lien entre
+    // un courriel parti et le rappel de rebond qui arrivera peut-etre demain.
+    ["Notification.providerMessageId", "identifiant externe Resend"],
   ]);
 
   const portantUneClef = new Set(

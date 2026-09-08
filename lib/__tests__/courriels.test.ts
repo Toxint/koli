@@ -167,6 +167,46 @@ describe("ce qui empêche d'écrire", () => {
   });
 
   /**
+   * Une adresse morte ne reçoit plus rien.
+   *
+   * ┌──────────────────────────────────────────────────────────────────────┐
+   * │  Écrire à une adresse qui rebondit coûte la réputation du domaine,   │
+   * │  donc la remise des courriels de TOUS les autres.                    │
+   * └──────────────────────────────────────────────────────────────────────┘
+   *
+   * Sans ce garde, une boîte fermée recevait un message à chaque vente,
+   * indéfiniment — et chaque rebond rapprochait le domaine des indésirables.
+   */
+  it("une adresse fermée après rebond ne reçoit plus rien", () => {
+    expect(motifDeNonEnvoi({ ...bon, rebond: new Date() })).toBe(
+      "adresse fermee apres rebond"
+    );
+  });
+
+  it("mais un rebond absent ne bloque rien", () => {
+    expect(motifDeNonEnvoi({ ...bon, rebond: null })).toBeNull();
+    expect(motifDeNonEnvoi({ ...bon, rebond: undefined })).toBeNull();
+  });
+
+  /**
+   * L'ORDRE compte, et il n'est pas arbitraire.
+   *
+   * « Pas de courriel pour ce type » décrit la NOTIFICATION ; « adresse
+   * fermée » décrit le DESTINATAIRE. Le registre doit dire ce qui a été
+   * décidé en premier — sinon un vendeur dont l'adresse a rebondi masquerait
+   * le fait qu'on ne lui aurait de toute façon rien écrit, et la prochaine
+   * lecture chercherait à rouvrir une adresse pour rien.
+   */
+  it("le motif le plus général l'emporte sur le rebond", () => {
+    expect(
+      motifDeNonEnvoi({ ...bon, adresse: null, rebond: new Date() })
+    ).toBe("aucune adresse");
+    expect(
+      motifDeNonEnvoi({ ...bon, type: NotificationType.IN_TRANSIT, rebond: new Date() })
+    ).toBe("pas de courriel pour ce type (choix)");
+  });
+
+  /**
    * La plupart des acheteurs de KOLI n'ont donné qu'un téléphone. Ce n'est pas
    * une panne, et le motif doit le dire — sinon on cherchera une panne.
    */

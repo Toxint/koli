@@ -162,6 +162,14 @@ export function motifDeNonEnvoi(n: {
   adresse: string | null | undefined;
   type: NotificationType;
   reference: string | null | undefined;
+  /**
+   * Quand cette adresse a DÉFINITIVEMENT refusé le courrier.
+   *
+   * Renseignée par le rappel de Resend, sur un rebond permanent ou une
+   * plainte pour pourriel. Facultative : les appelants qui ne la connaissent
+   * pas se comportent comme avant.
+   */
+  rebond?: Date | null;
 }): string | null {
   // La plupart des acheteurs de KOLI n'ont donné qu'un téléphone. Ce n'est pas
   // une panne, c'est une information.
@@ -184,6 +192,26 @@ export function motifDeNonEnvoi(n: {
   if (!n.reference?.trim()) return "aucune reference de commande";
 
   if (estFictive(n.adresse)) return "adresse de demonstration";
+
+  /*
+   * UNE ADRESSE MORTE NE REÇOIT PLUS RIEN.
+   *
+   * ┌──────────────────────────────────────────────────────────────────────┐
+   * │  Écrire à une adresse qui rebondit coûte la réputation du domaine,   │
+   * │  donc la remise des courriels de TOUS les autres.                    │
+   * └──────────────────────────────────────────────────────────────────────┘
+   *
+   * Un expéditeur neuf n'a droit qu'à peu d'erreurs. Sans ce garde, une
+   * boîte fermée recevait un message à chaque vente, indéfiniment — et
+   * chaque rebond rapprochait le domaine des indésirables.
+   *
+   * ⚠ Il vient EN DERNIER, et ce n'est pas arbitraire. « Pas de courriel
+   * pour ce type » et « aucune référence » décrivent la notification ;
+   * celui-ci décrit le destinataire. Le registre doit dire ce qui a été
+   * décidé en premier, sans quoi un vendeur dont l'adresse a rebondi
+   * masquerait le fait qu'on ne lui aurait de toute façon rien écrit.
+   */
+  if (n.rebond) return "adresse fermee apres rebond";
 
   return null;
 }
