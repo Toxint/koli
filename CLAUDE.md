@@ -1697,6 +1697,71 @@ de payer.
 
 ⚠ **Ne pas construire le versement au vendeur avant d'avoir tranché.**
 
+### Le risque de change, MESURÉ — 8 septembre 2026
+
+La question qui bloque le versement au vendeur — *qui porte le risque de
+change ?* — a trois issues, et **deux ne dépendent pas d'iKeePay**. Ce qui
+manquait pour trancher, c'était un chiffre. Le voici.
+
+**Ce qu'on mesure.** KOLI encaisse en monnaie locale, iKeePay crédite en
+DOLLARS, le vendeur est payé plus tard en monnaie locale. Entre les deux, le
+dollar bouge. KOLI perd si le dollar détenu achète moins de monnaie locale
+qu'au séquestre.
+
+**XOF et XAF — 14 des 17 pays.** Arrimés à l'euro à taux fixe (655,957) : leur
+risque contre le dollar EST celui de l'euro contre le dollar, que la BCE publie
+depuis 1999. 765 jours ouvrés, trois ans.
+
+| Durée | médiane | 9 cas sur 10 | 99 sur 100 | le pire vu |
+|---|---|---|---|---|
+| 1 jour | −0,01 % | 0,46 % | 1,23 % | 2,72 % |
+| 1 semaine | 0,01 % | 1,14 % | 2,81 % | **4,28 %** |
+| 1 mois | 0,28 % | 2,60 % | 5,14 % | **5,94 %** |
+
+**CDF — le marché de l'utilisateur.** Il FLOTTE, aucune parité ne le tient. Deux
+ans, relevé chaque semaine.
+
+| Durée | médiane | 9 cas sur 10 | le pire vu |
+|---|---|---|---|
+| 1 semaine | −0,03 % | 1,86 % | **7,42 %** |
+| 2 semaines | −0,03 % | 2,24 % | **12,45 %** |
+| 1 mois | −0,03 % | 5,11 % | **21,40 %** |
+
+⚠ **Et une dérive STRUCTURELLE, qui n'est pas du bruit** : sur ces deux ans, 1
+USD est passé de 2 853 à 2 307 CDF. Le dollar a perdu **19 %** de son pouvoir
+d'achat en francs congolais. Détenir des dollars en devant des francs congolais
+a donc été une position perdante, en moyenne — pas seulement volatile.
+
+**Ce que cela décide, la commission étant à 5 % :**
+
+- **XOF/XAF : KOLI peut absorber.** Une semaine typique coûte 1 %, le pire mois
+  en trois ans 5,9 % — de l'ordre de la commission, jamais au-delà. Garantir le
+  montant au vendeur est tenable.
+- **CDF : KOLI ne peut PAS absorber à l'aveugle.** Une mauvaise semaine
+  (7,4 %) mange toute la commission ; un mauvais mois (21 %) est hors de
+  proportion avec ce que KOLI gagne sur la vente.
+
+**Le levier n'est pas le taux, c'est la DURÉE.** L'exposition court du séquestre
+au versement. Sur un ou trois jours, même le franc congolais reste sous 2 % neuf
+fois sur dix. Sur un mois, il devient ingérable.
+
+⚠ **La première question reste pour iKeePay** : peuvent-ils créditer en CDF ?
+Leur portefeuille a une case CDF, restée vide. Si oui, tout ce qui précède
+devient sans objet — c'est de loin la meilleure issue.
+
+⚠ **À défaut, la décision est prenable sans eux** : garantir le montant en
+XOF/XAF, et pour le CDF soit raccourcir le délai de versement à quelques jours,
+soit dire au vendeur — **à l'inscription, pas au moment de payer** — qu'il
+recevra ce que les dollars vaudront au versement.
+
+**Deux sources indépendantes, et non une** : `api.frankfurter.app` (BCE) pour
+l'euro, `@fawazahmed0/currency-api` pour le franc congolais, recoupées le jour
+même contre `open.er-api.com` — celle de l'application. Écart de 0,4 % sur le
+CDF, nul sur le XOF. Un chiffre qui décide d'un modèle économique ne se prend
+pas chez un seul fournisseur.
+
+
+
 ### Les notifications n'allaient NULLE PART
 
 `notifier()` écrivait une ligne dans `Notification`, visible dans l'écran des
