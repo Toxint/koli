@@ -1987,8 +1987,34 @@ fermé » — le rebond forgé ferme alors l'adresse pour de bon.
 
 ⚠ **`RESEND_WEBHOOK_SECRET` vient de LEUR tableau de bord**, à la création du
 webhook (Webhooks → Add Endpoint, adresse `/api/courriels/resend`). Il ne se
-tire pas au sort de notre côté, et la nouvelle clef d'envoi ne peut pas le
+tire pas au sort de notre côté, et la clef d'envoi restreinte ne peut pas le
 créer par l'API : c'est un geste manuel, dans un navigateur.
+
+**Le webhook existe depuis le 8 septembre 2026**, sur `koli-essai.vercel.app`,
+abonné à `email.delivered`, `email.bounced` et `email.complained` — et à eux
+seuls. Le secret est posé en Secret sur l'aperçu Vercel.
+
+**La CHAÎNE ENTIÈRE est éprouvée en production, pas seulement la porte.** Deux
+vrais courriels partis vers les adresses de simulation de Resend, deux
+notifications posées avec leur `providerMessageId`, et l'attente de leur
+rappel :
+
+| Envoi | Ce qui est remonté |
+|---|---|
+| `delivered@resend.dev` | `deliveredAt` renseigné |
+| `bounced@resend.dev` | `sendError` = « rebond Permanent — The recipient's email provider sent… », et **l'adresse fermée** |
+
+⚠ **Le premier essai a conclu à tort que « Resend n'a pas frappé ».** Il ne
+surveillait que `sendError`, jamais `deliveredAt` — un contrôle qui regarde une
+seule des deux colonnes que la route écrit. Les journaux de l'hébergeur ont
+tranché : `vercel logs <déploiement>` montrait **six** `POST
+/api/courriels/resend` là où mes propres essais n'en expliquaient que cinq. Le
+sixième était le leur.
+
+⚠ **Et il effaçait sa fixture dans un `finally`**, donc il détruisait la preuve
+avant qu'elle n'arrive. Un contrôle qui attend un événement ASYNCHRONE doit
+attendre assez longtemps ET garder de quoi le recevoir : cinq minutes ici, pour
+un rebond qui met une à deux minutes à revenir.
 
 
 ### Une adresse d'envoi ne reçoit rien
