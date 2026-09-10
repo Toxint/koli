@@ -281,6 +281,27 @@ model SellerProfile {
   /// retroactivement. `deviseDuVendeur` retombe alors sur XOF, et le DIT.
   country                String?
 
+  /// La devise CHOISIE par le vendeur, quand il en a choisi une.
+  ///
+  /// ┌──────────────────────────────────────────────────────────────────────┐
+  /// │  Nulle par defaut, et c est le point : on retombe alors sur celle    │
+  /// │  du PAYS, exactement comme avant.                                    │
+  /// └──────────────────────────────────────────────────────────────────────┘
+  ///
+  /// Les comptes crees avant ce champ gardent donc leur comportement, sans
+  /// qu on ait a leur ecrire quoi que ce soit.
+  ///
+  /// Elle existe parce que le pays ne dit pas toujours la monnaie : a Kinshasa
+  /// une part importante du commerce s affiche en dollars, et imposer le CDF a
+  /// ce vendeur reviendrait a lui faire saisir des prix dans une monnaie qu il
+  /// n utilise pas.
+  ///
+  /// ⚠ Elle ne relit RIEN. Les commandes figent leur devise a la creation, et
+  /// les produits portent un entier : changer cette valeur apres coup
+  /// reinterpreterait des prix deja saisis. La regle est ecrite dans
+  /// `lib/sellers/devise.ts`.
+  currency               String?
+
   createdAt              DateTime                 @default(now())
 
   products Product[]

@@ -2194,6 +2194,85 @@ casser. `min-w-0` sur le conteneur, et jamais deux colonnes serrées pour un
 chiffre qu'on veut voir en grand.
 
 
+### Le vendeur CHOISIT sa devise — le pays n'est plus qu'un défaut
+
+Demande de l'utilisateur, le 10 septembre 2026 : « le vendeur lors de la
+création de sa boutique doit avoir la possibilité de choisir la devise de son
+choix ».
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│  Le pays ne dit pas toujours la monnaie. À Kinshasa, une part importante   │
+│  du commerce s'affiche en DOLLARS, et le franc congolais sert d'appoint.   │
+└────────────────────────────────────────────────────────────────────────────┘
+
+Imposer le CDF à ce vendeur parce que son pays est la RDC revenait à lui faire
+saisir ses prix dans une monnaie qu'il n'utilise pas.
+
+`SellerProfile.currency` porte le choix. **Nulle par défaut**, et c'est le
+point : on retombe alors sur le pays, exactement comme avant. Les comptes
+créés avant ce champ gardent donc leur comportement sans qu'on leur écrive
+quoi que ce soit.
+
+Cinq décisions, et chacune se déferait sans être écrite :
+
+- **`deviseDuVendeur` prend le PROFIL, plus le pays.** Douze écrans
+  l'appelaient avec `.country` — douze occasions d'oublier le choix. En prenant
+  l'objet, le compilateur refuse le pays seul : il a nommé les onze appels à
+  corriger. Même raisonnement que `data-mention-test` — quand une règle doit
+  tenir dans douze endroits, on ne la confie pas à la mémoire de celui qui
+  écrit le treizième.
+- **La première option vaut la chaîne VIDE**, et s'appelle « Celle de mon
+  pays ». Écrire la devise du pays quand personne n'a choisi figerait un repli
+  — révisable — en décision : un vendeur qui déménage ou se corrige garderait
+  une monnaie qu'il n'a jamais demandée.
+- **Une valeur inconnue en base revient au PAYS, pas à XOF.** `commeDevise`
+  retomberait sur le franc CFA, ce qui masquerait le pays derrière une monnaie
+  arbitraire. Le pays, lui, reste une information vraie.
+- **Le champ vit dans le bloc VENDEUR**, montré par le CSS selon le rôle coché
+  — donc sans JavaScript. Un client ou un livreur ne fixe aucun prix : la
+  question n'a pas de sens pour eux.
+- **Le nom de la devise accompagne son symbole.** « FCFA » ne dit pas s'il
+  s'agit de l'Ouest ou du Centre ; « Le » et « D » ne disent rien du tout. On
+  choisit une fois, et pour tous ses prix.
+
+**Le DOLLAR est la treizième devise, et la seule qui ne vienne d'aucun pays.**
+Les douze autres sortent de la couverture d'iKeePay ; celle-ci sort d'un
+**usage**. Elle n'apparaît dans aucun `Marche`, et `deviseDuPays` ne la rendra
+jamais : elle n'existe que comme choix.
+
+Son symbole est **« USD » et non « $ »**, pour deux raisons. La clarté d'abord :
+dans une application qui porte treize monnaies, « $ » ne dit pas laquelle. Et
+plus prosaïquement, `verif:devises` cherche les symboles écrits en dur — un
+« $ » y déclencherait sur chaque `${…}` du projet, et un contrôle qui crie à
+tort finit par ne plus être lu.
+
+⚠ **RIEN NE PROUVE QU'iKEEPAY ACCEPTE USD DANS SON TUNNEL.** Ils convertissent
+vers la monnaie locale du payeur — 796 CDF encaissés pour une commande de 200
+XOF — mais la devise de départ leur est passée telle quelle
+(`currency: input.currency`), et le dollar n'a jamais été essayé. **Si leur
+tunnel la refuse, l'acheteur ne peut pas payer du tout.** Le risque a été posé
+à l'utilisateur, qui a choisi de l'ouvrir quand même ; la question est dans la
+relance du 10 septembre 2026.
+
+⚠ **CHANGER LA DEVISE APRÈS COUP EST DANGEREUX, et rien ne l'empêche encore.**
+`Product.price` est un entier : un article à 5 000 CDF deviendrait 5 000 USD si
+le vendeur changeait de monnaie. Les commandes, elles, figent leur devise à la
+création et ne bougeraient pas — d'où un catalogue et un registre qui ne
+parleraient plus la même langue. Le choix ne se fait aujourd'hui qu'à
+l'inscription, donc le cas ne se produit pas ; **le jour où l'on ouvrira ce
+réglage dans le profil, il faudra le refuser tant que le catalogue n'est pas
+vide.**
+
+Sept contrôles dans `verif:inscription`, éprouvés **sans JavaScript** puisque
+c'est le CSS qui montre le champ. Falsifié en faisant ignorer le choix à
+`deviseDuVendeur` : les deux contrôles qui l'éprouvent tombent, et celui du
+repli reste vert — ce qui est exactement ce qu'on attend.
+
+⚠ La falsification a d'abord été écrite `if (false && …)` : TypeScript la réduit
+à `false`, la suite devient inatteignable et la compilation casse au lieu de
+falsifier. Une lecture de `process.env` fait l'affaire — c'est déjà écrit plus
+haut, et je m'y suis repris à deux fois.
+
 ### Deux pays s'appellent « Congo », et leurs monnaies diffèrent d'un facteur quatre
 
 Trouvé le 10 septembre 2026, en parcourant les dix premières minutes d'un

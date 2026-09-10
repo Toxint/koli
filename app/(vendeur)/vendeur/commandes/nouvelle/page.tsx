@@ -30,7 +30,7 @@ export default async function NouvelleCommandePage() {
   return (
     <FormulaireCommande
       produits={produits}
-      devise={deviseDuVendeur(user.sellerProfile.country)}
+      devise={deviseDuVendeur(user.sellerProfile)}
       /*
        * Un vendeur sans pays retombe sur la Côte d'Ivoire — le repli documenté
        * au §8, celui des comptes créés avant que `SellerProfile.country`

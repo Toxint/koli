@@ -49,7 +49,7 @@ export default async function ModifierProduitPage({
 
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-hairline dark:border-slate-800 shadow-sm p-6">
           <FormulaireProduit
-            devise={deviseDuVendeur(user.sellerProfile.country)}
+            devise={deviseDuVendeur(user.sellerProfile)}
             initial={{
               id: produit.id,
               name: produit.name,

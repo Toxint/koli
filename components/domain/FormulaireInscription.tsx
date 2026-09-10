@@ -7,7 +7,7 @@ import { AuthHeader } from "@/components/ui/AuthHeader";
 import { registerAction } from "@/lib/auth/actions";
 import { BoutonGoogle } from "@/components/ui/BoutonGoogle";
 import { Icone } from "@/components/ui/Icone";
-import { MARCHES, SYMBOLE, type Marche } from "@/data/markets";
+import { MARCHES, SYMBOLE, type Devise, type Marche } from "@/data/markets";
 
 type RoleType = "SELLER" | "DRIVER" | "CLIENT";
 
@@ -42,6 +42,32 @@ function BoutonEnvoyer() {
     </button>
   );
 }
+
+/**
+ * Les devises proposees, et leur nom en clair.
+ *
+ * Le symbole seul ne suffit pas : « FCFA » ne dit pas s'il s'agit de l'Ouest ou
+ * du Centre, et « Le » ou « D » ne disent rien du tout. Le nom leve le doute au
+ * moment ou l'on choisit — c'est-a-dire une fois, et pour tous ses prix.
+ */
+const NOM_DEVISE: Record<Devise, string> = {
+  XOF: "franc CFA (Afrique de l'Ouest)",
+  XAF: "franc CFA (Afrique centrale)",
+  CDF: "franc congolais",
+  USD: "dollar americain",
+  GHS: "cedi ghaneen",
+  NGN: "naira nigerian",
+  SLE: "leone sierra-leonais",
+  KES: "shilling kenyan",
+  TZS: "shilling tanzanien",
+  RWF: "franc rwandais",
+  UGX: "shilling ougandais",
+  ZMW: "kwacha zambien",
+  GMD: "dalasi gambien",
+};
+
+/* L'ordre d'affichage : les plus proches du public d'abord, pas l'alphabet. */
+const DEVISES = Object.keys(NOM_DEVISE) as Devise[];
 
 /** L'apparence d'une carte de role, selectionnee ou non — par le CSS, pas par React. */
 const CARTE_ROLE =
@@ -397,6 +423,51 @@ export function FormulaireInscription({
                   placeholder="Ex: Abidjan Mode Express"
                   className="w-full px-4 py-3 rounded-xl border border-hairline dark:border-slate-700 bg-white dark:bg-slate-800 text-brand dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand-border transition-all text-sm"
                 />
+
+              {/*
+                * LA DEVISE, choisie et non deduite.
+                *
+                * ┌────────────────────────────────────────────────────────┐
+                * │  Le pays ne dit pas toujours la monnaie. A Kinshasa,   │
+                * │  une part importante du commerce s'affiche en dollars. │
+                * └────────────────────────────────────────────────────────┘
+                *
+                * La premiere option vaut la chaine VIDE, et c'est elle qui
+                * compte : elle n'ecrit rien en base, et `deviseDuVendeur`
+                * retombe alors sur le pays. Ecrire la devise du pays ici
+                * figerait un repli — un vendeur qui se corrige garderait une
+                * monnaie qu'il n'a jamais demandee.
+                *
+                * Elle vit dans le bloc VENDEUR : un client ou un livreur ne
+                * fixe aucun prix, la question n'a pas de sens pour eux. Le
+                * CSS montre ce bloc selon le role coche, sans JavaScript.
+                */}
+              <div className="mt-4">
+                <label
+                  htmlFor="currency"
+                  className="block text-xs font-semibold text-brand dark:text-slate-300 uppercase tracking-wider mb-1.5"
+                >
+                  Devise de vos prix
+                </label>
+                <p id="aide-devise" className="mb-1.5 text-xs text-ink-muted dark:text-slate-400">
+                  Par defaut, celle de votre pays. Changez-la si vous vendez dans
+                  une autre monnaie.
+                </p>
+                <select
+                  id="currency"
+                  name="currency"
+                  aria-describedby="aide-devise"
+                  defaultValue={saisi("currency")}
+                  className="w-full px-4 py-3 rounded-xl border border-hairline dark:border-slate-700 bg-white dark:bg-slate-800 text-brand dark:text-white focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand-border transition-all text-sm"
+                >
+                  <option value="">Celle de mon pays</option>
+                  {DEVISES.map((d) => (
+                    <option key={d} value={d}>
+                      {SYMBOLE[d]} — {NOM_DEVISE[d]}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <div data-champs-role="DRIVER">

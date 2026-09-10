@@ -44,7 +44,7 @@ export default async function TransactionsVendeurPage({
    * monnaie. Rien ne se mélange ici — contrairement aux écrans de
    * l'administration, qui agrègent plusieurs vendeurs.
    */
-  const devise = deviseDuVendeur(user.sellerProfile.country);
+  const devise = deviseDuVendeur(user.sellerProfile);
 
   const { q, type: typeBrut, page: pageBrute } = await searchParams;
   const page = Math.max(1, Number(pageBrute) || 1);

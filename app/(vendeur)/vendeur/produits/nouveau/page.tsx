@@ -32,7 +32,7 @@ export default async function NouveauProduitPage() {
         </div>
 
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-hairline dark:border-slate-800 shadow-sm p-6">
-          <FormulaireProduit devise={deviseDuVendeur(user.sellerProfile.country)} />
+          <FormulaireProduit devise={deviseDuVendeur(user.sellerProfile)} />
         </div>
       </main>
     </div>

@@ -219,6 +219,7 @@ export async function registerAction(
     zone: formData.get("zone") as string || undefined,
     city: formData.get("city") as string || undefined,
     country: (formData.get("country") as string) || undefined,
+    currency: (formData.get("currency") as string) || undefined,
   };
 
   const validation = registerSchema.safeParse(rawData);
@@ -293,8 +294,17 @@ export async function registerAction(
           create: {
             businessName: data.businessName || data.name,
             verificationStatus: "PENDING",
-            // Le pays du vendeur fixe la devise de TOUS ses prix.
+            // Le pays du vendeur fixe la devise de TOUS ses prix…
             country: data.country ?? null,
+            /*
+             * …sauf s'il en a CHOISI une autre.
+             *
+             * Vide ou absente ⇒ `null`, et `deviseDuVendeur` retombe sur le
+             * pays. On n'écrit pas la devise du pays ici : ce serait figer
+             * un repli, et un vendeur qui déménage ou se corrige garderait
+             * une monnaie qu'il n'a jamais demandée.
+             */
+            currency: data.currency?.trim() || null,
           },
         },
       }),

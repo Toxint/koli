@@ -211,7 +211,7 @@ export async function createOrderAction(formData: FormData) {
        * L'acheteur, lui, voit une conversion à l'écran et paie dans sa propre
        * monnaie : c'est iKeePay qui convertit, au moment du prélèvement.
        */
-      currency: deviseDuVendeur(user.sellerProfile.country),
+      currency: deviseDuVendeur(user.sellerProfile),
       status: OrderStatus.PAYMENT_PENDING,
       items: {
         create: [

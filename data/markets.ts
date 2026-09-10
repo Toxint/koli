@@ -44,7 +44,30 @@ export type Devise =
   | "RWF" // franc rwandais
   | "UGX" // shilling ougandais
   | "ZMW" // kwacha zambien
-  | "GMD"; // dalasi gambien
+  | "GMD" // dalasi gambien
+  /*
+   * Le DOLLAR, qui n'est le pays d'aucun marché.
+   *
+   * ┌──────────────────────────────────────────────────────────────────────┐
+   * │  Les douze autres viennent d'un pays. Celle-ci vient d'un USAGE.     │
+   * └──────────────────────────────────────────────────────────────────────┘
+   *
+   * À Kinshasa, une part importante du commerce s'affiche en dollars, et le
+   * franc congolais sert d'appoint. Un vendeur à qui l'on impose le CDF parce
+   * que son pays est la RDC affiche donc des prix dans une monnaie qu'il
+   * n'utilise pas.
+   *
+   * Elle n'apparaît dans AUCUN `Marche` : aucun pays ne l'a pour monnaie
+   * officielle ici, et `deviseDuPays` ne la rendra jamais. Elle n'existe que
+   * comme CHOIX du vendeur.
+   *
+   * ⚠ **Rien ne prouve qu'iKeePay l'accepte dans son tunnel.** Ils convertissent
+   * vers la monnaie locale du payeur — 796 CDF encaissés pour 200 XOF — mais la
+   * devise de départ leur est passée telle quelle, et USD n'a jamais été
+   * essayé. Si leur tunnel la refuse, l'acheteur ne peut pas payer du tout.
+   * Question posée dans la relance du 10 septembre 2026.
+   */
+  | "USD"; // dollar américain — un usage, pas un pays
 
 export interface Marche {
   code: string;
@@ -102,6 +125,18 @@ export const SYMBOLE: Record<Devise, string> = {
   UGX: "USh",
   ZMW: "ZK",
   GMD: "D",
+  /*
+   * « USD » et non « $ », pour deux raisons.
+   *
+   * D'abord la clarté : dans une application qui porte treize monnaies, « $ »
+   * ne dit pas laquelle — le dollar canadien, australien et zimbabwéen le
+   * portent aussi.
+   *
+   * Ensuite, plus prosaïquement : `verif:devises` cherche les symboles écrits
+   * en dur dans les sources. Un « $ » y déclencherait sur chaque `${…}` du
+   * projet, et un contrôle qui crie à tort finit par ne plus être lu.
+   */
+  USD: "USD",
 };
 
 /**
@@ -165,11 +200,47 @@ export function commeDevise(valeur: string): Devise {
  * iKeePay le débite dans sa propre monnaie ; mais le montant qui fait foi, sur
  * la commande comme au séquestre, reste celui du vendeur.
  *
- * ⚠ `pays` est nul pour les comptes créés avant que ce champ n'existe. Le
+ * ⚠ **La devise CHOISIE l'emporte sur celle du pays.** Le pays ne dit pas
+ * toujours la monnaie : à Kinshasa une part importante du commerce s'affiche en
+ * dollars. `currency` est nulle par défaut, et l'on retombe alors sur le pays
+ * — les comptes créés avant ce champ gardent donc exactement leur
+ * comportement, sans qu'on ait à leur écrire quoi que ce soit.
+ *
+ * ⚠ `country` est nul pour les comptes créés avant que ce champ n'existe. Le
  * repli sur XOF est alors correct — ces comptes sont tous ivoiriens, le pays
  * ayant été écrit en dur à l'inscription — mais il reste un repli : un vendeur
  * qui n'a pas déclaré son pays vend en francs CFA sans l'avoir choisi.
  */
-export function deviseDuVendeur(pays: string | null | undefined): Devise {
-  return pays ? deviseDuPays(pays) : "XOF";
+export function deviseDuVendeur(
+  profil:
+    | { country?: string | null; currency?: string | null }
+    | null
+    | undefined
+): Devise {
+  /*
+   * ELLE PREND LE PROFIL, PAS LE PAYS — et ce n'est pas une commodité.
+   *
+   * ┌──────────────────────────────────────────────────────────────────────┐
+   * │  Signature précédente : `deviseDuVendeur(pays)`. Douze écrans        │
+   * │  l'appelaient, chacun une occasion d'oublier la devise choisie.      │
+   * └──────────────────────────────────────────────────────────────────────┘
+   *
+   * En prenant l'objet, un appelant ne PEUT plus passer le pays seul : le
+   * compilateur le refuse. C'est le même raisonnement que `data-mention-test`
+   * (§8) — quand une règle doit tenir dans vingt-sept endroits, on ne la
+   * confie pas à la mémoire de celui qui écrit le vingt-huitième.
+   */
+  const choisie = profil?.currency?.trim();
+
+  /*
+   * Une valeur inconnue en base est IGNORÉE, pas affichée.
+   *
+   * `currency` est une chaîne libre : une reprise de données, une faute de
+   * frappe, une devise retirée de la liste. `commeDevise` retomberait sur XOF
+   * — ce qui masquerait le pays du vendeur derrière un franc CFA arbitraire.
+   * Ici on préfère revenir au PAYS, qui reste une information vraie.
+   */
+  if (choisie && choisie in SYMBOLE) return choisie as Devise;
+
+  return profil?.country ? deviseDuPays(profil.country) : "XOF";
 }

@@ -29,7 +29,7 @@ export default async function SoldeVendeurPage() {
    * monnaie. Rien ne se mélange ici — contrairement aux écrans de
    * l'administration, qui agrègent plusieurs vendeurs.
    */
-  const devise = deviseDuVendeur(user.sellerProfile.country);
+  const devise = deviseDuVendeur(user.sellerProfile);
 
   const sellerId = user.sellerProfile.id;
 

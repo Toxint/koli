@@ -223,6 +223,96 @@ const verifier = (ok, libelle, detail = "") => {
   await ctx.close();
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// La devise CHOISIE l'emporte sur celle du pays
+//
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │  Le pays ne dit pas toujours la monnaie. A Kinshasa, une part            │
+// │  importante du commerce s'affiche en dollars.                            │
+// └──────────────────────────────────────────────────────────────────────────┘
+//
+// Le champ vit dans le bloc VENDEUR : un client ou un livreur ne fixe aucun
+// prix. On l'eprouve SANS JavaScript, parce que c'est le CSS qui montre ce
+// bloc selon le role coche — et que si cela cassait, un vendeur sur reseau
+// lent ne verrait jamais la question.
+{
+  const ctx = await navigateur.newContext({ javaScriptEnabled: false });
+  const page = await ctx.newPage();
+  await page.goto(`${BASE}/inscription`, { waitUntil: "domcontentloaded" });
+
+  verifier(await page.locator("#currency").isVisible(), "le vendeur voit le champ Devise");
+
+  await page.locator('label:has(input[value="CLIENT"])').click();
+  verifier(
+    !(await page.locator("#currency").isVisible()),
+    "un client ne le voit pas — il ne fixe aucun prix"
+  );
+  await page.locator('label:has(input[value="SELLER"])').click();
+
+  const options = await page.evaluate(() =>
+    [...document.querySelector("#currency").options].map((o) => ({
+      v: o.value,
+      t: o.textContent.trim(),
+    }))
+  );
+
+  /*
+   * La PREMIERE option vaut la chaine vide, et c'est elle qui compte.
+   *
+   * Elle n'ecrit rien en base, et `deviseDuVendeur` retombe alors sur le
+   * pays. Si elle portait « XOF », un vendeur qui ne repond pas a la question
+   * verrait son repli — revisable — se figer en decision.
+   */
+  verifier(
+    options[0]?.v === "" && /pays/i.test(options[0]?.t ?? ""),
+    "la premiere option est « celle de mon pays », et vaut le VIDE",
+    options[0]?.t ?? "aucune"
+  );
+  verifier(
+    options.some((o) => o.v === "USD"),
+    "le dollar est propose — un usage, pas un pays",
+    options.find((o) => o.v === "USD")?.t ?? "absent"
+  );
+  await ctx.close();
+}
+
+// Ce qui compte vraiment : la devise choisie ARRIVE-t-elle jusqu'aux ecrans ?
+{
+  const creer = async (pays, devise) => {
+    const ctx = await navigateur.newContext({ javaScriptEnabled: false });
+    const page = await ctx.newPage();
+    await page.goto(`${BASE}/inscription`, { waitUntil: "domcontentloaded" });
+    await page.locator("#name").fill("Essai Devise");
+    await page.locator("#phone").fill(`+22509${Date.now().toString().slice(-8)}`);
+    await page.locator("#password").fill("MotDePasseDevise1");
+    await page.locator("#businessName").fill("Boutique essai");
+    await page.locator("#country").selectOption(pays);
+    if (devise !== null) await page.locator("#currency").selectOption(devise);
+    await page.getByRole("button", { name: /Créer mon compte/i }).click();
+    await page.waitForLoadState("domcontentloaded");
+    // L'etiquette du prix porte le symbole : c'est ce que le vendeur LIT.
+    await page.goto(`${BASE}/vendeur/produits/nouveau`, { waitUntil: "domcontentloaded" });
+    const e = (await page.locator('label[for="price"]').textContent().catch(() => "")) ?? "";
+    await ctx.close();
+    return e.replace(/s+/g, " ").trim();
+  };
+
+  const RDC = "République Démocratique du Congo";
+
+  verifier(
+    (await creer(RDC, null)).includes("FC"),
+    "RDC sans choix : les prix restent en FC, comme avant"
+  );
+  verifier(
+    (await creer(RDC, "USD")).includes("USD"),
+    "RDC qui choisit le dollar : ses prix sont en USD"
+  );
+  verifier(
+    (await creer("Côte d'Ivoire", "USD")).includes("USD"),
+    "le choix ne depend pas du pays : un Ivoirien peut prendre le dollar"
+  );
+}
+
 await navigateur.close();
 
 console.log("");

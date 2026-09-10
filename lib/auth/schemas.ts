@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { estUnMarcheConnu } from "@/data/markets";
+import { estUnMarcheConnu, SYMBOLE } from "@/data/markets";
 
 export const loginSchema = z.object({
   identifier: z
@@ -51,6 +51,28 @@ export const registerSchema = z.object({
   country: z
     .string()
     .refine(estUnMarcheConnu, "Ce pays n'est pas encore desservi par KOLI")
+    .optional(),
+  /**
+   * La devise CHOISIE, quand le vendeur en choisit une.
+   *
+   * ┌──────────────────────────────────────────────────────────────────────┐
+   * │  Le pays ne dit pas toujours la monnaie. À Kinshasa, une part        │
+   * │  importante du commerce s'affiche en dollars.                        │
+   * └──────────────────────────────────────────────────────────────────────┘
+   *
+   * Contrainte à la liste connue, pour la même raison que le pays : une
+   * devise inconnue produirait un montant sans unité, ou replié en silence
+   * sur le franc CFA.
+   *
+   * **Vide ⇒ absente**, et non « XOF ». Le formulaire propose « celle de mon
+   * pays » comme première option : elle envoie une chaîne vide, et c'est
+   * `deviseDuVendeur` qui retombe alors sur le pays. Écrire une devise ici
+   * quand personne n'en a choisi transformerait un repli — révisable — en
+   * décision figée.
+   */
+  currency: z
+    .string()
+    .refine((v) => v === "" || v in SYMBOLE, "Cette devise n'est pas reconnue")
     .optional(),
 });
 
