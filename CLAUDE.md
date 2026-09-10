@@ -1242,6 +1242,16 @@ Leur tableau de bord est à **`https://ikeepay.com/auth/login`** (courriel et mo
 de passe). Il n'existe ni `dashboard.` ni `app.` : ces sous-domaines ne
 résolvent pas.
 
+**Leur seule adresse de contact est `support@ikeepay.com`** — cherchée le 10
+septembre 2026 sur cinq de leurs pages (`/`, `/contact`, `/business`,
+`/support`, `/aide`), au navigateur puisque `curl` n'en tire rien.
+
+Elle REÇOIT bien : `ikeepay.com` porte des MX chez Hostinger (`mx1`/`mx2`),
+confirmés par deux résolveurs indépendants. Ce n'était pas acquis — leur site
+rend 200 sur n'importe quelle adresse, y compris celles qui n'existent pas,
+donc rien de ce qu'il affiche ne se croit sur parole. Aucun numéro de téléphone
+n'est publié.
+
 ⚠ **Leur site est une application entièrement montée en JavaScript** : 5 Ko de
 coquille HTML, et tout le reste dans un fichier de 2 Mo au nom empreinté
 (`/assets/index-<hash>.js`). Trois conséquences pratiques :
