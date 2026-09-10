@@ -2194,6 +2194,69 @@ casser. `min-w-0` sur le conteneur, et jamais deux colonnes serrées pour un
 chiffre qu'on veut voir en grand.
 
 
+### Deux pays s'appellent « Congo », et leurs monnaies diffèrent d'un facteur quatre
+
+Trouvé le 10 septembre 2026, en parcourant les dix premières minutes d'un
+vendeur qui arrive sans rien savoir — ce qu'aucun des 604 contrôles ne faisait.
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│  Le champ « Pays » de l'inscription ne demande pas une adresse : il fixe   │
+│  LA MONNAIE de tous les prix du vendeur. L'étiquette disait « Pays », et   │
+│  rien d'autre.                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+
+Et la liste porte les deux Congo, côte à côte :
+
+| Code | Nom | Monnaie |
+|---|---|---|
+| `CG` | République du Congo (Brazzaville) | **XAF — FCFA** |
+| `CD` | République Démocratique du Congo (Kinshasa) | **CDF — FC** |
+
+Un commerçant de Kinshasa qui prend la mauvaise ligne saisit ses prix en francs
+CFA — **quatre fois leur valeur** — et ne s'en aperçoit qu'à la première vente.
+Son client avant lui. C'est exactement le défaut que le travail sur les devises
+existe pour empêcher, entré par la porte de la saisie.
+
+**Deux corrections, et la seconde est celle qui compte :**
+
+- **Une aide sous l'étiquette** : « Il fixe la **monnaie de vos prix** et de vos
+  versements. » Liée par `aria-describedby`.
+- **Le symbole DANS le libellé de chaque option, EN PREMIER** — `FC —
+  République Démocratique du Congo`. Un menu fermé n'affiche que l'option
+  choisie : le vendeur lit sa monnaie sans ouvrir la liste, et la voit changer
+  quand il change de pays. Aucun JavaScript : c'est le navigateur qui redessine.
+
+⚠ **L'ORDRE n'est pas un détail de goût, et la première version était fausse.**
+Le symbole placé APRÈS le nom paraissait plus naturel. Mesuré à 320 px : 184 px
+de place, et deux libellés sur dix-sept n'y tiennent pas — « République du
+Congo » (226 px) et « République Démocratique du Congo » (**320 px**). Ce sont
+précisément les deux qu'il faut distinguer.
+
+Un menu fermé **tronque en silence**. Le symbole en queue était donc le premier
+morceau coupé : le garde-fou disparaissait pour le seul vendeur qu'il vise.
+Falsifié en le remettant derrière, le contrôle rend « République du Congo — »
+(la monnaie a disparu, le tiret reste) et « République Démocratiq » (coupé en
+plein mot).
+
+**Des noms courts tiendraient aussi** — « RD Congo — FC » fait 119 px, mesuré.
+Écarté : il faudrait mesurer chaque nom ajouté ensuite, et une règle qu'on doit
+se rappeler est une règle qui se perd. L'ordre, lui, tient tout seul, quel que
+soit le pays ajouté plus tard.
+
+`verif:inscription` porte désormais cinq contrôles là-dessus, dont un qui
+parcourt **les dix-sept pays** et vérifie que le symbole reste lisible une fois
+le menu fermé, à 320 px. Il ne vérifie pas que le libellé EXISTE — il vérifie
+qu'il SURVIT.
+
+Le même libellé est posé sur le pays de l'ACHETEUR (`FormulaireCommande`) : là
+il décide de l'équivalent affiché sur la page de paiement, et la même paire de
+Congo s'y trouve.
+
+⚠ **La leçon dépasse ce champ** : partout où un `<select>` porte une
+information qui décide de quelque chose, elle doit venir AVANT ce qui peut être
+tronqué. C'est le même piège que `truncate` sur les vignettes d'activité — il
+ne lève aucune erreur, il coupe.
+
 ### Le vendeur fixe SA monnaie, l'acheteur lit la sienne
 
 C'est la demande d'origine, le 6 septembre 2026 : « le vendeur ivoirien vend

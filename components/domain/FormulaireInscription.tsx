@@ -7,7 +7,7 @@ import { AuthHeader } from "@/components/ui/AuthHeader";
 import { registerAction } from "@/lib/auth/actions";
 import { BoutonGoogle } from "@/components/ui/BoutonGoogle";
 import { Icone } from "@/components/ui/Icone";
-import { MARCHES, type Marche } from "@/data/markets";
+import { MARCHES, SYMBOLE, type Marche } from "@/data/markets";
 
 type RoleType = "SELLER" | "DRIVER" | "CLIENT";
 
@@ -458,16 +458,66 @@ export function FormulaireInscription({
               >
                 Pays
               </label>
+              {/*
+                * L'aide est SOUS l'étiquette et AVANT le menu.
+                *
+                * ┌────────────────────────────────────────────────────────┐
+                * │  Ce champ ne demande pas une adresse : il fixe LA      │
+                * │  MONNAIE de tous les prix du vendeur.                  │
+                * └────────────────────────────────────────────────────────┘
+                *
+                * Un commerçant de Kinshasa qui laisse « Côte d'Ivoire » —
+                * le premier de la liste — saisira ses prix en francs CFA
+                * sans le savoir, et ne s'en apercevra qu'à la première
+                * vente. Son client avant lui.
+                *
+                * Le dire APRÈS coup, dans les réglages, ne rattrape rien :
+                * un registre ne se relit pas (§8).
+                */}
+              <p id="aide-pays" className="mb-1.5 text-xs text-ink-muted dark:text-slate-400">
+                Il fixe la <strong className="font-semibold">monnaie de vos prix</strong> et de
+                vos versements.
+              </p>
               <select
                 id="country"
                 autoComplete="country-name"
                 name="country"
+                aria-describedby="aide-pays"
                 defaultValue={saisi("country", MARCHES[0].name)}
                 className="w-full px-4 py-3 rounded-xl border border-hairline dark:border-slate-700 bg-white dark:bg-slate-800 text-brand dark:text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand-border transition-all text-sm"
               >
+                {/*
+                  * La monnaie est DANS le libellé, et elle vient EN PREMIER.
+                  *
+                  * ┌──────────────────────────────────────────────────────┐
+                  * │  Un menu fermé n'affiche que l'option choisie, et il │
+                  * │  la TRONQUE en silence quand elle dépasse.           │
+                  * └──────────────────────────────────────────────────────┘
+                  *
+                  * Mesuré à 320 px : 184 px de place, et deux libellés sur
+                  * dix-sept n'y tiennent pas — « République du Congo »
+                  * (226 px) et « République Démocratique du Congo »
+                  * (320 px). Ce sont exactement les deux qu'il faut
+                  * distinguer : Brazzaville en FCFA, Kinshasa en FC, quatre
+                  * fois d'écart sur la valeur.
+                  *
+                  * Le symbole placé APRÈS était donc le premier morceau
+                  * coupé — le garde-fou aurait disparu pour le seul vendeur
+                  * qu'il vise. Placé devant, la troncature ne peut plus
+                  * l'atteindre, quel que soit le pays ajouté plus tard.
+                  *
+                  * Des noms courts (« RD Congo — FC ») tiendraient aussi,
+                  * mais il faudrait mesurer chaque nom ajouté ensuite. Une
+                  * règle qu'on doit se rappeler est une règle qui se perd ;
+                  * l'ordre, lui, tient tout seul.
+                  *
+                  * ⚠ La `value` reste le NOM du pays : c'est elle que
+                  * `registerAction` enregistre, et la changer casserait
+                  * `deviseDuPays`.
+                  */}
                 {MARCHES.map((marche: Marche) => (
                   <option key={marche.code} value={marche.name}>
-                    {marche.name}
+                    {SYMBOLE[marche.devise]} — {marche.name}
                   </option>
                 ))}
               </select>

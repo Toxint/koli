@@ -529,6 +529,18 @@ export function FormulaireCommande({
                   {/* Liste tirée de data/markets.ts : elle était dupliquée en
                       dur ici, au risque de diverger de la source qui porte
                       aussi la zone monétaire. */}
+                  {/*
+                    * La monnaie EN PREMIER, comme à l'inscription.
+                    *
+                    * Ce champ décide de l'équivalent affiché à l'acheteur sur
+                    * sa page de paiement. Deux pays de la liste s'appellent
+                    * « Congo » et n'ont pas la même monnaie — quatre fois
+                    * d'écart. Un menu fermé tronque en silence, et le symbole
+                    * placé après serait le premier morceau coupé.
+                    *
+                    * Le raisonnement complet, avec les mesures, est dans
+                    * `FormulaireInscription`.
+                    */}
                   <select
                     id="buyerCountry"
                     value={buyerCountry}
@@ -537,7 +549,7 @@ export function FormulaireCommande({
                   >
                     {MARCHES.map((marche: Marche) => (
                       <option key={marche.code} value={marche.name}>
-                        {marche.name}
+                        {SYMBOLE[marche.devise]} — {marche.name}
                       </option>
                     ))}
                   </select>
