@@ -1609,9 +1609,37 @@ Après toute exploration de ces réglages : remettre `ssoProtection: null` et
 vérifier que le rappel répond encore, avant que quiconque ne paie. Un rappel
 bloqué pendant un vrai paiement, c'est un client débité et une commande figée.
 
-Le jeton du CLI est lisible dans
-`%APPDATA%/xdg.data/com.vercel.cli/auth.json` — c'est par là que passent les
-appels à `api.vercel.com` quand le CLI n'offre pas la commande.
+Le jeton du CLI est lisible dans le magasin de `vercel login` — c'est par là
+que passent les appels à `api.vercel.com` quand le CLI n'offre pas la commande
+(`scripts/vercel-api.mjs`).
+
+⚠ **Ce jeton ne vit que HUIT HEURES**, et c'est ce qui a fait croire, du 9 au
+13 septembre 2026, à une session révoquée (`403 invalidToken`). Le CLI le
+renouvelle à chaque commande grâce à son `refreshToken` ; `vercel-api.mjs` se
+contentait de le LIRE. Deux corrections :
+
+- **Le CLI 59 écrit dans `%APPDATA%/com.vercel.cli/Data/auth.json`**, un chemin
+  que l'outil ignorait — il lisait EN PREMIER l'ancien `xdg.data/…`, au jeton
+  mort. Même reconnecté, rien ne changeait. L'outil lit désormais tous les
+  emplacements et garde le jeton qui **expire le plus tard**.
+- **Un jeton expiré est renouvelé** par `npx vercel whoami` avant usage.
+
+`npx vercel login` passe par un **code d'appareil** : lancé en tâche de fond,
+il affiche une adresse `vercel.com/oauth/device?user_code=…` à ouvrir dans le
+navigateur. L'utilisateur n'a rien à taper dans un terminal.
+
+⚠ **Le projet Vercel est relié à GitHub : un push sur `master` redéploie la
+PRODUCTION**, sans commande. Constaté le 13 septembre 2026 — d'où la règle du
+§8 sur l'ordre des migrations, qui s'applique donc AU PUSH, pas seulement au
+déploiement : une migration qui élargit doit être appliquée à Supabase AVANT de
+pousser le code qui s'en sert.
+
+**Le site d'essai n'est PAS redéployé par un push** : c'est un aperçu
+téléversé depuis le poste (`source=cli`). Le 13 septembre 2026, ses variables
+Resend (nouvelle clef, `RESEND_REPLY_TO`) ont été posées, puis le MÊME code
+redéployé (`POST /v13/deployments` avec `deploymentId`) et l'alias
+`koli-essai.vercel.app` déplacé. Il sert encore le commit `4e94ffc` du 8
+septembre — sans le versement ni la zone franc CFA.
 
 ### Le site d'essai porte un nom STABLE
 
