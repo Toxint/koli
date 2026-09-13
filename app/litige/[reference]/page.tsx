@@ -8,7 +8,8 @@ import {
   litigeEstClos,
 } from "@/lib/disputes/libelles";
 import { libelleStatut } from "@/lib/orders/statusLabels";
-import { formatCFA } from "@/lib/format";
+import { formatMontant } from "@/lib/format";
+import { commeDevise } from "@/data/markets";
 import { BarreCompte } from "@/components/ui/BarreCompte";
 import { FilLitige } from "@/components/domain/FilLitige";
 import { ArbitrageLitige } from "@/components/domain/ArbitrageLitige";
@@ -56,6 +57,17 @@ export default async function PageLitige({
   }));
 
   const montantVendeur = commande.fund?.amount ?? 0;
+
+  /*
+   * ⚠ La monnaie vient de la COMMANDE, jamais d un defaut.
+   *
+   * Cet ecran ecrivait « Les fonds — X FCFA — restent bloques » pour tout le
+   * monde : `formatCFA` est `formatMontant(…, "XOF")` ecrit en dur. Il est vu
+   * par l ACHETEUR et par le VENDEUR, au moment precis ou ils sont en
+   * desaccord sur une somme — l endroit du produit ou un chiffre faux coute
+   * le plus cher.
+   */
+  const devise = commeDevise(commande.currency);
 
   return (
     <main className="min-h-screen bg-cream py-8 px-4 sm:px-6 lg:px-8">
@@ -118,7 +130,7 @@ export default async function PageLitige({
             <p className="flex items-start gap-2 text-xs text-ink-muted rounded-xl bg-test-mode-surface border border-brand-border/60 p-3">
               <Icone nom="cadenas" className="w-4 h-4 shrink-0 text-test-mode" />
               <span>
-                Les fonds — {formatCFA(montantVendeur)} — restent bloques
+                Les fonds — {formatMontant(montantVendeur, devise)} — restent bloques
                 jusqu&apos;a la decision de KOLI. Le vendeur n&apos;est pas paye
                 entre-temps (§33).
               </span>
@@ -131,6 +143,7 @@ export default async function PageLitige({
             reference={commande.reference}
             montantVendeur={montantVendeur}
             montantClient={montantVendeur + commande.deliveryFee}
+            devise={devise}
           />
         )}
 

@@ -5,7 +5,8 @@ import { getCurrentUser } from "@/lib/auth/actions";
 import { prisma } from "@/lib/db/prisma";
 import { MenuEspace } from "@/components/ui/MenuEspace";
 import { ReglageCommission } from "@/components/domain/ReglageCommission";
-import { formatCFA, pluriel } from "@/lib/format";
+import { formatTotaux, formatMontant, pluriel } from "@/lib/format";
+import { commeDevise, type Devise } from "@/data/markets";
 import { Icone } from "@/components/ui/Icone";
 
 export const metadata: Metadata = { title: "Commissions" };
@@ -27,7 +28,7 @@ export default async function CommissionsAdminPage() {
     redirect("/connexion");
   }
 
-  const [actif, historique, prelevees, moyenne, dernieres] = await Promise.all([
+  const [actif, historique, prelevees, dernieres] = await Promise.all([
     prisma.commission.findFirst({
       where: { isActive: true },
       orderBy: { createdAt: "desc" },
@@ -35,13 +36,15 @@ export default async function CommissionsAdminPage() {
     prisma.commission.findMany({ orderBy: { createdAt: "desc" }, take: 20 }),
     // Ce qui a RÉELLEMENT été prélevé. Le tableau de bord n'affichait jusqu'ici
     // qu'une projection, faute de prélèvement effectif.
-    prisma.transaction.aggregate({
+    /* Groupé par devise : `Transaction` porte la sienne, recopiée depuis la
+       commande à l'écriture. Un `_sum` global additionnait des francs CFA et
+       des francs congolais, et présentait le résultat comme un montant. */
+    prisma.transaction.groupBy({
+      by: ["currency"],
       where: { type: "COMMISSION" },
       _sum: { amount: true },
       _count: { _all: true },
     }),
-    // Panier moyen réel, pour que l'aperçu parle de la vraie activité.
-    prisma.fund.aggregate({ _avg: { amount: true } }),
     prisma.transaction.findMany({
       where: { type: "COMMISSION" },
       include: { order: { select: { reference: true } } },
@@ -50,11 +53,34 @@ export default async function CommissionsAdminPage() {
     }),
   ]);
 
-  const totalPreleve = Math.abs(prelevees._sum.amount ?? 0);
-  const exempleVente = Math.round(moyenne._avg.amount ?? 0) || VENTE_PAR_DEFAUT;
+  /* Les écritures COMMISSION sont négatives (débit du point de vue du
+     vendeur) : on les repasse en positif pour l'affichage. */
+  const preleveParDevise: Partial<Record<Devise, number>> = {};
+  let nombrePrelevements = 0;
+  for (const l of prelevees) {
+    const d = commeDevise(l.currency);
+    preleveParDevise[d] =
+      (preleveParDevise[d] ?? 0) + Math.abs(l._sum.amount ?? 0);
+    nombrePrelevements += l._count._all;
+  }
+  const totalPreleve = formatTotaux(preleveParDevise);
+
+  /*
+   * ⚠ L'exemple est un nombre ROND, plus une moyenne.
+   *
+   * Il valait `fund.aggregate({ _avg })` — la moyenne des séquestres, TOUTES
+   * MONNAIES CONFONDUES. Un panier moyen calculé sur des francs CFA et des
+   * francs congodais mêlés n'est ni l'un ni l'autre : c'est un nombre sans
+   * unité, présenté comme un montant.
+   *
+   * Or cet aperçu illustre un POURCENTAGE. Une valeur ronde le fait mieux
+   * qu'une moyenne fausse, et la phrase qui l'accompagne précise « dans la
+   * monnaie de la vente » — vraie dans les treize.
+   */
+  const exempleVente = VENTE_PAR_DEFAUT;
 
   return (
-    <div className="min-h-screen bg-cream text-ink lg:pl-[var(--largeur-menu)]">
+    <div className="min-h-screen bg-cream text-ink">
       <MenuEspace user={user} />
 
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -87,20 +113,26 @@ export default async function CommissionsAdminPage() {
             <span className="block text-[11px] font-semibold uppercase tracking-wider text-ink-muted mb-1">
               Prélevé (test)
             </span>
+            {/* Juxtaposé par monnaie, jamais additionné : la plateforme
+                encaisse dans treize monnaies, et leur somme n'existe pas.
+                Rien à montrer ⇒ « — », et non « 0 FCFA ». */}
             <div className="text-2xl font-bold text-brand">
-              {formatCFA(totalPreleve)}
+              {totalPreleve ?? "—"}
             </div>
             <p className="mt-1 text-xs text-ink-muted">
-              {pluriel(prelevees._count._all, "prélèvement", "prélèvements")}
+              {pluriel(nombrePrelevements, "prélèvement", "prélèvements")}
             </p>
           </div>
 
           <div className="rounded-2xl border border-hairline bg-white p-5">
             <span className="block text-[11px] font-semibold uppercase tracking-wider text-ink-muted mb-1">
-              Vente moyenne
+              Exemple de vente
             </span>
+            {/* Sans symbole : ce nombre illustre un TAUX, et le taux vaut dans
+                les treize monnaies. Il affichait une moyenne toutes monnaies
+                confondues, libellée en francs CFA. */}
             <div className="text-2xl font-bold text-brand">
-              {formatCFA(exempleVente)}
+              {new Intl.NumberFormat("fr-FR").format(exempleVente)}
             </div>
             <p className="mt-1 text-xs text-ink-muted">
               Hors frais de livraison — l&apos;assiette de la commission.
@@ -152,7 +184,10 @@ export default async function CommissionsAdminPage() {
                     </span>
                   </div>
                   <span className="font-semibold tabular-nums text-brand">
-                    {formatCFA(Math.abs(l.amount))}
+                    {/* Chaque écriture porte SA devise, recopiée depuis la
+                        commande : un journal comptable ne se relit pas à la
+                        lumière des réglages du jour. */}
+                    {formatMontant(Math.abs(l.amount), commeDevise(l.currency))}
                   </span>
                 </li>
               ))}

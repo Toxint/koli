@@ -24,10 +24,30 @@ describe("la chaîne verif:tout", () => {
     fs.readFileSync(path.resolve("package.json"), "utf8")
   ) as { scripts: Record<string, string> };
 
-  /** Les `npm run X` enchaînés dans `verif:tout`. */
-  const etapes = [...paquet.scripts["verif:tout"].matchAll(/npm run ([\w:-]+)/g)].map(
+  /*
+   * Les `npm run X` de la campagne vivent dans `verif:chaine` depuis le 13
+   * septembre 2026. `verif:tout` lance `scripts/campagne.mjs`, qui lit cette
+   * chaîne et reprend une suite tuée par une coupure du VPN — voir le fichier.
+   *
+   * Ce test lisait `verif:tout` directement. Le jour où la chaîne a changé de
+   * place, il est tombé à « 0 étape » : c'est exactement ce qu'il existe pour
+   * voir, une campagne qui ne lancerait plus rien sans le dire.
+   */
+  const etapes = [...paquet.scripts["verif:chaine"].matchAll(/npm run ([\w:-]+)/g)].map(
     (m) => m[1]
   );
+
+  it("verif:tout lance bien le lanceur qui lit verif:chaine", () => {
+    /* Sans cette garde, on pourrait remettre une chaîne à la main dans
+       `verif:tout` : elle tournerait, et plus rien ne relirait `verif:chaine`
+       — qui continuerait d'être « testée » ici sans jamais être lancée. */
+    expect(paquet.scripts["verif:tout"]).toBe("node scripts/campagne.mjs");
+    const lanceur = fs.readFileSync(path.resolve("scripts/campagne.mjs"), "utf8");
+    /* Insensible aux espaces et aux retours à la ligne : un reformatage du
+       lanceur ne doit pas faire tomber ce contrôle, seul un changement de la
+       clef lue le doit. */
+    expect(lanceur).toMatch(/scripts\[\s*["']verif:chaine["']\s*\]/);
+  });
 
   it("enchaîne bien plusieurs étapes", () => {
     expect(etapes.length).toBeGreaterThan(10);
@@ -54,7 +74,9 @@ describe("la chaîne verif:tout", () => {
 
   it("chaque script de vérification pointe un fichier qui existe", () => {
     const introuvables = Object.entries(paquet.scripts)
-      .filter(([nom]) => nom.startsWith("verif:") && nom !== "verif:tout")
+      .filter(
+        ([nom]) => nom.startsWith("verif:") && nom !== "verif:tout" && nom !== "verif:chaine"
+      )
       .map(([nom, commande]) => [nom, commande.match(/scripts\/[\w.-]+\.mjs/)?.[0]] as const)
       .filter(([, fichier]) => fichier && !fs.existsSync(path.resolve(fichier)))
       .map(([nom, fichier]) => `${nom} → ${fichier}`);

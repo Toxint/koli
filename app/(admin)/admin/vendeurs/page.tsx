@@ -6,7 +6,8 @@ import { prisma } from "@/lib/db/prisma";
 import { BarreRecherche } from "@/components/ui/BarreRecherche";
 import { Pagination } from "@/components/ui/Pagination";
 import { MenuEspace } from "@/components/ui/MenuEspace";
-import { formatCFA, pluriel } from "@/lib/format";
+import { formatMontant, pluriel } from "@/lib/format";
+import { deviseDuVendeur } from "@/data/markets";
 import { VerificationVendeur } from "@/components/domain/VerificationVendeur";
 import { Icone } from "@/components/ui/Icone";
 
@@ -102,7 +103,7 @@ export default async function AdminVendeursPage({
   );
 
   return (
-    <div className="min-h-screen bg-cream text-ink lg:pl-[var(--largeur-menu)]">
+    <div className="min-h-screen bg-cream text-ink">
       <MenuEspace user={user} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -200,7 +201,11 @@ export default async function AdminVendeursPage({
                         Chiffre d&apos;affaires
                       </span>
                       <span className="text-base font-semibold">
-                        {formatCFA(revenuPar.get(v.id) ?? 0)}
+                        {/* La monnaie du VENDEUR — celle qu'il a choisie, à
+                            défaut celle de son pays. Cet écran liste des
+                            vendeurs de dix-sept pays ; leur chiffre d'affaires
+                            s'affichait en francs CFA pour tout le monde. */}
+                        {formatMontant(revenuPar.get(v.id) ?? 0, deviseDuVendeur(v))}
                       </span>
                       <span className="block text-[11px] text-ink-muted">
                         fonds libérés

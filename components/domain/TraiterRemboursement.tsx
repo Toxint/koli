@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { traiterRemboursementAction } from "@/lib/refunds/actions";
-import { formatCFA } from "@/lib/format";
+import { formatMontant } from "@/lib/format";
+import { type Devise } from "@/data/markets";
 import { Icone } from "@/components/ui/Icone";
 
 /**
@@ -18,12 +19,22 @@ export function TraiterRemboursement({
   montant,
   clientNom,
   articles,
+  devise,
 }: {
   reference: string;
   montant: number;
   clientNom: string;
   /** Décrit ce qui reviendrait en rayon, pour éclairer le choix. */
   articles: string;
+  /**
+   * La monnaie de la COMMANDE remboursée.
+   *
+   * La confirmation rappelle le montant avant qu’on clique — c’est de
+   * l’argent qui part. Il s’écrivait en francs CFA quelle que soit la
+   * commande : sur un remboursement congolais, l’administrateur validait un
+   * chiffre qui n’était pas celui qu’il croyait.
+   */
+  devise: Devise;
 }) {
   const router = useRouter();
   const [confirme, setConfirme] = useState(false);
@@ -69,7 +80,7 @@ export function TraiterRemboursement({
   return (
     <form action={envoyer} className="w-full sm:max-w-sm space-y-3">
       <p className="text-xs text-ink-muted">
-        Rembourser <strong className="text-ink">{formatCFA(montant)}</strong> à{" "}
+        Rembourser <strong className="text-ink">{formatMontant(montant, devise)}</strong> à{" "}
         <strong className="text-ink">{clientNom}</strong> ? Cette action ne se
         rejoue pas.
       </p>

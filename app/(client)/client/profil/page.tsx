@@ -13,7 +13,7 @@ export default async function ProfilPage() {
   }
 
   return (
-    <div className="min-h-screen bg-cream text-ink lg:pl-[var(--largeur-menu)]">
+    <div className="min-h-screen bg-cream text-ink">
       <MenuEspace user={user} />
 
       <main className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">

@@ -209,8 +209,6 @@
   --color-warning: #7d5a12;
   --color-success: #15803d;
 
-  /* Largeur du menu lateral : reprise par les pages via lg:pl-[15.5rem]. */
-  --largeur-menu: 15.5rem;
 }
 
 /**

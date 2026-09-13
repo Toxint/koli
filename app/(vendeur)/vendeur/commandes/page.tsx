@@ -5,7 +5,18 @@ import { prisma } from "@/lib/db/prisma";
 import { BarreRecherche } from "@/components/ui/BarreRecherche";
 import { Pagination } from "@/components/ui/Pagination";
 import { MenuEspace } from "@/components/ui/MenuEspace";
-import { formatMontant, pluriel } from "@/lib/format";
+import {
+  ActionListe,
+  CarteListe,
+  Cellule,
+  Colonne,
+  EnTeteListe,
+  EnTeteTableau,
+  LigneTableau,
+  ListeVide,
+  Pastille,
+} from "@/components/ui/Liste";
+import { formatMontant } from "@/lib/format";
 import { deviseDuVendeur } from "@/data/markets";
 import { libelleStatut, classesBadgeStatut } from "@/lib/orders/statusLabels";
 import { listAvailableDriversAction } from "@/lib/deliveries/assign";
@@ -16,11 +27,40 @@ import Link from "next/link";
 import { Icone } from "@/components/ui/Icone";
 
 const PAR_PAGE = 20;
+const JOUR_FR = new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium" });
+
+/**
+ * Les colonnes sur lesquelles on sait TRIER.
+ *
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │  Le total n'en fait pas partie, et ce n'est pas un oubli.                │
+ * └──────────────────────────────────────────────────────────────────────────┘
+ *
+ * Il n'existe dans aucune colonne : il se calcule en additionnant les lignes
+ * de la commande et les frais de livraison. Trier dessus supposerait de
+ * charger TOUTES les commandes du vendeur pour les classer en mémoire — ce que
+ * le §46 interdit précisément, et ce que cette page a cessé de faire.
+ *
+ * Un en-tête qui promet un tri qu'il ne sait pas rendre est pire qu'un en-tête
+ * muet : on clique, rien ne bouge, et l'on conclut que l'écran est cassé.
+ */
+const TRIS: Record<string, keyof Prisma.OrderOrderByWithRelationInput> = {
+  reference: "reference",
+  client: "buyerName",
+  statut: "status",
+  date: "createdAt",
+};
 
 export default async function SellerOrdersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; statut?: string; page?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    statut?: string;
+    page?: string;
+    tri?: string;
+    sens?: string;
+  }>;
 }) {
   const user = await getCurrentUser();
   if (!user || user.role !== "SELLER" || !user.sellerProfile) {
@@ -30,15 +70,32 @@ export default async function SellerOrdersPage({
   /*
    * La devise du vendeur, une fois pour tout l'écran.
    *
-   * Un vendeur a un pays, donc une monnaie ; et depuis que la commande suit
-   * le vendeur et non l'acheteur, TOUTES ses écritures sont dans cette
-   * monnaie. Rien ne se mélange ici — contrairement aux écrans de
-   * l'administration, qui agrègent plusieurs vendeurs.
+   * Un vendeur a une monnaie — celle qu'il a choisie, à défaut celle de son
+   * pays — et depuis que la commande suit le vendeur et non l'acheteur,
+   * TOUTES ses écritures sont dans cette monnaie. Rien ne se mélange ici,
+   * contrairement aux écrans de l'administration qui agrègent des vendeurs.
    */
   const devise = deviseDuVendeur(user.sellerProfile);
 
-  const { q, statut, page: pageBrute } = await searchParams;
+  const {
+    q,
+    statut,
+    page: pageBrute,
+    tri: triBrut,
+    sens: sensBrut,
+  } = await searchParams;
   const page = Math.max(1, Number(pageBrute) || 1);
+
+  /*
+   * Le tri vient de l'ADRESSE, et il est validé avant d'atteindre la base.
+   *
+   * `TRIS` est une liste blanche : une clef inconnue dans l'URL retombe sur la
+   * date, sans erreur. Passer la valeur brute à Prisma laisserait quelqu'un
+   * classer par un champ qu'on n'a pas choisi de montrer.
+   */
+  const tri = triBrut && triBrut in TRIS ? triBrut : "date";
+  const sens: "asc" | "desc" =
+    sensBrut === "asc" ? "asc" : sensBrut === "desc" ? "desc" : "desc";
 
   // §46 : recherche, filtre et pagination effectues EN BASE. La page chargeait
   // auparavant l'integralite des commandes du vendeur, sans limite.
@@ -74,7 +131,7 @@ export default async function SellerOrdersPage({
         },
         fund: true,
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: { [TRIS[tri]]: sens },
       skip: (page - 1) * PAR_PAGE,
       take: PAR_PAGE,
     }),
@@ -82,28 +139,31 @@ export default async function SellerOrdersPage({
     listAvailableDriversAction(),
   ]);
 
+  const parametres = { q, statut };
+  const chemin = "/vendeur/commandes";
+  const colonne = { tri, sens, chemin, parametres };
+
   return (
-    <div className="min-h-screen bg-cream text-ink lg:pl-[var(--largeur-menu)]">
-      <MenuEspace user={user} nomAffiche={user.sellerProfile.businessName || user.name} />
+    <div className="min-h-screen bg-cream text-ink">
+      <MenuEspace
+        user={user}
+        nomAffiche={user.sellerProfile.businessName || user.name}
+      />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              Gestion de vos commandes
-            </h1>
-            <p className="text-xs text-ink-muted mt-1">
-              {pluriel(total, "commande générée", "commandes générées")}
-            </p>
-          </div>
-
-          <Link
-            href="/vendeur/commandes/nouvelle"
-            className="min-h-[48px] px-4 rounded-xl bg-brand hover:bg-brand-strong text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2"
-          >
-            <span>+ Créer une commande</span>
-          </Link>
-        </div>
+      <main className="mx-auto max-w-[86rem] space-y-4 px-4 py-6 sm:px-6">
+        <EnTeteListe
+          titre="Commandes"
+          nombre={total}
+          actions={
+            <ActionListe
+              href="/vendeur/commandes/nouvelle"
+              icone="nouveau"
+              principal
+            >
+              Créer une commande
+            </ActionListe>
+          }
+        />
 
         <BarreRecherche
           placeholder="Référence, nom ou téléphone du client…"
@@ -123,73 +183,135 @@ export default async function SellerOrdersPage({
           ]}
         />
 
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-hairline dark:border-slate-800 shadow-sm p-6">
+        <CarteListe
+          pagination={
+            <Pagination
+              page={page}
+              total={total}
+              parPage={PAR_PAGE}
+              parametres={parametres}
+              chemin={chemin}
+              nom="commandes"
+            />
+          }
+        >
           {orders.length === 0 ? (
-            <div className="text-center py-12">
-              <Icone nom="colis" className="w-9 h-9 mx-auto text-brand" />
-              <p className="text-sm font-semibold">
-                {q || statut
+            <ListeVide
+              titre={
+                q || statut
                   ? "Aucune commande ne correspond à cette recherche"
-                  : "Aucune commande enregistrée"}
-              </p>
-              {!q && !statut && (
-                <Link
-                  href="/vendeur/commandes/nouvelle"
-                  className="inline-flex items-center justify-center min-h-[44px] px-5 mt-4 rounded-xl bg-brand hover:bg-brand-strong text-white text-xs font-semibold"
-                >
-                  Créer une commande
-                </Link>
-              )}
-            </div>
+                  : "Aucune commande enregistrée"
+              }
+              explication={
+                q || statut
+                  ? "Essayez une autre référence, un autre nom, ou retirez le filtre."
+                  : "Créez votre première commande : KOLI génère un lien de paiement à partager, et garde l'argent jusqu'à la réception."
+              }
+              action={
+                !q && !statut ? (
+                  <ActionListe
+                    href="/vendeur/commandes/nouvelle"
+                    icone="nouveau"
+                    principal
+                  >
+                    Créer une commande
+                  </ActionListe>
+                ) : undefined
+              }
+            />
           ) : (
-            <div className="space-y-4 divide-y divide-hairline dark:divide-slate-800">
-              {orders.map((order) => {
-                const totalAmount = order.items.reduce(
-                  (acc, item) => acc + item.unitPrice * item.quantity,
-                  order.deliveryFee
-                );
+            <table className="w-full min-w-[68rem] border-collapse">
+              <caption className="sr-only">
+                Vos commandes, de la plus récente à la plus ancienne
+              </caption>
+              <EnTeteTableau>
+                <Colonne cle="reference" {...colonne}>
+                  Référence
+                </Colonne>
+                <Colonne cle="client" {...colonne}>
+                  Client
+                </Colonne>
+                <Colonne cle="statut" {...colonne}>
+                  Statut
+                </Colonne>
+                <Colonne>Livraison</Colonne>
+                <Colonne aDroite>Total</Colonne>
+                <Colonne cle="date" {...colonne}>
+                  Créée le
+                </Colonne>
+                <Colonne aDroite>Actions</Colonne>
+              </EnTeteTableau>
 
-                return (
-                  /* `items-stretch` sous sm : avec `items-start`, chaque
-                     colonne se dimensionnait sur son contenu maximal et
-                     pouvait depasser la largeur de l'ecran. */
-                  <div key={order.id} className="pt-4 first:pt-0 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4">
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="font-mono font-bold text-brand text-sm break-all">
+              <tbody>
+                {orders.map((order) => {
+                  const montant = order.items.reduce(
+                    (acc, item) => acc + item.unitPrice * item.quantity,
+                    order.deliveryFee
+                  );
+
+                  return (
+                    <LigneTableau key={order.id}>
+                      <Cellule>
+                        <span className="font-mono text-sm font-bold text-brand">
                           {order.reference}
                         </span>
-                        <span
-                          className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${classesBadgeStatut(order.status)}`}
-                        >
-                          {libelleStatut(order.status)}
-                        </span>
-                      </div>
-                      <h3 className="font-semibold text-base mt-1 break-words">
-                        Client : {order.buyerName}
-                      </h3>
-                      <a
-                        href={`tel:${order.buyerPhone.replace(/\s/g, "")}`}
-                        className="inline-flex items-center min-h-[44px] text-xs text-ink-muted whitespace-nowrap hover:text-brand"
-                      >
-                        {order.buyerPhone}
-                      </a>
-                      <p className="text-xs text-ink-muted">
-                        {order.buyerAddress}, {order.buyerCity}
-                      </p>
+                      </Cellule>
 
-                      {/* §28 : la preuve de la remise, sous forme courte. Le
-                          vendeur n'avait jusqu'ici aucun moyen de constater
-                          que son colis avait bien ete remis en main propre. */}
-                      {order.delivery?.proof && (
-                        <div className="mt-2 rounded-xl bg-brand-soft/50 border border-brand-border px-3 py-2">
+                      <Cellule>
+                        <span className="block font-semibold text-ink">
+                          {order.buyerName}
+                        </span>
+                        {/*
+                          * Le téléphone est CLIQUABLE : sur un mobile, c'est
+                          * ainsi qu'un vendeur rappelle son client.
+                          *
+                          * ⚠ Donc une cible tactile, donc 44 px (§74). Il en
+                          * faisait 15 — la hauteur de son texte. Un numéro
+                          * qu'on rate deux fois sur trois n'est pas un
+                          * raccourci, c'est un agacement ; et le doigt qui
+                          * dérape touche la ligne du dessous.
+                          *
+                          * `-my-2` reprend la hauteur ajoutée à la cellule :
+                          * la zone touchable déborde sur le remplissage de la
+                          * ligne, qui n'appartient à personne d'autre.
+                          */}
+                        <a
+                          href={`tel:${order.buyerPhone.replace(/\s/g, "")}`}
+                          className="-my-2 inline-flex min-h-[44px] items-center text-xs text-ink-muted hover:text-brand"
+                        >
+                          {order.buyerPhone}
+                        </a>
+                      </Cellule>
+
+                      <Cellule>
+                        <Pastille classes={classesBadgeStatut(order.status)}>
+                          {libelleStatut(order.status)}
+                        </Pastille>
+                      </Cellule>
+
+                      {/*
+                        * La LIVRAISON est une colonne, pas un repli.
+                        *
+                        * ┌──────────────────────────────────────────────────┐
+                        * │  Assigner un livreur est un acte du vendeur      │
+                        * │  (§26) — sans lui, la commande n'apparaît sur le │
+                        * │  tableau de bord d'aucun livreur.                │
+                        * └──────────────────────────────────────────────────┘
+                        *
+                        * Le renvoyer sur une page de détail aurait rendu le
+                        * tableau plus net et le travail plus long : c'est le
+                        * geste qu'on vient faire ici. Il vit donc dans la
+                        * ligne, et la colonne montre à chaque instant où en
+                        * est le colis.
+                        */}
+                      <Cellule className="whitespace-normal">
+                        {order.delivery?.proof ? (
                           <PreuveLivraison
                             compact
                             preuve={{
                               code: order.delivery.proof.otpCode,
                               date: order.delivery.proof.confirmedAt,
-                              livreur:
-                                order.delivery.driver?.user.name ?? null,
+                              livreur: order.delivery.driver?.user.name ?? null,
                               vehicule: order.delivery.driver?.vehicle ?? null,
                               signatureUrl: order.delivery.proof.signatureUrl,
                               photoUrl: order.delivery.proof.photoUrl,
@@ -197,74 +319,76 @@ export default async function SellerOrdersPage({
                               longitude: order.delivery.proof.longitude,
                             }}
                           />
-                        </div>
-                      )}
-
-                      {/* §26 : l'assignation d'un livreur est un acte explicite
-                          du vendeur. Sans elle, la commande n'apparaissait dans
-                          le tableau de bord d'aucun livreur. */}
-                      {order.fund?.secured && (
-                        <div className="mt-3 max-w-md">
-                          <AssignerLivreur
-                            orderReference={order.reference}
-                            drivers={livreurs}
-                            livreurActuel={
-                              order.delivery?.driver?.user.name ?? null
-                            }
-                          />
-
-                          {/* §26 : declarer le colis pret previent le livreur.
-                              Le bouton disparait une fois le geste fait. */}
-                          {order.delivery?.driverId &&
-                            order.delivery.status === "ASSIGNED" && (
-                              <div className="mt-2">
+                        ) : order.fund?.secured ? (
+                          <div className="min-w-[15rem] space-y-2">
+                            <AssignerLivreur
+                              orderReference={order.reference}
+                              drivers={livreurs}
+                              livreurActuel={
+                                order.delivery?.driver?.user.name ?? null
+                              }
+                            />
+                            {/* §26 : déclarer le colis prêt prévient le
+                                livreur. Le bouton disparaît une fois fait. */}
+                            {order.delivery?.driverId &&
+                              order.delivery.status === "ASSIGNED" && (
                                 <ColisPret reference={order.reference} />
-                              </div>
-                            )}
+                              )}
+                          </div>
+                        ) : (
+                          /* Pas encore payée : rien à assigner. On le DIT,
+                             plutôt que de laisser une case vide qui ressemble
+                             à une donnée manquante. */
+                          <span className="text-xs text-ink-muted">
+                            En attente du paiement
+                          </span>
+                        )}
+                      </Cellule>
+
+                      <Cellule aDroite>
+                        <span className="font-semibold text-ink">
+                          {formatMontant(montant, devise)}
+                        </span>
+                      </Cellule>
+
+                      <Cellule>
+                        <span className="text-ink-muted">
+                          {JOUR_FR.format(order.createdAt)}
+                        </span>
+                      </Cellule>
+
+                      <Cellule aDroite>
+                        <div className="flex items-center justify-end gap-1">
+                          {/* §38 : le reçu n'existe qu'une fois le paiement
+                              abouti — une commande non réglée n'a pas de
+                              pièce. */}
+                          {order.invoice && (
+                            <Link
+                              href={`/facture/${order.reference}`}
+                              aria-label={`Reçu de la commande ${order.reference}`}
+                              title="Reçu"
+                              className="inline-flex h-11 w-11 items-center justify-center rounded-lg border border-hairline text-ink-muted transition-colors hover:border-brand-border hover:text-brand"
+                            >
+                              <Icone nom="recu" className="h-4 w-4" />
+                            </Link>
+                          )}
+                          <Link
+                            href={`/pay/${order.reference}`}
+                            aria-label={`Ouvrir le lien de paiement de la commande ${order.reference}`}
+                            title="Lien de paiement"
+                            className="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-brand-soft text-brand transition-colors hover:bg-brand-border"
+                          >
+                            <Icone nom="lien" className="h-4 w-4" />
+                          </Link>
                         </div>
-                      )}
-                    </div>
-
-                    <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0">
-                      <div className="text-right">
-                        <span className="text-xs text-ink-muted block">Total</span>
-                        <span className="text-base font-semibold">{formatMontant(totalAmount, devise)}</span>
-                      </div>
-
-                      {/* §38 : le recu n'existe qu'une fois le paiement
-                          abouti — une commande non reglee n'a pas de piece. */}
-                      {order.invoice && (
-                        <Link
-                          href={`/facture/${order.reference}`}
-                          aria-label={`Reçu de la commande ${order.reference}`}
-                          className="inline-flex items-center justify-center min-h-[44px] px-3 rounded-lg border border-hairline hover:bg-brand-soft/40 text-xs font-bold"
-                        >
-                          <Icone nom="recu" className="w-4 h-4" /> Reçu
-                        </Link>
-                      )}
-
-                      <Link
-                        href={`/pay/${order.reference}`}
-                        aria-label={`Ouvrir le lien de paiement de la commande ${order.reference}`}
-                        className="inline-flex items-center justify-center min-h-[44px] px-3 rounded-lg bg-brand-soft text-brand hover:bg-brand-soft dark:bg-emerald-950/60 dark:text-emerald-300 text-xs font-bold transition-all"
-                      >
-                        <Icone nom="lien" className="w-4 h-4" /> Lien
-                      </Link>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                      </Cellule>
+                    </LigneTableau>
+                  );
+                })}
+              </tbody>
+            </table>
           )}
-
-          <Pagination
-            page={page}
-            total={total}
-            parPage={PAR_PAGE}
-            parametres={{ q, statut }}
-            chemin="/vendeur/commandes"
-          />
-        </div>
+        </CarteListe>
       </main>
     </div>
   );

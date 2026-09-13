@@ -6,7 +6,8 @@ import { BarreRecherche } from "@/components/ui/BarreRecherche";
 import { Pagination } from "@/components/ui/Pagination";
 import { chargerFacturesVendeur } from "@/lib/invoices/liste";
 import { TableauFactures } from "@/components/domain/TableauFactures";
-import { formatMontant, pluriel } from "@/lib/format";
+import { CarteListe, EnTeteListe } from "@/components/ui/Liste";
+import { formatMontant } from "@/lib/format";
 import { deviseDuVendeur } from "@/data/markets";
 import { MentionModeTest } from "@/components/ui/MentionModeTest";
 
@@ -46,19 +47,15 @@ export default async function FacturesVendeurPage({
   });
 
   return (
-    <div className="min-h-screen bg-cream text-ink lg:pl-[var(--largeur-menu)]">
+    <div className="min-h-screen bg-cream text-ink">
       <MenuEspace user={user} nomAffiche={user.sellerProfile.businessName || user.name} />
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-            Mes factures
-          </h1>
-          <p className="mt-1 text-sm text-ink-muted">
-            Une facture est émise automatiquement dès qu&apos;un paiement
-            aboutit.<MentionModeTest> Mode test — aucun paiement réel.</MentionModeTest>
-          </p>
-        </div>
+      <main className="mx-auto max-w-[86rem] space-y-4 px-4 py-6 sm:px-6">
+        <EnTeteListe titre="Factures" nombre={factures.total} />
+        <p className="-mt-2 text-sm text-ink-muted">
+          Une facture est émise automatiquement dès qu&apos;un paiement
+          aboutit.<MentionModeTest> Mode test — aucun paiement réel.</MentionModeTest>
+        </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div className="rounded-2xl border border-hairline bg-white p-5">
@@ -88,11 +85,18 @@ export default async function FacturesVendeurPage({
 
         <BarreRecherche placeholder="Numéro de facture, référence ou client…" />
 
-        <div className="bg-white rounded-2xl border border-hairline shadow-sm p-6">
-          <p className="text-xs text-ink-muted mb-4">
-            {pluriel(factures.total, "facture", "factures")}
-          </p>
-
+        <CarteListe
+          pagination={
+            <Pagination
+              page={page}
+              total={factures.total}
+              parPage={PAR_PAGE}
+              parametres={{ q }}
+              chemin="/vendeur/factures"
+              nom="factures"
+            />
+          }
+        >
           <TableauFactures
             lignes={factures.lignes}
             libelleContrepartie="Client"
@@ -103,15 +107,7 @@ export default async function FacturesVendeurPage({
                 : "La première sera émise dès qu'un client réglera une de vos commandes.",
             }}
           />
-
-          <Pagination
-            page={page}
-            total={factures.total}
-            parPage={PAR_PAGE}
-            parametres={{ q }}
-            chemin="/vendeur/factures"
-          />
-        </div>
+        </CarteListe>
       </main>
     </div>
   );

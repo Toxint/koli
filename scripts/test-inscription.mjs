@@ -6,6 +6,7 @@
  */
 
 import { chromium } from "playwright";
+import { lireUne, fermer } from "./base-donnees.mjs";
 
 const BASE = process.env.BASE_URL ?? "http://localhost:3000";
 
@@ -185,23 +186,48 @@ const verifier = (ok, libelle, detail = "") => {
     (aide ?? "").replace(/s+/g, " ").trim().slice(0, 52)
   );
 
-  // Les deux Congo : le cas qui a motive tout ceci.
-  const brazza = await lire("République du Congo");
-  const kinshasa = await lire("République Démocratique du Congo");
+  /*
+   * ⚠ Le contrat a CHANGE le 12 septembre 2026 : seuls les sept pays de la zone
+   * franc CFA sont proposes aux VENDEURS.
+   *
+   * Ce bloc eprouvait « Kinshasa annonce FC — et non FCFA ». Kinshasa n'est
+   * plus dans la liste, par decision : iKeePay regle en dollars, et le risque
+   * de change du franc congolais (21 % sur un mauvais mois) depasse ce que la
+   * commission couvre. Le controle ne disparait pas, il se retourne : ce qui
+   * protegeait le vendeur de Kinshasa d'une erreur de ligne, c'est maintenant
+   * l'ABSENCE de la ligne.
+   *
+   * La lecon de la troncature reste vraie — Brazzaville doit toujours annoncer
+   * FCFA menu ferme — et elle vaut aussi pour le pays de l'ACHETEUR
+   * (FormulaireCommande), ou les deux Congo cohabitent encore.
+   */
+  const OUVERTS = [
+    "Bénin", "Burkina Faso", "Cameroun", "Côte d'Ivoire",
+    "Gabon", "République du Congo", "Sénégal",
+  ];
+  const proposes = await page.evaluate(() =>
+    [...document.querySelector("#country").options].map((o) => o.value).filter(Boolean)
+  );
+  const manquants = OUVERTS.filter((n) => !proposes.includes(n));
+  const enTrop = proposes.filter((n) => !OUVERTS.includes(n));
+  verifier(
+    manquants.length === 0 && enTrop.length === 0,
+    "les vendeurs se voient proposer EXACTEMENT les sept pays du franc CFA",
+    [
+      manquants.length ? "manquants : " + manquants.join(", ") : "",
+      enTrop.length ? "en trop : " + enTrop.join(", ") : "",
+    ].filter(Boolean).join(" / ")
+  );
+  verifier(
+    !proposes.includes("République Démocratique du Congo"),
+    "Kinshasa n'est plus proposé aux vendeurs — le franc congolais n'est pas ouvert"
+  );
 
+  const brazza = await lire("République du Congo");
   verifier(
     brazza.startsWith("FCFA"),
-    "Brazzaville annonce FCFA, menu ferme et tronque",
-    `« ${brazza} »`
-  );
-  verifier(
-    kinshasa.startsWith("FC ") || kinshasa.startsWith("FC—") || kinshasa.startsWith("FC "),
-    "Kinshasa annonce FC — et NON FCFA",
-    `« ${kinshasa} »`
-  );
-  verifier(
-    !kinshasa.startsWith("FCFA"),
-    "les deux ne se confondent pas une fois tronques"
+    "Brazzaville annonce toujours FCFA, menu fermé et tronqué",
+    "« " + brazza + " »"
   );
 
   // Et tous les autres, pour que l'ajout d'un pays ne casse rien en silence.
@@ -268,52 +294,142 @@ const verifier = (ok, libelle, detail = "") => {
     "la premiere option est « celle de mon pays », et vaut le VIDE",
     options[0]?.t ?? "aucune"
   );
+  /*
+   * ⚠ Le dollar ETAIT propose — « un usage, pas un pays ». Il ne l'est plus,
+   * depuis le 12 septembre 2026 : rien ne prouve qu'iKeePay l'accepte dans son
+   * tunnel, et un vendeur qui le choisirait aurait des acheteurs incapables de
+   * payer. Seuls les deux francs CFA restent au choix.
+   */
+  const valeurs = options.map((o) => o.v).filter(Boolean).sort();
   verifier(
-    options.some((o) => o.v === "USD"),
-    "le dollar est propose — un usage, pas un pays",
-    options.find((o) => o.v === "USD")?.t ?? "absent"
+    valeurs.join(",") === "XAF,XOF",
+    "seuls les deux francs CFA sont au choix — ni le dollar, ni une autre monnaie",
+    valeurs.join(", ") || "aucune"
   );
   await ctx.close();
 }
 
-// Ce qui compte vraiment : la devise choisie ARRIVE-t-elle jusqu'aux ecrans ?
+// Ce qui compte vraiment : ce que le SERVEUR accepte, et ce qui arrive en base.
+//
+// ┌──────────────────────────────────────────────────────────────────────────┐
+// │  Filtrer une liste ne protege rien : le pays et la devise voyagent dans  │
+// │  le formulaire. Un client hostile ajoute l'option en une ligne.          │
+// └──────────────────────────────────────────────────────────────────────────┘
+//
+// Les deux attaques ci-dessous RAJOUTENT a la main une option retiree de
+// l'interface, et verifient qu'aucun compte n'est cree. C'est la garde de
+// `registerAction`, pas celle du menu, qui doit tenir.
+//
+// ⚠ La devise se lit en BASE, pas a l'ecran : XOF et XAF s'affichent tous deux
+// « FCFA », l'etiquette du prix ne peut pas les distinguer. Or c'est cette
+// colonne qui decidera dans quelle monnaie le vendeur sera VERSE.
 {
-  const creer = async (pays, devise) => {
-    const ctx = await navigateur.newContext({ javaScriptEnabled: false });
+  const creer = async ({ pays = null, devise = null, injecterPays = null, injecterDevise = null }) => {
+    const ctx = await navigateur.newContext();
     const page = await ctx.newPage();
-    await page.goto(`${BASE}/inscription`, { waitUntil: "domcontentloaded" });
+    const telephone = `+22507${Date.now().toString().slice(-8)}`;
+    await page.goto(`${BASE}/inscription`, { waitUntil: "networkidle" });
     await page.locator("#name").fill("Essai Devise");
-    await page.locator("#phone").fill(`+22509${Date.now().toString().slice(-8)}`);
+    await page.locator("#phone").fill(telephone);
     await page.locator("#password").fill("MotDePasseDevise1");
     await page.locator("#businessName").fill("Boutique essai");
-    await page.locator("#country").selectOption(pays);
-    if (devise !== null) await page.locator("#currency").selectOption(devise);
+
+    if (injecterPays || injecterDevise) {
+      await page.evaluate(([p, d]) => {
+        for (const [id, v] of [["country", p], ["currency", d]]) {
+          if (!v) continue;
+          const o = document.createElement("option");
+          o.value = v;
+          o.textContent = v;
+          document.getElementById(id).appendChild(o);
+        }
+      }, [injecterPays, injecterDevise]);
+    }
+
+    await page.locator("#country").selectOption(injecterPays ?? pays);
+    const d = injecterDevise ?? devise;
+    if (d !== null) await page.locator("#currency").selectOption(d);
     await page.getByRole("button", { name: /Créer mon compte/i }).click();
-    await page.waitForLoadState("domcontentloaded");
-    // L'etiquette du prix porte le symbole : c'est ce que le vendeur LIT.
-    await page.goto(`${BASE}/vendeur/produits/nouveau`, { waitUntil: "domcontentloaded" });
-    const e = (await page.locator('label[for="price"]').textContent().catch(() => "")) ?? "";
+
+    /*
+     * On attend une CONSEQUENCE, et on la SONDE plutot que de courser deux
+     * attentes : une course se resout au premier rejet, et une navigation en
+     * cours fait rejeter `waitForURL` (§8, « Un Promise.race entre une
+     * navigation et un texte est PIEGE »). Chaque tour relit l'etat reel.
+     */
+    let alerte = "";
+    for (let i = 0; i < 60; i++) {
+      const url = page.url();
+      if (new URL(url).pathname.startsWith("/vendeur")) break;
+      alerte = await page
+        /* Le refus s affiche AU-DESSUS du <form>, dans la meme carte — pas
+           dedans. `form [role=alert]` ne le voyait donc jamais, et le controle
+           annonçait « aucun message » sur un serveur qui refusait tres bien.
+           `div` et le filtre sur le texte ecartent l annonceur de route de
+           Next, qui porte le meme role et reste vide. */
+        .locator("div[role=alert]")
+        .filter({ hasText: /\S/ })
+        .first()
+        .textContent({ timeout: 500 })
+        .catch(() => "");
+      if (alerte) break;
+      await page.waitForTimeout(500);
+    }
+
+    const profil = await lireUne(
+      `SELECT s.currency, s.country FROM "SellerProfile" s JOIN "User" u ON u.id = s."userId" WHERE u.phone = ?`,
+      telephone
+    );
+    let etiquette = "";
+    if (profil) {
+      await page.goto(`${BASE}/vendeur/produits/nouveau`, { waitUntil: "domcontentloaded" });
+      etiquette = ((await page.locator('label[for="price"]').textContent().catch(() => "")) ?? "")
+        .replace(/\s+/g, " ")
+        .trim();
+    }
     await ctx.close();
-    return e.replace(/s+/g, " ").trim();
+    return { profil, alerte: (alerte ?? "").replace(/\s+/g, " ").trim(), etiquette };
   };
 
-  const RDC = "République Démocratique du Congo";
+  const ivoirien = await creer({ pays: "Côte d'Ivoire" });
+  verifier(
+    Boolean(ivoirien.profil) && ivoirien.etiquette.includes("FCFA"),
+    "Côte d'Ivoire sans choix : le compte est créé, ses prix sont en FCFA",
+    ivoirien.alerte || ivoirien.etiquette || "aucun compte"
+  );
 
+  const choixXaf = await creer({ pays: "Côte d'Ivoire", devise: "XAF" });
   verifier(
-    (await creer(RDC, null)).includes("FC"),
-    "RDC sans choix : les prix restent en FC, comme avant"
+    choixXaf.profil?.currency === "XAF",
+    "le choix d'un franc CFA arrive en base, tel quel",
+    String(choixXaf.profil?.currency ?? choixXaf.alerte)
+  );
+
+  const kinshasa = await creer({ injecterPays: "République Démocratique du Congo" });
+  verifier(
+    !kinshasa.profil,
+    "ATTAQUE — un pays hors zone rajouté à la main : AUCUN compte n'est créé"
   );
   verifier(
-    (await creer(RDC, "USD")).includes("USD"),
-    "RDC qui choisit le dollar : ses prix sont en USD"
+    /franc CFA/i.test(kinshasa.alerte),
+    "…et le refus dit pourquoi",
+    kinshasa.alerte.slice(0, 80) || "aucun message"
+  );
+
+  const dollar = await creer({ pays: "Côte d'Ivoire", injecterDevise: "USD" });
+  verifier(
+    !dollar.profil,
+    "ATTAQUE — le dollar rajouté à la main : AUCUN compte n'est créé"
   );
   verifier(
-    (await creer("Côte d'Ivoire", "USD")).includes("USD"),
-    "le choix ne depend pas du pays : un Ivoirien peut prendre le dollar"
+    /franc CFA/i.test(dollar.alerte),
+    "…et le refus dit pourquoi",
+    dollar.alerte.slice(0, 80) || "aucun message"
   );
 }
 
 await navigateur.close();
+await fermer();
 
 console.log("");
 console.log(

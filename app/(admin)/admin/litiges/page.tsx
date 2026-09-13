@@ -7,7 +7,8 @@ import { prisma } from "@/lib/db/prisma";
 import { MenuEspace } from "@/components/ui/MenuEspace";
 import { BarreRecherche } from "@/components/ui/BarreRecherche";
 import { Pagination } from "@/components/ui/Pagination";
-import { formatCFA, pluriel } from "@/lib/format";
+import { formatMontant, pluriel } from "@/lib/format";
+import { commeDevise } from "@/data/markets";
 import {
   libelleMotif,
   libelleStatutLitige,
@@ -74,7 +75,7 @@ export default async function AdminLitigesPage({
   ]);
 
   return (
-    <div className="min-h-screen bg-cream text-ink lg:pl-[var(--largeur-menu)]">
+    <div className="min-h-screen bg-cream text-ink">
       <MenuEspace user={user} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -168,7 +169,14 @@ export default async function AdminLitigesPage({
                         Fonds bloques
                       </span>
                       <span className="text-base font-semibold">
-                        {formatCFA(litige.order.fund?.amount ?? 0)}
+                        {/* La devise vient de la COMMANDE en litige. Ce
+                            montant s'écrivait en francs CFA pour toutes, alors
+                            que l'écran agrège les litiges de TOUS les
+                            vendeurs — donc de plusieurs pays. */}
+                        {formatMontant(
+                          litige.order.fund?.amount ?? 0,
+                          commeDevise(litige.order.currency)
+                        )}
                       </span>
                     </div>
 

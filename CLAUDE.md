@@ -269,12 +269,20 @@ leurs rappels, un **point d'entrée de consultation**, un **sandbox** pour
 l'encaissement. Voir §8. Elles ne bloquent plus l'essai — elles décident de ce
 qu'on peut garantir en production.
 
-Restent ouverts et dépendent aussi d'eux : le versement au vendeur, le
-remboursement automatique.
+✓ **Le versement au vendeur EXISTE depuis le 12 septembre 2026.** La décision
+qui le bloquait est prise : l'essai réel n'ouvre qu'aux **sept pays de la zone
+franc CFA**, où KOLI garantit le montant au vendeur et absorbe l'écart de
+change. Le vendeur demande, l'administration exécute à la main. Voir §8,
+« Le versement au vendeur ».
 
-⚠ **Le versement au vendeur est BLOQUÉ par une décision, pas par du code** :
-iKeePay règle en dollars, pas dans la monnaie encaissée, et `Fund.amount`
-suppose le contraire. Ne rien construire avant d'avoir tranché — voir §8.
+⚠ **Mais le MODÈLE ÉCONOMIQUE n'est pas tranché**, et c'est le vrai bloqueur de
+l'essai réel. Les frais d'iKeePay (13 septembre 2026) rendent chaque vente
+DÉFICITAIRE à 5 % de commission. Voir §8, « Seconde réponse d'iKeePay ». Une
+réponse de leur part est attendue : peut-on encaisser par le checkout et
+verser en H2H ?
+
+⚠ **Le Congo (CDF) reste FERMÉ** tant qu'iKeePay n'a pas confirmé l'une de deux
+voies : crédit en CDF sous H2H, ou encaissement et versement en USD en RDC.
 
 ---
 
@@ -386,7 +394,7 @@ npm run admin:motdepasse     # changer le mot de passe administrateur, en local 
 (Playwright) contre le **vrai serveur** et lisent la **vraie base**. Un écran
 peut mentir sans que la base bouge, et l'inverse.
 
-**373 tests unitaires** par ailleurs (`npm test`, Vitest).
+**388 tests unitaires** par ailleurs (`npm test`, Vitest).
 
 ---
 
@@ -1264,6 +1272,100 @@ coquille HTML, et tout le reste dans un fichier de 2 Mo au nom empreinté
   indéfiniment**, sans message. C'est ce qui a bloqué l'utilisateur une journée
   entière ; le remède est `Ctrl+Maj+R`, puis vider les données du site.
 
+### La réponse d'iKeePay — 13 septembre 2026
+
+Les trois questions ouvertes depuis le 6 septembre ont reçu leur réponse,
+transmise par l'utilisateur. Elle ferme des pistes plutôt qu'elle n'en ouvre.
+
+| Question | Leur réponse | Ce que cela décide chez nous |
+|---|---|---|
+| Leur appel préserve-t-il nos paramètres ? | **Oui.** « Envoyez uniquement les paramètres connus de la documentation. » | Rien à changer : le tunnel reçoit exactement `pk`, `amount`, `currency`, `order_id`, et le `?jeton=` de l'adresse de rappel arrive intact |
+| Signez-vous vos rappels ? | **Non**, « pour le moment ». Signature « en cours d'adoption » sur le checkout et la route de vérification | **Le jeton reste la SEULE porte** — voir plus bas |
+| Un point d'entrée de consultation ? | **Pas encore.** « Le webhook et vos historiques du Dashboard comme source de vérification » | Un rappel perdu reste irrécupérable par le code : le rapprochement est MANUEL |
+| Un bac à sable pour l'encaissement ? | **Non** : seulement pour la carte bancaire virtuelle | Confirme la note d'origine. Le premier essai Mobile Money est un vrai débit |
+
+⚠ **« Nous nous assurons de la sécurité interne » ne protège PAS notre porte.**
+Leur sécurité interne garantit que LEURS rappels sont légitimes. Elle ne peut
+rien contre quelqu'un qui poste directement sur NOTRE adresse de rappel en se
+faisant passer pour eux — c'est précisément ce qu'une signature empêcherait, et
+c'est ce qui manque. L'attaquant naturel reste l'acheteur, qui lit la référence
+sur son lien de paiement. **Ne jamais retirer le jeton en se fiant à cette
+phrase.**
+
+⚠ **Le rapprochement devient une TÂCHE HUMAINE, et elle doit être quotidienne
+tant que l'essai tourne.** Comparer les transactions `COMPLETED` de leur tableau
+de bord aux paiements KOLI restés `PENDING` ou `AWAITING_CUSTOMER`. Un écart,
+c'est un client débité dont la commande est figée — le seul cas où KOLI
+prélève sans rien livrer.
+
+⚠ **Deux points ne sont PAS dans leur réponse** et restent à demander :
+
+- **`h2h-payout`** — la question n'a jamais été posée. Frais, délai, monnaie
+  débitée (leur portefeuille crédite en DOLLARS : un versement en XOF part-il de
+  là, converti à quel taux ?). Tant qu'on ne sait pas, le versement au vendeur
+  s'exécute à la main.
+- **Le crédit en XOF/XAF** plutôt qu'en dollars. Sans objet pour le CDF depuis
+  la décision de n'ouvrir que la zone franc CFA, mais il déciderait encore de
+  qui porte l'écart de change sur chaque vente.
+
+### Seconde réponse d'iKeePay — frais, payouts, remboursements (13 septembre 2026)
+
+| Question | Leur réponse |
+|---|---|
+| Payout activé ? | Ils demandent l'**adresse du compte** pour vérifier son statut |
+| De quel solde part un payout ? | **On convertit soi-même** les USD en monnaie locale sur le tableau de bord, puis on envoie |
+| **Frais** | **Checkout : 0 % à la collecte, 7 % au retrait. H2H : 5 % au payin ET 5 % au payout.** Réductions « considérables » selon le volume mensuel |
+| Délai du payout | Instantané |
+| Numéro invalide ? | « Aucun retour » ; un numéro sans compte fait **rejeter** le transfert |
+| Crédit en XOF/XAF ? | **Oui, mais seulement en H2H** |
+| Remboursement ? | **Oui, par payout direct** vers l'acheteur |
+| Signature et route de vérification | Mise à jour annoncée « la semaine prochaine » |
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│  À 5 % DE COMMISSION, KOLI PERD DE L'ARGENT SUR CHAQUE VENTE, par         │
+│  n'importe lequel des deux chemins documentés.                            │
+└────────────────────────────────────────────────────────────────────────────┘
+
+Calcul sur une vente de 10 000 FCFA, commission 5 % (500), vendeur dû 9 500,
+frais de payout supposés À LA CHARGE de KOLI puisque le montant est garanti au
+vendeur :
+
+| Chemin | Collecte | Payout du vendeur | Solde pour KOLI | Commission d'équilibre |
+|---|---|---|---|---|
+| Checkout (le tunnel actuel) + retrait | 0 | 7 % de 9 500 = 665 | **−165** | 6,5 % |
+| H2H payin + H2H payout | 5 % de 10 000 = 500 | 5 % de 9 500 = 475 | **−475** | 9,5 % |
+| Checkout + H2H payout — **si permis** | 0 | 475 | **+25** | 4,8 % |
+
+Et ces chiffres sont **avant** deux coûts non encore chiffrés :
+
+- **Une DOUBLE conversion.** En checkout, la collecte convertit XOF → USD, et
+  le payout exige de reconvertir USD → XOF (réponse 1b). Deux marges de change
+  par vente, dont aucune n'a encore de taux connu.
+- **Le risque de change** entre les deux (mesuré le 8 septembre : ~1 % sur une
+  semaine typique en XOF/XAF).
+
+⚠ **Un remboursement coûte des frais de payout** (réponse 3) : rendre 10 000
+FCFA à un acheteur qui gagne un litige coûte 5 à 7 % de plus, sans aucune
+commission en face. Et il faut le **numéro qui a payé** — or le tunnel a été
+choisi précisément pour qu'aucun numéro de payeur ne transite par KOLI.
+Rembourser sur `buyerPhone`, déclaré par le VENDEUR, risque de rendre l'argent
+à quelqu'un d'autre que celui qui l'a versé.
+
+⚠ **Le crédit en XOF (réponse 2) supprime la double conversion, mais exige le
+H2H** : 5 % au payin, et la saisie du numéro, de l'opérateur et de l'OTP dans
+l'interface de KOLI — l'inverse du choix du tunnel.
+
+⚠ **« Aucun retour » sur un payout** : pas de rappel. En exécution manuelle,
+l'administrateur voit le résultat à l'écran ; le jour où le payout sera
+automatisé, seule la réponse synchrone de l'API pourra dire s'il a abouti.
+
+**Aucun code n'est à changer tant que le modèle n'est pas tranché.** Les
+questions à leur reposer : le « retrait 7 % » est-il le payout d'un vendeur ?
+Des fonds collectés en checkout peuvent-ils partir en H2H payout à 5 % ? Les
+frais s'ajoutent-ils au montant envoyé ou s'en déduisent-ils ? Quel taux et
+quelle marge pour la conversion USD → XOF ? Le rappel du checkout porte-t-il le
+numéro du payeur ? À partir de quel volume les frais baissent-ils ?
+
 ### Trois outils pour essayer sans bac à sable
 
 iKeePay n'en offre aucun pour l'encaissement — le seul documenté concerne les
@@ -1705,7 +1807,8 @@ absorbe l'écart et garantit le montant, ou le vendeur reçoit ce que les dollar
 valent au versement — auquel cas il faut le dire à l'inscription, pas au moment
 de payer.
 
-⚠ **Ne pas construire le versement au vendeur avant d'avoir tranché.**
+✓ **Tranché le 12 septembre 2026** : zone franc CFA seulement, montant garanti
+au vendeur. Le versement est construit — voir « Le versement au vendeur ».
 
 ### Le risque de change, MESURÉ — 8 septembre 2026
 
@@ -2105,6 +2208,46 @@ sur un service dont le sujet est la confiance, écrire à quelqu'un sans pouvoir
 adresse de réponse qui rebondit est pire que pas d'adresse : elle promet une
 écoute qui n'existe pas, et le rebond abîme la réputation d'envoi du domaine.
 
+**✓ Elle existe depuis le 13 septembre 2026 : `koli@premiummarketafrica.com`.**
+Le domaine n'avait aucun MX. Il n'a pas de boîte Hostinger — il est acheté seul,
+et leur messagerie est payante : les courriels sont **redirigés par ImprovMX**
+(gratuit) vers la boîte de l'équipe.
+
+| Enregistrement, sur `premiummarketafrica.com` | Valeur |
+|---|---|
+| MX | `mx1.improvmx.com` et `mx2.improvmx.com` |
+| TXT (SPF) | `v=spf1 include:spf.improvmx.com ~all` |
+
+**Éprouvé, et non déduit** : les deux MX vus par Google ET Cloudflare, puis un
+vrai courriel envoyé par Resend à cette adresse, reçu dans la boîte Gmail de
+l'équipe.
+
+Trois choses qui se déferaient sans être écrites :
+
+- **La réception est sur le domaine RACINE, l'envoi sur `koli.`** — et c'est
+  voulu. L'adresse de réponse peut être n'importe laquelle ; la poser sur la
+  racine évite de toucher aux enregistrements de `koli.` (DKIM
+  `resend._domainkey.koli`, `send.koli`) qui décident si les courriels de KOLI
+  arrivent en boîte de réception. Vérifiés intacts après la modification.
+- **L'alias attrape-tout `*` d'ImprovMX a été retiré.** Il redirigeait
+  n'importe quelle adresse du domaine, et les robots de spam en essaient au
+  hasard. Seul `koli` est redirigé.
+- **Le DMARC vit sur la RACINE** (`_dmarc.premiummarketafrica.com`, `p=none`),
+  pas sur `koli.` : un sous-domaine sans DMARC propre hérite de celui de son
+  domaine. `_dmarc.koli` répond « aucun », et ce n'est pas un oubli.
+
+⚠ **Répondre à un vendeur depuis Gmail montre l'adresse Gmail**, pas `koli@`.
+L'offre gratuite d'ImprovMX reçoit, elle n'envoie pas (le SMTP est payant).
+Suffisant pour un essai à quelques vendeurs.
+
+⚠ **Les deux MX portent la priorité 10**, l'un des deux devait être à 20. Sans
+conséquence — le courrier est réparti entre les deux —, mais le contrôle
+d'ImprovMX peut rester orange.
+
+⚠ `RESEND_REPLY_TO` est posée dans `.env` (le poste). **Elle ne l'est pas encore
+sur Vercel** : la session du CLI a expiré le 13 septembre (`403 invalidToken`),
+et `npx vercel login` est un geste de l'utilisateur, dans un navigateur.
+
 ### La clef Resend ne sait QUE envoyer, et depuis un seul domaine
 
 Elle était en `Full access` : elle pouvait supprimer les domaines et créer
@@ -2134,6 +2277,40 @@ existaient au compte ; seule celle nommée `koli`, créée la veille et posée d
 le statut d'une requête mal formée. Un contrôle qui cherche `401` conclurait
 qu'elle marche encore — c'est ce qu'a fait le premier essai, et c'est le corps
 de la réponse qui a tranché, pas le code.
+
+**La clef a été REMPLACÉE le 13 septembre 2026, et c'est ma faute.** Un `grep`
+destiné à lire le jeton Hostinger a affiché les lignes voisines de `.env` en
+clair — dont `RESEND_API_KEY` — dans la conversation. J'avais masqué la ligne
+visée, pas celles d'à côté.
+
+⚠ **La leçon : on ne lit JAMAIS `.env` avec du contexte (`grep -B`, `-A`, `-C`,
+`sed -n 'a,bp'`).** On extrait la seule valeur voulue, et on n'en affiche que la
+longueur ou le préfixe. Une clef affichée une fois est une clef à révoquer.
+
+La nouvelle, `koli-envoi-2`, a été créée par l'utilisateur et collée par lui dans
+`.env` — jamais dans la conversation. Portée vérifiée comme la première : envoi
+depuis `koli.` **200**, depuis la racine **403**, lecture des domaines et des
+clefs **401**.
+
+**✓ L'ancienne (`koli-envoi`) est SUPPRIMÉE, le 13 septembre 2026.** Aucune
+clef du poste ne pouvait le faire — c'est la restriction elle-même qui
+l'empêche —, et la suppression depuis le tableau de bord a échoué côté
+utilisateur. La méthode qui a marché, et qui resservira :
+
+1. L'utilisateur crée une clef **Full access** temporaire et la colle dans
+   `.env` (`RESEND_CLE_ADMIN_TEMPORAIRE`) — jamais dans la conversation.
+2. On liste les clefs (noms et identifiants, jamais les valeurs) et on vérifie
+   qu'un seul nom correspond **avant** de supprimer.
+3. On supprime l'ancienne, puis on **vérifie par l'effet** : l'ancienne répond
+   `400`, la nouvelle répond toujours `401 restricted`. C'est ce second test
+   qui prouve qu'on n'a pas supprimé la mauvaise.
+4. **La clef temporaire se supprime ELLE-MÊME** (`DELETE /api-keys/<son id>`
+   avec elle-même) : éprouvé, `200` puis `400`. Personne n'a à repasser par le
+   tableau de bord.
+5. On efface sa ligne de `.env`.
+
+Clefs restantes au compte : `koli-envoi-2` (celle de `.env`, envoi seul) et
+`Onboarding` (l'autre projet, non touchée).
 
 **Conséquence à connaître** : plus aucune clef de ce poste ne peut administrer
 le compte Resend. Créer un domaine, lire les clefs, en révoquer une — tout cela
@@ -2470,6 +2647,414 @@ Trois choses qui se déferaient sans être écrites :
 
 Falsifié en remettant un « FCFA » en dur dans le journal des remboursements :
 il le nomme, avec son fichier et sa ligne, et sort en échec.
+
+### Le menu est devenu une BARRE HORIZONTALE, et les listes des TABLEAUX
+
+Demande de l'utilisateur, le 10 septembre 2026, deux captures d'écran à
+l'appui : un CRM dense en tableau pour le tableau de bord, un écran d'analyse
+pour la partie client — « toujours avec nos couleurs de base ».
+
+L'application vit désormais dans une **carte blanche posée sur le fond**
+(`components/ui/BarreEspace.tsx`), et les écrans de liste sont de vrais
+tableaux (`components/ui/Liste.tsx`). `DashboardNav` et `test-menu-lateral.mjs`
+sont supprimés : ils éprouvaient le repli d'une colonne qui n'existe plus.
+
+**Six décisions, et chacune se déferait sans être écrite :**
+
+- **Les deux menus sont des `<details>` NATIFS.** Ils portent la navigation
+  secondaire et la déconnexion : un menu qui n'existe qu'après l'hydratation
+  met tout cela hors d'atteinte le temps que le JavaScript arrive (§70).
+  Falsifié en les faisant dépendre du montage — **seuls** les deux contrôles
+  sans JavaScript tombent, les onze autres restent verts. C'est tout l'intérêt
+  du bloc `javaScriptEnabled: false` : avec un navigateur ordinaire, cette
+  régression est invisible.
+- **« Plus » vit HORS du ruban**, et ce n'est pas un détail de mise en page.
+  Le ruban porte `overflow-x-auto` ; or dès qu'un axe cesse d'être `visible`,
+  l'autre passe à `auto`. Placé dedans, le menu déroulant descendait 202 px
+  sous un conteneur haut de 44 : **entièrement invisible**, quatre entrées
+  inatteignables.
+- **Sous 1024 px, le ruban passe à la ligne**, et « Plus » le suit pour rester
+  au BORD DROIT — son menu s'ouvre vers la gauche, donc dans l'écran. Mesuré à
+  360 px : ancré à droite d'un bouton placé à gauche, il sortait de l'écran
+  (« es livreurs », « ansactions »). Un `basis-full` de hauteur nulle force le
+  passage à la ligne **sans dupliquer une seule entrée dans le DOM** : deux
+  rendus des mêmes données finissent toujours par diverger.
+- **Le tri des tableaux passe par l'ADRESSE**, jamais par un état React. Il
+  fonctionne sans JavaScript, survit à un rechargement, et se partage.
+- **On ne rend triable qu'une VRAIE colonne.** Le total d'une commande se
+  calcule depuis ses lignes ; le trier demanderait de charger toutes les
+  commandes du vendeur, ce que le §46 interdit. Idem pour les clients, qui
+  sortent d'un `groupBy`. Un en-tête qui promet un tri qu'il ne sait pas rendre
+  est pire qu'un en-tête muet : on clique, rien ne bouge, on conclut que
+  l'écran est cassé.
+- **Le tableau défile DANS `CarteListe`, jamais la page** (§8). C'est ce qui
+  rend le tableau acceptable là où l'ancien code avait choisi des cartes.
+
+⚠ **`isVisible()` de Playwright ne prouve pas qu'on VOIT.** Il croise la boîte,
+les styles calculés et les ancêtres — il ne dit RIEN du rognage par
+l'`overflow` d'un ancêtre, ni du bord de l'écran. Le menu « Plus » était
+totalement invisible pendant que `verif:menu` restait vert. **C'est une capture
+d'écran qui l'a montré, en une seconde.** La suite compare désormais les
+rectangles, et éprouve aussi 320 et 360 px ; falsifiée contre la construction
+fautive, elle nomme l'écart au pixel près (−84 px).
+
+⚠ **Un `sr-only` en `position: absolute` S'ÉCHAPPE d'un conteneur qui défile.**
+Sans ancêtre positionné, son bloc conteneur est la PAGE : les textes d'aide des
+en-têtes de tri se plaçaient à l'abscisse de leur colonne, très au-delà de
+l'écran. Mesuré : `body.scrollWidth` valait 320 et
+`documentElement.scrollWidth` **867** — le tableau était parfaitement contenu,
+et la page défilait quand même, à cause d'un texte d'un pixel destiné aux
+lecteurs d'écran. Le remède est `relative` sur le lien qui le porte.
+
+⚠ **Blanc sur blanc : `isVisible()` répond « oui ».** `BoutonDeconnexion` en
+variante `menu` était peint pour le menu latéral sombre (`text-white/70`). Le
+menu du compte est une carte BLANCHE. L'élément occupait sa place, rien ne le
+masquait, et personne ne le voyait. Un contrôle de contraste l'aurait vu ; un
+contrôle de présence, jamais.
+
+⚠ **La déconnexion ne fonctionne toujours pas sans JavaScript**, et ce n'est
+pas une régression de cette refonte — son déclencheur est un
+`<button type="button" onClick>` depuis toujours. Le MENU s'ouvre, le bouton
+s'affiche, et cliquer ne fait rien. `verif:menu` le dit explicitement plutôt
+que de laisser « la déconnexion y est » se lire comme une garantie. Le remède
+serait une page de confirmation `/deconnexion` derrière un vrai `<form>`.
+
+### Un contrôle ne doit pas s'accrocher au BALISAGE
+
+Cinq contrôles se sont cassés sur la refonte, tous pour la même raison : ils
+lisaient une TOURNURE de la mise en page plutôt qu'une donnée.
+
+| Contrôle | Ce qu'il lisait | Ce qu'il lit maintenant |
+|---|---|---|
+| `verif:catalogue` | « Stock : 4 » dans le texte | `data-stock` de la ligne du produit |
+| `verif:clients` | « 2 commandes » dans le texte | `data-commandes` de la ligne de l'acheteur |
+| `verif:factures` | `ul[data-factures] li` + regex | `data-facture` de chaque ligne |
+| `verif:factures` | « Vendeur : » quelque part | `data-contrepartie` confronté au registre |
+| `verif:deconnexion` | « Espace vendeur » dans `body` | le rôle, LU DANS le menu du compte |
+
+**Aucune de ces réécritures n'est une adaptation : toutes sont des
+resserrements.** L'ancienne regex du stock prenait le PREMIER « Stock : N » de
+la page, quel que soit le produit ; celle des commandes, le premier
+« N commandes ». Si la recherche avait rendu deux lignes, elles auraient lu la
+mauvaise — et un décompte faux serait passé pour juste.
+
+⚠ **Le pire des cinq était `verif:deconnexion`.** « Espace vendeur » n'existe
+que comme badge dans le CORPS du tableau de bord vendeur : ce contrôle, censé
+éprouver le menu, passait depuis des jours en lisant du texte de page, et
+échouait pour le client parce qu'aucun badge équivalent n'existe chez lui. Il
+réussissait pour une raison étrangère à ce qu'il vérifie.
+
+⚠ **Et un piège de navigation DOUCE.** Après un clic sur un lien Next,
+`waitForLoadState("domcontentloaded")` rend la main aussitôt — aucun document
+n'est chargé. Le contrôle cherchait alors le menu du compte dans le DOM de la
+page PRÉCÉDENTE, cliquait son `summary` pendant qu'elle se démontait, et
+attendait trente secondes un élément déjà détaché. Il annonçait « le reçu
+n'offre pas la déconnexion » alors que le reçu allait très bien. On attend
+l'ARRIVÉE (`waitForURL`), jamais un état de chargement — et surtout pas la
+pause de 1,5 s qui « réparait » le symptôme.
+
+### Le tableau de bord : trois blocs à gauche, deux courbes à droite
+
+Demande de l'utilisateur, le 11 septembre 2026, maquette à l'appui — reprise
+trois fois avant d'y être, et chaque reprise a appris quelque chose.
+
+**La forme finale** : une colonne d'un tiers à gauche portant trois blocs
+empilés — *Revenus totaux* (violet plein), *Revenus du jour* (sombre),
+*Revenus en attente* (blanc) —, et sur les deux tiers restants un graphique à
+deux courbes fines. En dessous, l'anneau de pourcentage et deux compteurs.
+
+**Ce que les deux courbes mesurent, et les deux essais ratés avant :**
+
+| Essai | Pourquoi c'était faux |
+|---|---|
+| « Encaissé » vs « Net pour vous » | elles ne diffèrent que de la commission — 5 % — et se touchaient. J'avais pointillé la seconde pour qu'on devine qu'il y en avait deux : une rustine sur un mauvais choix de mesure |
+| Une seule courbe, remplie | ce n'était pas la demande, et une aire sous l'une de deux séries la fait paraître principale |
+| **« Mis sous séquestre » vs « Versé »** | ✓ deux mesures réellement distinctes, même monnaie, même ordre de grandeur |
+
+L'argent entre au paiement et ne repart qu'à la confirmation de réception : les
+deux courbes se croisent et s'écartent pour de vrai. Et l'écart **dit quelque
+chose** — s'il se creuse, les clients ne confirment pas leur réception.
+
+⚠ **La règle « une courbe porte UNE mesure » interdit deux ÉCHELLES, pas deux
+courbes.** Un montant et un nombre de commandes exigeraient deux axes. Deux
+montants du même commerce partagent le leur.
+
+⚠ **Et la seconde série doit rester du même ORDRE DE GRANDEUR.** Sinon l'axe
+s'étire pour la contenir et la première se couche au ras du zéro.
+`verif:courbes` refuse un plafond au-delà du double du plus fort jour — il
+borne désormais sur les DEUX séries, ce qui lui donne la bonne référence sans
+relâcher la borne.
+
+**Pas d'aire dès qu'il y a deux séries.** « C'est l'AIRE qui porte la courbe »
+vaut pour une courbe seule, où un trait fin se lit comme un fil cerné. À deux,
+une masse remplie sous l'une des deux la fait paraître principale, et au
+croisement elle efface l'autre.
+
+**Le lissage vivait EN DOUBLE.** Les courbes miniatures des blocs traçaient
+leur propre polyligne — quinze segments anguleux — pendant que le grand
+graphique utilisait une spline monotone. Deux formes pour la même série, dans
+la même page. `cheminLisse` vit maintenant dans `lib/finance/lissage.ts`, et
+les deux l'importent.
+
+⚠ **Un contrôle ne s'accroche pas à un ARRONDI.** `verif:courbes` remontait
+jusqu'à `ancestor::div[contains(@class,"rounded-2xl")]` pour trouver la carte
+du graphique. Passer la carte en `rounded-3xl` — une retouche purement
+visuelle — l'aurait cassé, en annonçant « le total ne dit pas ce que porte le
+registre » sur une carte parfaitement juste. La page portait même un
+commentaire pour prévenir du piège, ce qui est l'aveu que c'en était un. Le
+repère est désormais `data-carte-courbe`, qui ne sert qu'à ça et le dit.
+
+**Ce qui n'est jamais inventé.** Le badge d'évolution compare deux périodes
+réelles ; partir de zéro n'est pas « +100 % », c'est une division par zéro, et
+le badge disparaît alors. Le bloc « en attente » n'en a aucun : un encours n'a
+pas de « hier ». Une série de zéros ne dessine pas de miniature — une ligne
+plate parfaitement lisse se lit « rien ne bouge » là où la vérité est « on ne
+sait pas ».
+
+**Le bouton WhatsApp de la liste des clients** ouvre la conversation avec ce
+numéro (`wa.me`). Deux détails qui se déferaient sans être écrits : le numéro
+doit être réduit aux SEULS CHIFFRES — `wa.me/+225…` ouvre une conversation vide
+avec « numéro invalide », ce qui ressemble à une panne de KOLI ; et **aucun
+texte n'est pré-rempli**, un message écrit d'avance partant au nom du vendeur
+sans qu'il l'ait relu.
+
+### Le jeu de démonstration ne montrait AUCUNE vente aboutie
+
+`prisma/seed.ts` s'arrêtait au séquestre. Conséquence, sur le premier écran
+qu'un nouveau venu ouvre : courbe plate, anneau à « 0 sur 13 », trois blocs de
+revenu à zéro. Le produit paraissait cassé alors qu'il allait très bien — il
+n'avait rien à montrer.
+
+C'est aussi la faiblesse déjà consignée à propos de `verif:courbes` : les
+écritures que la courbe affichait étaient celles qu'un test amont avait
+laissées en passant.
+
+Le jeu porte désormais **quinze jours de ventes**, et leur RYTHME a demandé
+trois essais :
+
+| Essai | Ce que la courbe donnait |
+|---|---|
+| séquestre et versement le MÊME jour | deux courbes rigoureusement confondues |
+| paiement calculé EN ARRIÈRE depuis le versement | les séquestres se regroupaient sur quelques dates : un peigne qui retombait à zéro entre chaque pic |
+| **paiement le jour `i`, versement 1 à 3 jours après** | ✓ deux courbes qui s'entrelacent |
+
+Trois choses qui se déferaient sans être écrites :
+
+- **Deux jours creux sont VOULUS** dans la série. C'est le cas que le lissage
+  monotone doit traverser sans plonger sous l'axe.
+- **Les ventes les plus récentes restent SOUS SÉQUESTRE** — leur versement
+  tomberait dans le futur. C'est l'état d'une boutique vivante, et c'est ce qui
+  donne au bloc « Revenus en attente » un chiffre qui n'est pas zéro. Aucune
+  écriture n'est posée pour elles : le grand livre n'enregistre que ce qui a eu
+  lieu.
+- **Un versement daté d'aujourd'hui est ramené une demi-heure en arrière.** À
+  16 h 40, il est dans le futur pour qui prépare sa base le matin : la vente
+  basculait « en attente » et « Revenus du jour » affichait 0 FCFA avec un
+  badge « −100 % », sur une boutique qui venait d'encaisser.
+
+⚠ **Ces ventes sont FABRIQUÉES, donc locales.** `prisma/amorce.ts` — l'amorce
+de production — n'en crée aucune, et `seed.ts` ne doit jamais tourner contre
+Supabase (§5).
+
+### `formatCFA` écrivait XOF en dur — SUPPRIMÉE, 21 appels corrigés
+
+Trouvé le 11 septembre 2026 en refondant le tableau de bord client :
+
+```ts
+export function formatCFA(amount: number) { return formatMontant(amount, "XOF"); }
+```
+
+C'était le défaut de « FCFA restait écrit en dur » **sous un autre nom** : le
+balayage d'alors cherchait le symbole dans les chaînes, et une fonction ne
+ressemble pas à une chaîne. `verif:devises` ne pouvait pas le voir pour la même
+raison.
+
+**Les 21 appels sont traités, et la fonction est SUPPRIMÉE, pas dépréciée.** Son
+propre commentaire avertissait déjà qu'il ne fallait pas l'appeler sur un
+montant dont on ignore la devise ; elle l'a été vingt et une fois. Le
+commentaire n'empêchait rien, son absence empêche tout : c'est le compilateur
+qui refuse.
+
+| Où | Ce qu'on lit maintenant |
+|---|---|
+| Message WhatsApp / SMS du reçu (`PartagerFacture`) — il SORT de l'application | la devise de la PIÈCE |
+| Litige, arbitrage, remboursement | la devise de la COMMANDE |
+| Journal des commissions | la devise de l'ÉCRITURE |
+| Chiffre d'affaires par vendeur | la devise du VENDEUR |
+
+**Les agrégats de l'administration JUXTAPOSENT** (`formatTotaux`) : « 120 000
+FCFA · 4 500 000 FC ». Leur somme n'était pas mal étiquetée, elle n'existait
+pas. Décision prise le 12 septembre 2026 : juxtaposer plutôt que convertir — sur
+un écran de rapprochement, un chiffre converti serait vrai à la seconde et faux
+le lendemain.
+
+⚠ **Le groupement se fait EN BASE**, par `GROUP BY` avec jointure : `Payment`,
+`Fund` et `Refund` ne portent pas de devise, et `groupBy` de Prisma ne classe
+pas par une colonne d'une autre table. Charger les lignes pour sommer en
+mémoire aurait violé le §46.
+
+⚠ **`verif:requetes` descend désormais dans `lib/`**, pas seulement `scripts/`.
+Les requêtes brutes du groupement vivent là où l'on sert les pages : une
+requête cassée n'y fait pas échouer un contrôle, elle fait échouer une page
+chez l'utilisateur.
+
+⚠ **L'exemple de commission ne nomme aucune monnaie.** Il affichait « sur une
+vente de 20 000 FCFA » — une moyenne toutes monnaies confondues, donc ni l'une
+ni l'autre. C'est un pourcentage qu'on illustre.
+
+### Le versement au vendeur — le seul acte qui fait SORTIR l'argent
+
+Construit les 12 et 13 septembre 2026 (§43). `Payout`, `lib/finance/versement.ts`
+(la règle, pure), `lib/finance/versement-actions.ts` (l'écriture),
+`/vendeur/solde` et `/admin/versements`. `npm run verif:versements`.
+
+**Deux temps : le vendeur DEMANDE, l'administration EXÉCUTE à la main.** iKeePay
+documente `h2h-payout`, mais il n'a jamais été appelé. Un versement fait à la
+main ne peut rien perdre à une API non éprouvée, et avec quelques vendeurs
+c'est trivial.
+
+Sept décisions, et chacune se déferait sans être écrite :
+
+- **Pas de `SELLER_PAYOUT` dans `Transaction`.** `orderId` y est obligatoire, et
+  un versement solde un cumul. L'y faire entrer aurait demandé de desserrer la
+  contrainte qui garantit qu'aucune ligne du grand livre n'est orpheline.
+  `Payout` est son propre registre, et `chargerSoldeVendeur` l'additionne.
+- **Le VERSABLE n'est pas le solde.** `versable = soldeDisponible − demandes en
+  attente`. Sans ce gel, deux demandes successives videraient le même solde
+  deux fois.
+- **Rien n'est écrit à la DEMANDE.** Seul un versement EXÉCUTÉ diminue le solde
+  disponible ; un refus rend tout.
+- **Le montant est relu EN BASE**, jamais pris du formulaire — les attributs
+  `min` et `max` du champ ne protègent rien. `verif:versements` les RETIRE
+  avant d'envoyer, comme le ferait un client hostile.
+- **Minimum 4 000** (décision de l'utilisateur). ⚠ C'est UN nombre pour DEUX
+  monnaies, et cela ne tient que parce que XOF et XAF valent la même chose.
+  `refusDeVersement` refuse toute autre monnaie : le jour où le CDF s'ouvrira,
+  4 000 CDF vaudraient le quart de l'intention, et le seuil devra devenir un
+  montant PAR devise.
+- **Un règlement concurrent est RATTRAPÉ.** Deux administrateurs sur le même
+  versement : le second recevait une erreur serveur et pouvait croire le
+  versement NON fait — donc le refaire à la main. Il lit maintenant « vient
+  d'être réglé par quelqu'un d'autre ».
+- **Un refus exige un motif.** Le vendeur voit sa demande rejetée : sans motif,
+  il ne sait ni pourquoi, ni quoi corriger.
+
+Falsifié en neutralisant la garde serveur derrière `KOLI_FALSIFIER` : un
+versement de 3 999 est écrit en base, quatre contrôles tombent. Neutralisation
+retirée aussitôt, et vérifiée absente du code.
+
+⚠ **Deux pièges de contrôle, rencontrés à la première exécution** :
+`[role="alert"]` attrape d'abord l'annonceur de route de Next.js — un élément
+VIDE que Next pose sur chaque page avec ce rôle ; et après une demande réussie,
+le formulaire est REMPLACÉ par « Versement en cours », si bien que le message de
+succès peut ne jamais être visible. On vise le paragraphe du formulaire, et on
+prouve le succès par la base.
+
+⚠ **Le versement a rendu FAUX le bloc « Revenus totaux »**, et c'est
+`verif:parcours` qui l'a vu. Le bloc affichait `soldeDisponible` — qui DIMINUE
+à chaque versement : les revenus totaux d'un vendeur reculaient de 50 000 FCFA
+le jour où on lui en versait 50 000. Il affiche désormais le libéré moins la
+commission, que les versements ne touchent pas, et « Solde disponible : … » en
+toutes lettres dessous — la phrase que la refonte avait fait disparaître du
+tableau de bord, et que le §80 exige.
+
+⚠ **Une coquille du jeu de démonstration l'a précédé** : `rate: 0.05` au lieu de
+`5`. La page Solde annonçait « Commission KOLI 0.05 % ». La production écrit un
+POURCENTAGE (`preleverCommission` → `rate: taux`, où taux vaut 5).
+
+### Seuls les sept pays du franc CFA sont ouverts aux VENDEURS
+
+Décision de l'utilisateur, le 12 septembre 2026. `DEVISES_OUVERTES` et
+`ouvertAuxVendeurs` dans `data/markets.ts`.
+
+La frontière n'est ni géographique ni commerciale : c'est la ligne au-delà de
+laquelle KOLI ne peut plus tenir sa promesse sans y perdre — voir « Le risque de
+change, MESURÉ ».
+
+- **Elle contraint le VENDEUR, jamais l'acheteur.** Celui qui sera payé. Un
+  acheteur peut être n'importe où : iKeePay convertit au prélèvement.
+- **La garde est dans `registerAction`, pas dans la liste.** `verif:inscription`
+  RAJOUTE à la main Kinshasa puis le dollar dans le formulaire, et exige
+  qu'aucun compte ne soit créé ET que le refus dise pourquoi.
+- ⚠ **« Aucun compte créé » ne suffit pas à conclure**, et j'ai failli m'en
+  contenter. C'est aussi le résultat d'une requête qui ne serait jamais partie.
+  Le message de refus est la preuve que le serveur a été interrogé — et il
+  s'affiche AU-DESSUS du `<form>`, pas dedans : `form [role=alert]` ne le voyait
+  jamais.
+- **Le dollar a été retiré des choix.** Rien ne prouve qu'iKeePay l'accepte
+  dans son tunnel.
+
+Les contrôles des deux Congo ne sont pas supprimés, ils sont RETOURNÉS : ce qui
+protégeait le vendeur de Kinshasa d'une erreur de ligne, c'est maintenant
+l'absence de la ligne. La leçon de la troncature vaut toujours pour
+Brazzaville, et pour le pays de l'acheteur.
+
+### L'écran de rapprochement — un travail humain, pour l'instant
+
+`/admin/rapprochement`, `npm run verif:rapprochement`. Construit le 13
+septembre 2026, parce qu'iKeePay n'offre ni signature ni route de vérification
+avant « la semaine prochaine ».
+
+Il rassemble les deux listes à comparer CHAQUE JOUR au tableau de bord iKeePay :
+les paiements en attente depuis plus de trente minutes, et les rappels écartés
+de la semaine. Une référence marquée COMPLETED chez eux, c'est un client débité
+dont la commande est figée chez KOLI.
+
+- **Il ne conclut rien, et n'a aucun bouton.** Marquer un paiement abouti à la
+  main ferait expédier un colis sur la seule parole d'un écran : c'est un
+  pouvoir qui ne se donne pas sans décision explicite.
+- **Il éprouve ses DEUX bornes** : un paiement de deux heures y figure, un de
+  cinq minutes n'y figure pas — un client qui valide sur son téléphone. Une
+  liste de travail qui crie sur du sain finit par ne plus être lue.
+- ⚠ **Une fixture SQL écrit `now() AT TIME ZONE 'UTC'`, jamais `now()`.** Les
+  colonnes de Prisma sont des `timestamp` sans fuseau où Prisma écrit de
+  l'UTC ; `now()` y dépose l'heure de la SESSION PostgreSQL — **Europe/Paris**
+  sur ce poste, deux heures d'avance. Le paiement « d'il y a deux heures » du
+  contrôle tombait exactement à l'heure UTC courante, l'écran l'écartait à
+  raison, et le contrôle accusait l'écran. Supabase tourne en UTC : la même
+  fixture y aurait « marché ». Seuls les contrôles qui comparent une
+  ANCIENNETÉ sont concernés — les autres `now()` des scripts ne font que poser
+  une date.
+- **En mode iKeePay, ces paiements n'EXPIRENT pas**, et c'est voulu : le
+  fournisseur ne donne aucune échéance (`initiate()` ne rend pas
+  d'`expiresAt`). Expirer un paiement dont le rappel s'est perdu effacerait la
+  seule trace d'un client débité. Vérifié avant de l'écrire : la crainte
+  inverse — un rattrapage qui fait disparaître un vrai paiement — ne se produit
+  pas par ce chemin.
+
+### La campagne traverse les coupures du VPN
+
+`scripts/campagne.mjs`. `npm run verif:tout` le lance ; la liste des suites vit
+dans `verif:chaine`.
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│  Proton VPN renégocie son tunnel toutes les une à trois minutes. Chromium  │
+│  annule alors ses requêtes, MÊME vers localhost.                           │
+└────────────────────────────────────────────────────────────────────────────┘
+
+Relevé le 13 septembre 2026 dans le journal Windows : six changements d'état
+du réseau en cinq minutes. Deux campagnes d'affilée sont mortes ainsi
+(`ERR_NETWORK_IO_SUSPENDED`, `ERR_NETWORK_CHANGED`), avec des dizaines de
+contrôles verts et aucun verdict.
+
+- **Une suite n'est reprise que sur la SIGNATURE d'une coupure réseau**, au plus
+  deux fois, et chaque reprise est ANNONCÉE avec sa cause.
+- ⚠ **Une suite qui porte un `✗` n'est JAMAIS reprise**, même si une coupure
+  suit : ses échecs ont eu lieu avant, et les effacer par une seconde exécution
+  serait le mensonge que ce projet refuse partout — rejouer un contrôle
+  jusqu'au vert.
+- Éprouvé sur trois cas fabriqués : coupure puis succès (repris, vert), vrai
+  échec puis coupure (arrêt, non repris), échec simple (arrêt).
+- `campagne_verification.test.ts` exige que `verif:tout` lance ce lanceur ET que
+  le lanceur lise `verif:chaine` — sans quoi une chaîne remise à la main dans
+  `verif:tout` tournerait pendant que `verif:chaine` resterait « testée » sans
+  jamais être lancée.
+
+⚠ **Les tests qui visent encore l'ancien menu LATÉRAL ne se contentent pas
+d'échouer : ils TUENT leur suite.** `innerText()` sur un élément absent attend
+trente secondes puis LÈVE. `verif:journal` est mort ainsi sur `aside`, et tous
+les contrôles d'audit qui le suivaient n'ont jamais tourné — la campagne
+affichait « 516 verts, zéro échec ». On compte un lien, qui ne lève jamais.
 
 ### Les identifiants SQL sont guillemetés
 

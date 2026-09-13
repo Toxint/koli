@@ -61,7 +61,7 @@ export default async function TransactionsVendeurPage({
   ]);
 
   return (
-    <div className="min-h-screen bg-cream text-ink lg:pl-[var(--largeur-menu)]">
+    <div className="min-h-screen bg-cream text-ink">
       <MenuEspace
         user={user}
         nomAffiche={user.sellerProfile.businessName || user.name}

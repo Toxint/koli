@@ -74,10 +74,34 @@ function serieComplete(
  * revient pas, il ne le lui est donc pas repris. Le retrancher ici creuserait
  * un creux dans une journée où il n'a rien perdu.
  */
-export async function chargerCourbeVendeur(
+/**
+ * Les DEUX séries d'encaissement du vendeur, en une seule lecture du registre.
+ *
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │  `brut` — ce que la vente a rapporté.                                    │
+ * │  `net`  — ce que le vendeur touche, commission déduite.                  │
+ * │  L'écart entre les deux courbes EST la commission KOLI.                  │
+ * └──────────────────────────────────────────────────────────────────────────┘
+ *
+ * **Deux séries, mais UNE SEULE échelle** — et c'est ce qui les rend
+ * superposables. La règle du projet interdit deux ÉCHELLES sur un même cadre,
+ * pas deux courbes : un montant et un nombre de commandes exigeraient deux
+ * axes verticaux, et deux axes font dire à un graphique ce qu'on veut. Ici les
+ * deux séries sont le même argent, dans la même monnaie, à quelques pour cent
+ * l'une de l'autre.
+ *
+ * ⚠ **C'est aussi ce qui garde l'échelle honnête.** Une seconde série d'un
+ * autre ordre de grandeur — le séquestre, le volume de commandes — écraserait
+ * la courbe des revenus au ras du zéro. `verif:courbes` refuse un plafond au
+ * delà du double du plus fort jour, et il a raison.
+ *
+ * Les deux sortent du MÊME parcours de lignes : elles ne peuvent pas diverger
+ * par un filtre oublié d'un côté.
+ */
+export async function chargerEncaissementsVendeur(
   sellerId: string,
   jours = 14
-): Promise<PointJour[]> {
+): Promise<{ net: PointJour[]; brut: PointJour[] }> {
   const depuis = minuitMoins(jours - 1);
 
   const lignes = await prisma.transaction.findMany({
@@ -89,21 +113,86 @@ export async function chargerCourbeVendeur(
     select: { amount: true, createdAt: true, type: true },
   });
 
-  const parJour = new Map<string, number>();
+  const parJourNet = new Map<string, number>();
+  const parJourBrut = new Map<string, number>();
 
   for (const l of lignes) {
+    const cle = cleJour(l.createdAt);
+
     // La commission s'écrit en négatif (`preleverCommission`), mais on ne s'y
     // fie pas : `chargerSoldeVendeur` se protège déjà de la même façon. Une
     // ligne ancienne écrite dans l'autre sens ferait ici l'inverse de ce qu'on
     // attend — la commission s'AJOUTERAIT au lieu d'être retranchée, et la
     // courbe culminerait au-dessus du solde annoncé sur le même écran.
     const montant = l.type === "COMMISSION" ? -Math.abs(l.amount) : l.amount;
+    parJourNet.set(cle, (parJourNet.get(cle) ?? 0) + montant);
 
-    const cle = cleJour(l.createdAt);
-    parJour.set(cle, (parJour.get(cle) ?? 0) + montant);
+    // Le BRUT ignore la commission : c'est la libération seule.
+    if (l.type === "FUNDS_RELEASED") {
+      parJourBrut.set(cle, (parJourBrut.get(cle) ?? 0) + l.amount);
+    }
+  }
+
+  return {
+    net: serieComplete(jours, parJourNet),
+    brut: serieComplete(jours, parJourBrut),
+  };
+}
+
+/**
+ * Ce qui ENTRE sous séquestre, jour par jour.
+ *
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │  C'est l'autre moitié de l'histoire KOLI : l'argent arrive au paiement   │
+ * │  (`securedAt`), il repart au vendeur à la confirmation de réception.     │
+ * │  Entre les deux, il dort — et le délai varie d'une commande à l'autre.   │
+ * └──────────────────────────────────────────────────────────────────────────┘
+ *
+ * Posée à côté des libérations, cette série dit d'un coup d'œil ce qu'aucun
+ * compteur ne dit : si l'écart se creuse, c'est que les clients ne confirment
+ * pas leur réception, et que l'argent s'accumule sans être versé.
+ *
+ * **Même monnaie, même ordre de grandeur, donc même axe.** La règle du projet
+ * interdit deux ÉCHELLES sur un cadre — un montant et un nombre de commandes ;
+ * deux montants du même commerce y sont chez eux.
+ *
+ * ⚠ On lit `securedAt` et non `createdAt` : un séquestre est créé avec la
+ * commande, parfois des heures avant que le paiement n'aboutisse. Le jour qui
+ * compte est celui où l'argent est réellement arrivé.
+ */
+export async function chargerSequestreParJour(
+  sellerId: string,
+  jours = 14
+): Promise<PointJour[]> {
+  const depuis = minuitMoins(jours - 1);
+
+  const fonds = await prisma.fund.findMany({
+    where: { sellerId, secured: true, securedAt: { gte: depuis } },
+    select: { amount: true, securedAt: true },
+  });
+
+  const parJour = new Map<string, number>();
+  for (const f of fonds) {
+    if (!f.securedAt) continue;
+    const cle = cleJour(f.securedAt);
+    parJour.set(cle, (parJour.get(cle) ?? 0) + f.amount);
   }
 
   return serieComplete(jours, parJour);
+}
+
+/**
+ * La série NETTE seule — ce que la plupart des appelants veulent.
+ *
+ * Elle reste exportée sous ce nom parce que plusieurs écrans et
+ * `verif:courbes` s'y accrochent, et qu'un second parcours du registre serait
+ * une seconde occasion de se tromper : elle lit `chargerEncaissementsVendeur`.
+ */
+export async function chargerCourbeVendeur(
+  sellerId: string,
+  jours = 14
+): Promise<PointJour[]> {
+  return (await chargerEncaissementsVendeur(sellerId, jours)).net;
 }
 
 /**

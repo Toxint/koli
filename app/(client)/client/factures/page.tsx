@@ -6,7 +6,7 @@ import { BarreRecherche } from "@/components/ui/BarreRecherche";
 import { Pagination } from "@/components/ui/Pagination";
 import { chargerFacturesClient } from "@/lib/invoices/liste";
 import { TableauFactures } from "@/components/domain/TableauFactures";
-import { pluriel } from "@/lib/format";
+import { CarteListe } from "@/components/ui/Liste";
 import { Icone } from "@/components/ui/Icone";
 import { MentionModeTest } from "@/components/ui/MentionModeTest";
 
@@ -36,7 +36,7 @@ export default async function FacturesClientPage({
   );
 
   return (
-    <div className="min-h-screen bg-cream text-ink lg:pl-[var(--largeur-menu)]">
+    <div className="min-h-screen bg-cream text-ink">
       <MenuEspace user={user} />
 
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -63,11 +63,21 @@ export default async function FacturesClientPage({
 
         <BarreRecherche placeholder="Numéro de reçu ou référence de commande…" />
 
-        <div className="bg-white rounded-2xl border border-hairline shadow-sm p-6">
-          <p className="text-xs text-ink-muted mb-4">
-            {pluriel(factures.total, "reçu", "reçus")}
-          </p>
-
+        {/* `CarteListe` et non une carte à remplissage : depuis que les reçus
+            sont un vrai tableau, il FAUT un conteneur qui enferme le
+            débordement horizontal, sinon c'est la page qui défile (§8). */}
+        <CarteListe
+          pagination={
+            <Pagination
+              page={page}
+              total={factures.total}
+              parPage={PAR_PAGE}
+              parametres={{ q }}
+              chemin="/client/factures"
+              nom="reçus"
+            />
+          }
+        >
           <TableauFactures
             lignes={factures.lignes}
             libelleContrepartie="Vendeur"
@@ -78,15 +88,7 @@ export default async function FacturesClientPage({
                 : "Un reçu est créé automatiquement dès qu'un de vos paiements aboutit.",
             }}
           />
-
-          <Pagination
-            page={page}
-            total={factures.total}
-            parPage={PAR_PAGE}
-            parametres={{ q }}
-            chemin="/client/factures"
-          />
-        </div>
+        </CarteListe>
       </main>
     </div>
   );

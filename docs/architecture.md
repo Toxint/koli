@@ -769,14 +769,42 @@ Le fond est posé à trois endroits pour qu'aucun ne puisse le contredire seul :
 
 **Les couleurs de statut restent sémantiques** (`lib/orders/statusLabels.ts`) : vert pour ce qui est acquis, ambre pour ce qui est en cours, rouge pour ce qui alerte. Les aligner sur le bordeaux de la marque supprimerait l'information que porte la couleur. Seul le ton neutre a été réchauffé, un gris bleuté jurant sur la crème.
 
-### Menu latéral (§10)
+### Barre de l'espace (§10)
 
-`components/ui/DashboardNav.tsx` — le composant garde son nom et ses props bien qu'il ne soit plus un en-tête horizontal : les quinze pages qui l'utilisent n'ont eu à changer que la classe de leur conteneur.
+`components/ui/BarreEspace.tsx` — une **barre horizontale** dans une carte blanche posée sur le fond. Elle remplace `DashboardNav`, le menu latéral sombre et repliable, supprimé le 11 septembre 2026 avec sa suite `test-menu-lateral.mjs`.
 
-- **≥ 1024px** : panneau flottant fixe à gauche, `15.5rem`, coins arrondis, crème visible autour. Les pages réservent la place avec `lg:pl-[15.5rem]` — la barre étant `fixed`, elle sort du flux et recouvrirait sinon le contenu.
-- **< 1024px** : en-tête bordeaux compact et tiroir glissant depuis la gauche, fermable par le voile, par le bouton, par la touche Échap, et refermé automatiquement à chaque navigation. Le défilement du fond est bloqué tant qu'il est ouvert.
+- **≥ 1024px** : une seule ligne — logo, ruban des entrées principales, menu « Plus », action, notifications, compte.
+- **< 1024px** : deux lignes. Logo et commandes du compte en haut ; le ruban, qui défile horizontalement dans son propre conteneur, en bas, avec « Plus » à sa droite. Le ruban n'est rendu **qu'une fois** — un `basis-full` de hauteur nulle force le passage à la ligne, plutôt qu'un second balisage pour téléphone.
+
+**« Plus » est hors du ruban**, et c'est une nécessité : le ruban porte `overflow-x-auto`, donc `overflow-y: auto`, donc il découpe verticalement. Placé dedans, son menu déroulant était entièrement invisible. Il est ancré à droite et termine sa ligne, sans quoi il sort de l'écran sur un téléphone.
+
+**Les deux menus sont des `<details>` natifs** — ils s'ouvrent sans JavaScript. C'est ce qui garde la navigation secondaire et la déconnexion atteignables avant l'hydratation (§70).
 
 **Entrée active = le plus long préfixe correspondant.** Un simple `startsWith` allumerait « Commandes » *et* « Nouvelle commande » sur `/vendeur/commandes/nouvelle` ; une égalité stricte n'allumerait rien sur `/vendeur/produits/<id>`.
+
+### Tableau de bord vendeur
+
+Trois étages, dans l'ordre des questions qu'on se pose en ouvrant : *combien j'ai · comment ça va · qu'est-ce qui bouge*.
+
+- **Colonne de gauche (1/3)** — trois `BlocRevenu` empilés : *Revenus totaux* (violet plein), *Revenus du jour* (sombre), *Revenus en attente* (blanc). Chacun porte un montant en 2,5 rem, un badge d'évolution et une courbe miniature lissée.
+- **Colonne de droite (2/3)** — `CourbePerformance` à **deux séries** : « Versé » et « Mis sous séquestre ». Même monnaie, même ordre de grandeur, donc un seul axe. L'écart entre les deux est l'argent qui dort en attendant la confirmation de réception.
+- **Ligne du bas** — `Anneau` (part des commandes menées à terme), catalogue, commandes.
+
+La bannière violette pleine largeur a disparu : elle occupait le tiers supérieur de l'écran pour dire bonjour et répéter un bouton que la barre porte déjà.
+
+**Deux séries, une seule échelle.** La règle « une courbe porte une mesure » interdit deux ÉCHELLES — un montant et un décompte —, pas deux courbes comparables. Corollaire : la seconde série doit rester du même ordre de grandeur, sinon l'axe s'étire et la première se couche au ras du zéro. `verif:courbes` borne le plafond sur les deux séries.
+
+**Pas d'aire à deux séries.** Une masse remplie sous l'une des deux la fait paraître principale, et au croisement elle efface l'autre.
+
+`cheminLisse` (spline monotone Fritsch–Carlson) vit dans `lib/finance/lissage.ts` : le grand graphique et les miniatures l'importent tous deux. Deux lissages différents donneraient deux formes pour la même série.
+
+⚠ La carte du graphique porte `data-carte-courbe`. `verif:courbes` s'y accroche — il visait auparavant un ancêtre dont la classe contenait `rounded-2xl`, et une retouche d'arrondi le cassait.
+
+### Écrans de liste (§16, §38, §46)
+
+`components/ui/Liste.tsx` — la coquille commune des listes : `EnTeteListe` (titre et décompte), `CarteListe` (carte blanche qui **enferme le débordement horizontal**), `EnTeteTableau`, `Colonne` (tri par l'URL), `LigneTableau`, `Cellule`, `Pastille`, `ListeVide`.
+
+Commandes, Catalogue, Clients, Factures et les deux tableaux de bord y passent. Le tri voyage dans l'adresse : il fonctionne sans JavaScript, survit à un rechargement et se partage. **Seules les vraies colonnes sont triables** — un total calculé depuis les lignes d'une commande ne l'est pas, le trier demanderait de tout charger en mémoire (§46).
 
 Les icônes sont dessinées en SVG inline (`components/ui/IconesNav.tsx`) : quatre traits suffisent, et une bibliothèque d'icônes représente plusieurs centaines de kilo-octets pour un public souvent en 3G.
 

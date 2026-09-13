@@ -78,6 +78,56 @@ export interface Marche {
   operateurs: string[];
 }
 
+/**
+ * Les monnaies dans lesquelles KOLI accepte d'ENCAISSER POUR UN VENDEUR.
+ *
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │  Décision de l'utilisateur, le 12 septembre 2026 : l'essai réel ouvre   │
+ * │  aux SEPT pays de la zone franc CFA, et à eux seuls.                    │
+ * └──────────────────────────────────────────────────────────────────────────┘
+ *
+ * ── Pourquoi cette frontière-là, et pas une autre ───────────────────────────
+ *
+ * iKeePay règle en **dollars**, pas dans la monnaie encaissée : 1 000 CDF
+ * encaissés ont été crédités 0,45 USD. Entre le séquestre et le versement, le
+ * dollar bouge, et quelqu'un porte un risque de change. L'exposition a été
+ * mesurée le 8 septembre 2026, sur trois ans :
+ *
+ *   XOF et XAF — arrimés à l'euro au même taux (655,957), leur risque contre
+ *   le dollar EST celui de l'euro. Pire mois vu : **5,9 %**. De l'ordre de la
+ *   commission. KOLI peut garantir le montant au vendeur.
+ *
+ *   CDF — il flotte. Pire mois vu : **21,4 %**, et le dollar a perdu 19 % de
+ *   son pouvoir d'achat en francs congolais sur deux ans. Hors de proportion
+ *   avec ce que KOLI gagne sur la vente.
+ *
+ * La frontière n'est donc pas géographique ni commerciale : c'est la ligne
+ * au-delà de laquelle KOLI ne peut plus tenir sa promesse sans y perdre.
+ *
+ * ── Ce que cette liste contraint, et ce qu'elle ne contraint PAS ────────────
+ *
+ * Elle contraint le **VENDEUR** — celui qui sera payé. Un acheteur peut être
+ * n'importe où : c'est iKeePay qui convertit au prélèvement, et la page de
+ * paiement lui montre déjà l'équivalent dans sa monnaie. Contraindre
+ * l'acheteur fermerait des ventes sans rien protéger.
+ *
+ * ⚠ **XOF et XAF ne sont PAS interchangeables**, même s'ils s'affichent tous
+ * deux « FCFA » et valent exactement la même chose. Ce sont deux monnaies :
+ * on ne règle pas un vendeur camerounais avec des francs CFA d'Afrique de
+ * l'Ouest. Le versement doit donc lire la devise du vendeur, jamais supposer
+ * « du FCFA ».
+ *
+ * ⚠ **`USD` en est absent, et c'est délibéré.** Rien ne prouve qu'iKeePay
+ * l'accepte dans son tunnel — voir la note de `Devise`. Un vendeur qui la
+ * choisirait aurait des acheteurs incapables de payer.
+ */
+export const DEVISES_OUVERTES: readonly Devise[] = ["XOF", "XAF"];
+
+/** Ce marché accepte-t-il des VENDEURS aujourd'hui ? */
+export function ouvertAuxVendeurs(marche: Marche): boolean {
+  return DEVISES_OUVERTES.includes(marche.devise);
+}
+
 export const MARCHES: Marche[] = [
   // ── Afrique de l'Ouest, franc CFA ──
   { code: "CI", name: "Côte d'Ivoire", dialCode: "+225", devise: "XOF", operateurs: ["Orange Money", "MTN"] },

@@ -37,20 +37,32 @@ export function formatMontant(amount: number, devise: Devise): string {
   return `${withSpaces}${ESPACE_INSECABLE}${SYMBOLE[devise]}`;
 }
 
-/**
- * Le franc CFA, quand la devise est CONNUE pour être celle-là.
+/*
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │  `formatCFA` A ÉTÉ SUPPRIMÉE. Ne pas la remettre.                        │
+ * └──────────────────────────────────────────────────────────────────────────┘
  *
- * Conservé pour les écrans dont les montants ne peuvent être qu'en CFA — les
- * réglages de la plateforme, par exemple. Partout où un montant appartient à
- * une commande ou à un vendeur, c'est `formatMontant` qu'il faut, avec la
- * devise de cette commande ou de ce vendeur.
+ * Elle valait `formatMontant(amount, "XOF")` — le franc CFA écrit en dur — et
+ * portait déjà cet avertissement, mot pour mot :
  *
- * ⚠ L'appeler par commodité sur un montant dont on ignore la devise, c'est
- * réintroduire exactement le défaut qu'on vient de retirer.
+ *   « L'appeler par commodité sur un montant dont on ignore la devise, c'est
+ *     réintroduire exactement le défaut qu'on vient de retirer. »
+ *
+ * Elle a été appelée **vingt et une fois**, dont dans un message envoyé par
+ * WhatsApp au client, sur la page d'un litige vue par les deux parties, et
+ * dans l'écran où un administrateur valide un remboursement. Un commerçant de
+ * Kinshasa y lisait des francs CFA — environ quatre fois la somme réelle.
+ *
+ * **Le commentaire n'a rien empêché ; l'absence de la fonction, si.** C'est la
+ * même leçon que `deviseDuVendeur` prenant le profil plutôt que le pays : quand
+ * une règle doit tenir dans vingt endroits, on ne la confie pas à la mémoire de
+ * celui qui écrit le vingt-et-unième — on la confie au compilateur.
+ *
+ * Un montant appartient toujours à quelque chose qui porte sa monnaie : une
+ * commande (`order.currency`), une écriture (`transaction.currency`), un
+ * vendeur (`deviseDuVendeur`). Et quand plusieurs monnaies se côtoient, c'est
+ * `formatTotaux` qui les JUXTAPOSE — leur somme n'existe pas.
  */
-export function formatCFA(amount: number): string {
-  return formatMontant(amount, "XOF");
-}
 
 /**
  * Accord en nombre.

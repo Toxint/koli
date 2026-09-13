@@ -8,6 +8,12 @@ import { loginSchema, registerSchema } from "@/lib/auth/schemas";
 import { UserRole } from "@prisma/client";
 import { espaceParDefaut } from "@/lib/auth/dashboards";
 import { rejoindreEquipeAction } from "@/lib/drivers/equipe";
+import {
+  MARCHES,
+  DEVISES_OUVERTES,
+  ouvertAuxVendeurs,
+  type Devise,
+} from "@/data/markets";
 
 export interface ActionResponse {
   success: boolean;
@@ -204,6 +210,37 @@ export async function loginAction(
   redirect(espaceParDefaut(user.role));
 }
 
+/**
+ * Ce que la personne venait de taper, pour ne pas le lui faire retaper.
+ *
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │  Cet objet était recopié à chaque refus. Une copie qui oublie un champ  │
+ * │  vide ce champ à l'écran, et personne ne le remarque en relisant le     │
+ * │  code — on le remarque en retapant un numéro de téléphone sur un        │
+ * │  clavier de téléphone.                                                  │
+ * └──────────────────────────────────────────────────────────────────────────┘
+ *
+ * ⚠ **Le mot de passe n'y est JAMAIS.** Il traverserait le réseau une seconde
+ * fois pour se poser dans un attribut du document — lisible dans le cache,
+ * dans un mandataire, et par-dessus l'épaule. Un contrôle l'exige.
+ */
+function saisieRendue(brut: Record<string, string | undefined>) {
+  return {
+    name: brut.name ?? "",
+    phone: brut.phone ?? "",
+    email: brut.email ?? "",
+    role: brut.role ?? "",
+    businessName: brut.businessName ?? "",
+    vehicle: brut.vehicle ?? "",
+    zone: brut.zone ?? "",
+    city: brut.city ?? "",
+    country: brut.country ?? "",
+    /* La devise choisie en faisait partie sans y être : le formulaire la relit
+       (`saisi("currency")`), et un refus la perdait en silence. */
+    currency: brut.currency ?? "",
+  };
+}
+
 export async function registerAction(
   prevState: ActionResponse | null,
   formData: FormData
@@ -234,17 +271,7 @@ export async function registerAction(
       success: false,
       fieldErrors,
       error: "Veuillez corriger les erreurs ci-dessous.",
-      saisie: {
-        name: rawData.name ?? "",
-        phone: rawData.phone ?? "",
-        email: rawData.email ?? "",
-        role: rawData.role ?? "",
-        businessName: rawData.businessName ?? "",
-        vehicle: rawData.vehicle ?? "",
-        zone: rawData.zone ?? "",
-        city: rawData.city ?? "",
-        country: rawData.country ?? "",
-      },
+      saisie: saisieRendue(rawData),
     };
   }
 
@@ -265,18 +292,60 @@ export async function registerAction(
     return {
       success: false,
       error: "Un compte avec ce numéro de téléphone ou cet email existe déjà.",
-      saisie: {
-        name: rawData.name ?? "",
-        phone: rawData.phone ?? "",
-        email: rawData.email ?? "",
-        role: rawData.role ?? "",
-        businessName: rawData.businessName ?? "",
-        vehicle: rawData.vehicle ?? "",
-        zone: rawData.zone ?? "",
-        city: rawData.city ?? "",
-        country: rawData.country ?? "",
-      },
+      saisie: saisieRendue(rawData),
     };
+  }
+
+  /*
+   * ┌──────────────────────────────────────────────────────────────────────────┐
+   * │  UN VENDEUR NE S'INSCRIT QUE DANS UNE ZONE OÙ KOLI SAIT LE PAYER.       │
+   * └──────────────────────────────────────────────────────────────────────────┘
+   *
+   * L'essai réel ouvre aux sept pays de la zone franc CFA
+   * (`DEVISES_OUVERTES`). La raison n'est ni géographique ni commerciale :
+   * iKeePay règle en DOLLARS, pas dans la monnaie encaissée, et seul le franc
+   * CFA — arrimé à l'euro — porte un écart de change que la commission de 5 %
+   * absorbe. Le franc congolais a connu des mois à 21 %.
+   *
+   * ⚠ **La garde est ICI, pas dans le menu déroulant.** Le formulaire ne
+   * propose que les sept pays et les deux devises, mais ces valeurs voyagent
+   * dans la requête : quiconque ouvre les outils du navigateur en pose une
+   * autre. C'est la même leçon que les livreurs d'un concurrent — filtrer une
+   * liste ne protège rien (§5.3).
+   *
+   * ⚠ **Elle ne concerne QUE le vendeur.** Un acheteur peut être n'importe
+   * où : c'est iKeePay qui convertit au prélèvement, et la page de paiement lui
+   * montre déjà l'équivalent dans sa monnaie. Fermer aux acheteurs perdrait des
+   * ventes sans rien protéger.
+   *
+   * Le message dit POURQUOI et ne promet pas de date : un « bientôt » qu'on ne
+   * tient pas coûte plus que l'absence de promesse.
+   */
+  if (data.role === "SELLER") {
+    const marche = MARCHES.find((m) => m.name === data.country);
+    const deviseChoisie = data.currency?.trim();
+
+    if (!marche || !ouvertAuxVendeurs(marche)) {
+      return {
+        success: false,
+        error:
+          "KOLI n'accepte pour l'instant les vendeurs que dans la zone franc " +
+          "CFA : Bénin, Burkina Faso, Cameroun, Congo-Brazzaville, Côte " +
+          "d'Ivoire, Gabon et Sénégal. Les versements dans les autres monnaies " +
+          "ne sont pas encore ouverts.",
+        saisie: saisieRendue(rawData),
+      };
+    }
+
+    if (deviseChoisie && !DEVISES_OUVERTES.includes(deviseChoisie as Devise)) {
+      return {
+        success: false,
+        error:
+          "Seul le franc CFA est ouvert aux vendeurs pour l'instant. " +
+          "Choisissez « Celle de mon pays », ou l'un des deux francs CFA.",
+        saisie: saisieRendue(rawData),
+      };
+    }
   }
 
   const hashedPassword = await hashPassword(data.password);

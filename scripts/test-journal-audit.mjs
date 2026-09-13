@@ -86,9 +86,34 @@ await connecter("admin@koli.ci");
 
   const texte = await page.evaluate(() => document.body.innerText);
   verifier(/Journal/i.test(texte), "la page s'annonce comme un journal");
+  /*
+   * ⚠ Ce controle ne visait plus RIEN — et il ne l'a pas dit, il a tout arrete.
+   *
+   * ┌──────────────────────────────────────────────────────────────────────────┐
+   * │  Il lisait `locator("aside").innerText()`. La colonne laterale a        │
+   * │  disparu avec la barre horizontale. `innerText` sur un element absent   │
+   * │  ne rend pas une chaine vide : il ATTEND trente secondes puis LEVE.     │
+   * └──────────────────────────────────────────────────────────────────────────┘
+   *
+   * L'exception n'etait rattrapee par personne : elle a tue la suite ENTIERE
+   * au lieu de marquer ce controle en rouge, et tous ceux qui suivent — la
+   * trace du changement de taux, du litige tranche, du remboursement — ne se
+   * sont jamais executes. Une campagne a 516 verts et zero echec, arretee net
+   * sur un selecteur mort : le chiffre disait « rien de casse », la realite
+   * etait « rien d'eprouve apres ceci ».
+   *
+   * On compte le LIEN, qui ne leve jamais. « Journal » peut vivre dans le ruban
+   * ou derriere « Plus » selon la largeur : sa presence dans l'en-tete suffit a
+   * dire qu'il figure au menu, et `verif:menu` eprouve deja que ce qui est
+   * derriere « Plus » s'ouvre et reste a l'ecran.
+   */
+  const entreesJournal = await page
+    .locator('header a[href="/admin/journal"]')
+    .count();
   verifier(
-    /Journal/.test(texte) && (await page.locator("aside").innerText()).includes("Journal"),
-    "« Journal » figure au menu de l'administration (§217)"
+    entreesJournal > 0,
+    "« Journal » figure au menu de l'administration (§217)",
+    `${entreesJournal} lien(s) vers /admin/journal dans l'en-tete`
   );
 }
 

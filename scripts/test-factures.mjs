@@ -135,12 +135,27 @@ const connecter = async (page, identifiant) => {
 };
 
 const texte = (page) => page.evaluate(() => document.body.innerText);
+/*
+ * Les numeros affiches, DANS L'ORDRE.
+ *
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │  Il lisait `ul[data-factures] li` et cherchait `FAC-\d{4}-\d{6}` dans le │
+ * │  texte de chaque element. Deux dependances au BALISAGE : la balise de la │
+ * │  liste, et la place du numero dans le texte.                             │
+ * └──────────────────────────────────────────────────────────────────────────┘
+ *
+ * La liste est devenue un vrai tableau, et le selecteur ne trouvait plus rien
+ * — un controle qui rend un tableau vide passe pour « aucune facture », ce qui
+ * n'est pas le meme diagnostic qu'« il ne sait plus lire l'ecran ».
+ *
+ * Chaque ligne porte desormais `data-facture`. On lit l'ATTRIBUT : c'est la
+ * donnee elle-meme, et non sa mise en page — la prochaine refonte ne cassera
+ * pas ce controle.
+ */
 const numerosAffiches = (page) =>
   page
-    .locator("ul[data-factures] li")
-    .evaluateAll((els) =>
-      els.map((e) => (e.innerText.match(/FAC-\d{4}-\d{6}/) ?? [""])[0])
-    );
+    .locator("[data-factures] [data-facture]")
+    .evaluateAll((els) => els.map((e) => e.getAttribute("data-facture") ?? ""));
 
 try {
   // Restes d'une exécution interrompue : on repart d'une base propre.
@@ -383,19 +398,86 @@ try {
     );
   }
 
-  // La contrepartie affichee doit etre le VENDEUR : afficher l'acheteur
-  // donnerait une liste ou chaque ligne porte son propre nom.
+  /*
+   * La contrepartie affichee doit etre le VENDEUR : afficher l'acheteur
+   * donnerait une liste ou chaque ligne porte son propre nom.
+   *
+   * ┌──────────────────────────────────────────────────────────────────────┐
+   * │  Il cherchait « Vendeur : » dans le texte de la page — la tournure de │
+   * │  l'ancienne mise en page en cartes. Dans un tableau, « Vendeur » est  │
+   * │  un EN-TETE de colonne, et la cellule ne porte que le nom.            │
+   * └──────────────────────────────────────────────────────────────────────┘
+   *
+   * On confronte desormais la colonne au REGISTRE : chaque nom affiche doit
+   * etre une enseigne qui a reellement emis l'un de ces recus. C'est plus
+   * fort que l'ancienne version, qui se contentait de trouver le MOT
+   * « Vendeur » quelque part — elle serait restee verte si la colonne avait
+   * affiche le nom de l'acheteur sous cet en-tete.
+   */
   if (recusAffiches.length > 0) {
+    /*
+     * ⚠ Requete STATIQUE, avec la portee du client — pas un `IN (…)` construit
+     * a la volee.
+     *
+     * `verif:requetes` fait PREPARER chaque requete par PostgreSQL. Une liste
+     * de marqueurs assemblee en JavaScript lui parvient comme `IN (x)`, et la
+     * base repond « column "x" does not exist » : elle refuse, et elle a
+     * raison — elle ne peut rien valider de ce qu'elle ne voit pas.
+     *
+     * La portee est celle qui sert deja a `sesRecus` : les commandes de ce
+     * client, par son telephone ou par son compte. C'est exactement l'ensemble
+     * dont les recus affiches sont tires.
+     */
+    const enseignes = new Set(
+      (await tous(
+        `SELECT DISTINCT s."businessName" AS nom
+           FROM "Invoice" i
+           JOIN "Order" o ON o.id = i."orderId"
+           JOIN "SellerProfile" s ON s.id = o."sellerId"
+          WHERE o."buyerPhone" = ?
+             OR o."customerId" = (SELECT c.id FROM "CustomerProfile" c
+                                  JOIN "User" u ON u.id = c."userId"
+                                 WHERE u.email = 'client@koli.ci')`,
+        telClient
+      )).map((r) => r.nom)
+    );
+    const affichees = await client
+      .locator("[data-factures] [data-contrepartie]")
+      .evaluateAll((els) =>
+        els.map((e) => e.getAttribute("data-contrepartie") ?? "")
+      );
+    const intruses = affichees.filter((n) => !enseignes.has(n));
     verifier(
-      /Vendeur\s*:/i.test(texteClient),
-      "chaque reçu nomme le vendeur, pas le client lui-meme"
+      affichees.length > 0 && intruses.length === 0,
+      "chaque reçu nomme le vendeur, pas le client lui-meme",
+      affichees.length === 0
+        ? "aucune contrepartie lue"
+        : `hors registre : ${intruses.join(", ")}`
     );
   }
 
   // ═══════════ 6. La pièce elle-meme reste atteignable et complete
+  /*
+   * ⚠ `LIMIT 1` SANS `ORDER BY` tire une ligne ARBITRAIRE.
+   *
+   * ┌──────────────────────────────────────────────────────────────────────┐
+   * │  Hors campagne, ce vendeur a une facture et le tirage ne se voit     │
+   * │  pas. Pendant la campagne il en a dix, PostgreSQL en rend une au     │
+   * │  hasard, et le controle change de sujet d'une execution a l'autre.   │
+   * └──────────────────────────────────────────────────────────────────────┘
+   *
+   * Il a echoue une fois sur « numero de commande : present » puis passe
+   * deux fois de suite sans qu'une ligne de code ait bouge. Un controle dont
+   * le verdict depend de l'ordre de stockage n'est pas un controle : on finit
+   * par lire ses echecs comme du bruit, et le jour ou il a raison, personne
+   * n'ecoute (§8).
+   *
+   * `ORDER BY i.number DESC` le rend reproductible : c'est toujours la piece
+   * la plus recemment numerotee qui est eprouvee.
+   */
   const reference = (await un(
     `SELECT o.reference FROM "Invoice" i JOIN "Order" o ON o.id = i."orderId"
-      WHERE o."sellerId" = ? LIMIT 1`,
+      WHERE o."sellerId" = ? ORDER BY i.number DESC LIMIT 1`,
     idVendeur
   )).reference;
 
@@ -405,13 +487,47 @@ try {
   verifier(piece.status() === 200, "la facture s'ouvre depuis la liste");
 
   const textePiece = await texte(vendeur);
+
+  /*
+   * ⚠ Le numero de commande se verifie par EGALITE, pas par un motif.
+   *
+   * ┌──────────────────────────────────────────────────────────────────────┐
+   * │  Il cherchait `/KOLI-[2-9A-Z]{8}/` — l'alphabet du generateur, qui   │
+   * │  exclut le 0 et le 1. Les fixtures de ce fichier portent             │
+   * │  `KOLI-FX900001`, qui contient les deux.                             │
+   * └──────────────────────────────────────────────────────────────────────┘
+   *
+   * Le controle etait donc casse depuis toujours, et INVISIBLEMENT : le tirage
+   * arbitraire tombait tantot sur une vraie commande — vert —, tantot sur la
+   * fixture — rouge. Rendre la requete deterministe l'a fige sur l'echec, ce
+   * qui est exactement ce qu'on attend d'un defaut latent.
+   *
+   * Chercher la reference REELLE de la piece ouverte est de toute facon plus
+   * juste : l'ancienne version se contentait de trouver UNE chaine qui
+   * ressemble a une reference, et serait restee verte si la page avait affiche
+   * celle d'une AUTRE commande.
+   */
+  verifier(
+    textePiece.includes(reference),
+    "le §38 exige « numero de commande » : present",
+    `piece ${reference} — page lue : ${textePiece.replace(/\s+/g, " ").slice(0, 160)}`
+  );
+
   for (const [motif, nom] of [
     [/FAC-\d{4}-\d{6}/, "numero de facture"],
-    [/KOLI-[2-9A-Z]{8}/, "numero de commande"],
     [/livraison/i, "livraison"],
     [/total/i, "total"],
   ]) {
-    verifier(motif.test(textePiece), `le §38 exige « ${nom} » : present`);
+    /* Le detail nomme la piece eprouvee et montre ce qu'elle porte. Sans lui,
+       l'echec disait « le §38 exige « numero de commande » : present » et rien
+       d'autre — on ne savait ni QUELLE facture avait ete ouverte, ni ce qu'on y
+       avait lu. Un message d'echec qui n'apprend rien coute le temps qu'il
+       pretend faire gagner. */
+    verifier(
+      motif.test(textePiece),
+      `le §38 exige « ${nom} » : present`,
+      `piece ${reference} — page lue : ${textePiece.replace(/\s+/g, " ").slice(0, 160)}`
+    );
   }
 
   // ═══════════ 6 bis. Telecharger et partager le recu

@@ -51,9 +51,26 @@ export function BoutonDeconnexion({
     };
   }, [confirme]);
 
+  /*
+   * ⚠ La variante `menu` a été peinte pour un fond SOMBRE, et il n'y en a plus.
+   *
+   * ┌──────────────────────────────────────────────────────────────────────┐
+   * │  Elle portait `text-white/70` sur `hover:bg-white/10` — la couleur   │
+   * │  du menu latéral. Depuis que la déconnexion vit dans le menu du      │
+   * │  compte, qui est une carte BLANCHE, c'était du blanc sur du blanc.   │
+   * └──────────────────────────────────────────────────────────────────────┘
+   *
+   * Le défaut le plus vicieux de cette famille : `isVisible()` répond « oui »
+   * — l'élément occupe sa place, rien ne le masque — et le test reste vert
+   * pendant que personne ne voit le bouton. Un contrôle de contraste l'aurait
+   * vu ; un contrôle de présence, jamais.
+   *
+   * Le rouge n'arrive qu'au survol : une entrée de menu permanente en rouge
+   * se lit comme une alerte, et cette liste n'en est pas une.
+   */
   const classesDeclencheur =
     variante === "menu"
-      ? `w-full flex items-center gap-3 rounded-2xl min-h-[46px] text-sm font-semibold text-white/70 hover:text-white hover:bg-white/10 transition-colors ${
+      ? `w-full flex items-center gap-2 rounded-xl min-h-[44px] text-sm font-semibold text-ink-muted hover:text-danger hover:bg-red-50 transition-colors ${
           compact ? "justify-center px-2" : "px-3"
         }`
       : "inline-flex items-center gap-1.5 min-h-[44px] px-3 rounded-xl border border-hairline text-xs font-semibold text-ink-muted hover:text-danger hover:border-red-200";
@@ -68,7 +85,7 @@ export function BoutonDeconnexion({
       >
         <Icone
           nom="deconnexion"
-          className={variante === "menu" ? "w-5 h-5 shrink-0" : "w-4 h-4"}
+          className={variante === "menu" ? "w-4 h-4 shrink-0" : "w-4 h-4"}
         />
         <span className={compact ? "sr-only" : undefined}>Déconnexion</span>
       </button>

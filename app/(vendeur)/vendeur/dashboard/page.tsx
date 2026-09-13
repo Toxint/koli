@@ -5,15 +5,57 @@ import { MenuEspace } from "@/components/ui/MenuEspace";
 import { formatMontant } from "@/lib/format";
 import { deviseDuVendeur } from "@/data/markets";
 import { chargerSoldeVendeur } from "@/lib/finance/solde";
-import { chargerCourbeVendeur } from "@/lib/finance/courbes";
+import {
+  chargerEncaissementsVendeur,
+  chargerSequestreParJour,
+} from "@/lib/finance/courbes";
 import { mettreEnForme } from "@/lib/finance/jours";
-import { TEINTE_COURBE } from "@/lib/finance/teintes-courbes";
+import {
+  TEINTE_COURBE,
+  TEINTE_COURBE_SECONDE,
+} from "@/lib/finance/teintes-courbes";
 import { CourbePerformance } from "@/components/domain/CourbePerformance";
 import { libelleStatut, classesBadgeStatut } from "@/lib/orders/statusLabels";
+import {
+  ActionListe,
+  CarteListe,
+  Cellule,
+  Colonne,
+  EnTeteTableau,
+  LigneTableau,
+  ListeVide,
+  Pastille,
+} from "@/components/ui/Liste";
+import { BlocRevenu } from "@/components/ui/BlocRevenu";
+import { Anneau } from "@/components/ui/Anneau";
 import Link from "next/link";
 import { Icone } from "@/components/ui/Icone";
 import { MentionModeTest } from "@/components/ui/MentionModeTest";
 
+const JOUR_FR = new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium" });
+
+/**
+ * Tableau de bord du vendeur.
+ *
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │  Trois étages, et l'ordre est celui des questions qu'on se pose en       │
+ * │  ouvrant : combien j'ai · comment ça va · qu'est-ce qui bouge.           │
+ * └──────────────────────────────────────────────────────────────────────────┘
+ *
+ * ── Ce que la refonte a retiré, et pourquoi ─────────────────────────────────
+ *
+ * **La bannière violette pleine largeur.** Elle occupait le tiers supérieur de
+ * l'écran pour dire bonjour et répéter un bouton que la barre de navigation
+ * porte déjà. Sur un téléphone, il fallait la faire défiler avant d'atteindre
+ * le premier chiffre — c'est-à-dire avant la seule chose qu'on vient chercher.
+ *
+ * **Le double rendu des commandes récentes.** La liste existait deux fois dans
+ * le même balisage : en cartes sous `md:`, en grille au-dessus. Deux rendus
+ * des mêmes données finissent toujours par diverger, et c'est celui qu'on
+ * regarde le moins qui ment en premier. Le tableau vit désormais dans
+ * `CarteListe`, qui enferme le débordement horizontal — la page ne défile pas,
+ * le tableau si (§8).
+ */
 export default async function SellerDashboardPage() {
   const user = await getCurrentUser();
   if (!user || user.role !== "SELLER" || !user.sellerProfile) {
@@ -23,16 +65,15 @@ export default async function SellerDashboardPage() {
   /*
    * La devise du vendeur, une fois pour tout l'écran.
    *
-   * Un vendeur a un pays, donc une monnaie ; et depuis que la commande suit
-   * le vendeur et non l'acheteur, TOUTES ses écritures sont dans cette
-   * monnaie. Rien ne se mélange ici — contrairement aux écrans de
-   * l'administration, qui agrègent plusieurs vendeurs.
+   * Un vendeur a une monnaie — celle qu'il a choisie, à défaut celle de son
+   * pays — et TOUTES ses écritures sont dans cette monnaie. Rien ne se mélange
+   * ici, contrairement aux écrans de l'administration qui agrègent des
+   * vendeurs.
    */
   const devise = deviseDuVendeur(user.sellerProfile);
 
   const sellerProfileId = user.sellerProfile.id;
 
-  // Fetch metrics & orders from database
   const productsCount = await prisma.product.count({
     where: { sellerId: sellerProfileId },
   });
@@ -46,7 +87,7 @@ export default async function SellerDashboardPage() {
       delivery: true,
     },
     orderBy: { createdAt: "desc" },
-    take: 5,
+    take: 6,
   });
 
   const totalOrdersCount = await prisma.order.count({
@@ -59,251 +100,372 @@ export default async function SellerDashboardPage() {
   // commission, si bien que les deux ecrans annonceraient desormais deux
   // soldes differents.
   const solde = await chargerSoldeVendeur(sellerProfileId);
-  const courbe = mettreEnForme(await chargerCourbeVendeur(sellerProfileId));
-  const securedAmount = solde.fondsSecurises;
-  const releasedAmount = solde.soldeDisponible;
+  const series = await chargerEncaissementsVendeur(sellerProfileId);
+  const courbe = mettreEnForme(series.net);
+  const courbeSequestre = mettreEnForme(
+    await chargerSequestreParJour(sellerProfileId)
+  );
+
+  const terminees = await prisma.order.count({
+    where: { sellerId: sellerProfileId, status: "COMPLETED" },
+  });
+
+  /*
+   * Les trois chiffres des blocs, et l'évolution qui les accompagne.
+   *
+   * ┌──────────────────────────────────────────────────────────────────────────┐
+   * │  Tout se calcule depuis la MÊME série de quatorze jours, déjà lue pour   │
+   * │  la courbe. Refaire une requête par bloc donnerait quatre lectures du    │
+   * │  registre pour un seul écran (§46) — et quatre occasions de diverger.    │
+   * └──────────────────────────────────────────────────────────────────────────┘
+   */
+  const net = series.net.map((p) => p.montant);
+  const revenuDuJour = net[net.length - 1] ?? 0;
+  const hier = net[net.length - 2] ?? 0;
+
+  const sept = net.slice(-7).reduce((s, v) => s + v, 0);
+  const septPrecedents = net.slice(-14, -7).reduce((s, v) => s + v, 0);
+
+  /**
+   * L'évolution en pourcentage, ou `null` quand elle n'a PAS DE SENS.
+   *
+   * ⚠ Partir de zéro n'est pas « +100 % », c'est une division par zéro. Une
+   * première vente après une semaine sans rien afficherait « +∞ » ou, pire,
+   * un nombre plausible tiré de nulle part. On rend `null`, et le badge ne
+   * s'affiche pas : un cadre sans badge se remarque, un pourcentage faux se
+   * croit.
+   */
+  const evolution = (courant: number, precedent: number): number | null =>
+    precedent > 0 ? ((courant - precedent) / precedent) * 100 : null;
 
   return (
-    <div className="min-h-screen bg-cream text-ink lg:pl-[var(--largeur-menu)]">
+    <div className="min-h-screen bg-cream text-ink">
       <MenuEspace
         user={user}
         nomAffiche={user.sellerProfile.businessName || user.name}
       />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-fade-in">
-        {/* Banner Or Doré */}
-        <div className="bg-brand rounded-3xl p-6 sm:p-8 text-white shadow-lg shadow-brand/20 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 relative overflow-hidden border border-brand-border/40">
-          <div className="absolute top-0 right-0 -mr-16 -mt-16 w-64 h-64 bg-white/10 rounded-full blur-3xl pointer-events-none" />
-
-          <div className="relative z-10">
-            <span className="inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-white/20 text-white mb-2">
-              <Icone nom="boutique" className="w-3.5 h-3.5" /> Espace vendeur
-              KOLI
-            </span>
-            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
+      <main className="mx-auto max-w-[86rem] space-y-4 px-4 py-6 sm:px-6 lg:py-8">
+        {/*
+          * Le bonjour tient sur une ligne, comme un titre de liste.
+          *
+          * Il nomme l'enseigne — sur un téléphone partagé, c'est ce qui dit de
+          * quelle boutique on tient les comptes — et laisse l'action à droite,
+          * là où elle se trouve sur tous les autres écrans.
+          */}
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="font-titre text-2xl font-extrabold tracking-tight text-heading">
               Bonjour, {user.sellerProfile.businessName || user.name}
             </h1>
-            <p className="text-white/90 text-xs sm:text-sm font-medium mt-1">
-              Gérez vos ventes, générez des liens de paiement sécurisés KOLI et
-              suivez vos livraisons.
+            <p className="mt-0.5 text-sm text-ink-muted">
+              Vos ventes, vos encaissements et vos livraisons.
+              <MentionModeTest> Mode test — aucun paiement réel.</MentionModeTest>
             </p>
           </div>
-          <div className="flex gap-3 relative z-10">
-            <Link
-              href="/vendeur/commandes/nouvelle"
-              className="w-full sm:w-auto min-h-[48px] px-5 rounded-2xl bg-white text-brand hover:bg-brand-soft font-semibold text-xs uppercase tracking-wider shadow-xl shadow-brand/20 transition-all border border-white/30 flex items-center justify-center gap-2 text-center"
-            >
-              <span>+ Créer une commande</span>
-            </Link>
+          <ActionListe
+            href="/vendeur/commandes/nouvelle"
+            icone="nouveau"
+            principal
+          >
+            Créer une commande
+          </ActionListe>
+        </div>
+
+        {/*
+          * ┌────────────────────────────────────────────────────────────────┐
+          * │  TROIS blocs de revenu — ce que vous avez gagné, ce que vous   │
+          * │  gagnez aujourd'hui, ce qui vous attend.                       │
+          * └────────────────────────────────────────────────────────────────┘
+          *
+          * C'est la demande de l'utilisateur, et l'ordre est le sien : total,
+          * jour, en attente. Les trois portent un TON différent — plein,
+          * sombre, clair — comme la maquette de référence : c'est ce qui dit
+          * lequel on regarde en premier.
+          */}
+        {/*
+          * ┌──────────────────────────────────────────────────────────────────┐
+          * │  LES BLOCS À GAUCHE, LA COURBE À DROITE. C'est la maquette de    │
+          * │  référence, et c'est la demande explicite de l'utilisateur.      │
+          * └──────────────────────────────────────────────────────────────────┘
+          *
+          * La colonne de gauche fait un tiers, la courbe deux — elle a besoin
+          * de largeur pour que quatorze jours ne se tassent pas, les blocs ont
+          * besoin de hauteur pour porter un montant en grand.
+          *
+          * Sous `lg:` tout s'empile : trois blocs côte à côte sur un téléphone
+          * donneraient trois colonnes de 100 px pour des montants à six
+          * chiffres, et le §8 interdit que la page déborde pour autant.
+          */}
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_1.9fr]">
+          <div className="grid min-w-0 grid-cols-1 gap-4">
+            {/*
+              * « Revenus totaux » : le NET gagné DEPUIS TOUJOURS — et il ne
+              * baisse JAMAIS.
+              *
+              * ┌────────────────────────────────────────────────────────────┐
+              * │  Ce bloc affichait `soldeDisponible`. Depuis que le        │
+              * │  versement existe, ce solde DIMINUE à chaque paiement du   │
+              * │  vendeur : ses « revenus totaux » reculaient de 50 000     │
+              * │  FCFA le jour où on lui versait 50 000 FCFA.               │
+              * └────────────────────────────────────────────────────────────┘
+              *
+              * Un total de revenus qui baisse quand on vous paie se lit comme
+              * une perte. C'est `verif:parcours` qui l'a fait remonter : la
+              * refonte avait fait disparaître « Solde disponible » du tableau
+              * de bord, alors que c'est la phrase qu'un vendeur cherche après
+              * une vente (§80).
+              *
+              * Le montant est donc le libéré moins la commission — ce que les
+              * versements ne touchent pas —, et le SOLDE DISPONIBLE, lui, est
+              * dit en toutes lettres juste dessous.
+              */}
+            <BlocRevenu
+              ton="marque"
+              libelle="Revenus totaux"
+              montant={formatMontant(
+                Math.max(0, solde.brutLibere - solde.commissionRetenue),
+                devise
+              )}
+              evolution={evolution(sept, septPrecedents)}
+              identifiant="bloc-total"
+              noteForte={`Solde disponible : ${formatMontant(solde.soldeDisponible, devise)}`}
+              note="évolution sur sept jours"
+              serie={net}
+            />
+            <BlocRevenu
+              ton="sombre"
+              libelle="Revenus du jour"
+              montant={formatMontant(revenuDuJour, devise)}
+              evolution={evolution(revenuDuJour, hier)}
+              identifiant="bloc-jour"
+              noteForte="Aujourd&apos;hui"
+              note="comparé à hier"
+              serie={net}
+            />
+            {/*
+              * ⚠ Le troisième n'a NI badge NI courbe, et c'est délibéré.
+              *
+              * L'argent sous séquestre est un ENCOURS, pas un flux : il n'a
+              * pas de « hier ». Lui coller un « +0 % » pour que les trois
+              * cartes se ressemblent affirmerait une stabilité que personne
+              * n'a mesurée.
+              */}
+            <BlocRevenu
+              ton="clair"
+              libelle="Revenus en attente"
+              montant={formatMontant(solde.fondsSecurises, devise)}
+              identifiant="bloc-attente"
+              noteForte="Sous séquestre"
+              note="jusqu'à confirmation de réception"
+            />
+          </div>
+
+          {/*
+           * La courbe — DEUX séries, une seule échelle, deux traits fins.
+           *
+           * « Mis sous séquestre » et « Versé » racontent les deux bouts de la
+           * promesse KOLI : l'argent entre au paiement, il ne repart au vendeur
+           * qu'à la confirmation de réception. L'écart entre les deux courbes
+           * est ce qui dort en attendant — et s'il se creuse, c'est que les
+           * clients ne confirment pas.
+           *
+           * Même monnaie, même ordre de grandeur : un seul axe. La règle du
+           * projet interdit deux ÉCHELLES sur un cadre, pas deux courbes
+           * comparables.
+           *
+           * ⚠ `rounded-2xl` sur CETTE carte n'est pas un choix d'arrondi :
+           * `verif:courbes` remonte de `[data-courbe]` au premier ancêtre dont
+           * la classe le contient, pour y lire le titre et le total. Changer la
+           * classe casserait le contrôle sans toucher à la courbe.
+           */}
+          <div
+            data-carte-courbe=""
+            className="flex min-w-0 flex-col rounded-3xl border border-hairline bg-white p-6 shadow-sm sm:p-7"
+          >
+            <div className="mb-4 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+              <div>
+                <h2 className="font-titre text-lg font-bold text-heading">
+                  Vos encaissements
+                </h2>
+                <p className="text-xs text-ink-muted">
+                  Quatorze derniers jours, net de commission KOLI
+                </p>
+              </div>
+              <span className="text-sm font-bold text-brand">
+                {formatMontant(
+                  courbe.reduce((s, p) => s + p.valeur, 0),
+                  devise,
+                )}{" "}
+                sur la période
+              </span>
+            </div>
+
+            <CourbePerformance
+              devise={devise}
+              points={courbe}
+              couleur={TEINTE_COURBE}
+              libelle="Versé"
+              seconde={{
+                points: courbeSequestre,
+                libelle: "Mis sous séquestre",
+                couleur: TEINTE_COURBE_SECONDE,
+              }}
+            />
           </div>
         </div>
 
         {/*
-         * Les compteurs — `animate-compteur`, repris du vocabulaire de
-         * saspay.me : le chiffre monte de quelques pixels en se révélant.
-         *
-         * Sur le MONTANT, pas sur la carte : c'est la valeur qu'on vient
-         * chercher en ouvrant cette page, et animer le cadre autour d'elle
-         * attirerait l'œil sur le cadre. Le libellé, lui, ne bouge pas — il
-         * doit être lisible avant que le chiffre se pose.
-         */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-hairline/80 dark:border-slate-800 shadow-sm hover:border-amber-400/50 transition-all">
-            <span className="text-[11px] font-semibold text-brand dark:text-amber-400 uppercase tracking-wider block mb-1">
-              Fonds sécurisés (test)
-            </span>
-            <div className="animate-compteur text-2xl font-bold text-brand dark:text-amber-400">
-              {formatMontant(securedAmount, devise)}
-            </div>
-            <p className="text-[11px] text-ink-muted mt-1">
-              En attente de confirmation de réception par le client
+          * L'anneau et le catalogue, sur la ligne d'après — comme la maquette,
+          * qui pose le cercle de pourcentage en bas à droite.
+          *
+          * L'anneau porte la part des commandes MENÉES À TERME : c'est la
+          * seule proportion qui compte vraiment pour un vendeur KOLI — une
+          * commande terminée est une commande dont l'argent a été libéré.
+          */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="flex min-w-0 flex-col items-center justify-center gap-1 rounded-3xl border border-hairline bg-white p-6 shadow-sm">
+            <Anneau
+              part={terminees}
+              total={totalOrdersCount}
+              libelle="Commandes menées à terme"
+            />
+            <p className="text-center text-[11px] text-ink-muted">
+              {terminees} sur {totalOrdersCount}
             </p>
           </div>
 
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-3xl border border-hairline/80 dark:border-slate-800 shadow-sm hover:border-brand-border/50 transition-all">
-            <span className="text-[11px] font-semibold text-brand dark:text-emerald-400 uppercase tracking-wider block mb-1">
-              Solde disponible (test)
+          <div className="flex min-w-0 flex-col justify-center rounded-3xl border border-hairline bg-white p-6 shadow-sm">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">
+              Catalogue
             </span>
-            <div className="animate-compteur text-2xl font-bold text-brand dark:text-emerald-400">
-              {formatMontant(releasedAmount, devise)}
-            </div>
-            <p className="text-[11px] text-ink-muted mt-1">
-              {solde.commissionRetenue > 0
-                ? `Net de ${formatMontant(solde.commissionRetenue, devise)} de commission KOLI`
-                : "Libéré après confirmation de réception par le client"}
-            </p>
-          </div>
-
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-hairline dark:border-slate-800 shadow-sm">
-            <span className="text-xs font-bold text-ink-muted uppercase tracking-wider block mb-1">
-              Total Commandes
-            </span>
-            <div className="animate-compteur text-2xl font-bold text-brand dark:text-white">
-              {totalOrdersCount}
-            </div>
-            <p className="text-[11px] text-ink-muted mt-1">
-              Commandes enregistrées
-            </p>
-          </div>
-
-          <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-hairline dark:border-slate-800 shadow-sm">
-            <span className="text-xs font-bold text-ink-muted uppercase tracking-wider block mb-1">
-              Produits en Catalogue
-            </span>
-            <div className="animate-compteur text-2xl font-bold text-brand dark:text-white">
+            <div className="mt-1 font-titre text-[1.75rem] font-extrabold leading-tight text-heading">
               {productsCount}
             </div>
-            <p className="text-[11px] text-ink-muted mt-1">
-              Articles actifs dans votre stock
+            <p className="mt-1 text-[11px] text-ink-muted">
+              Articles enregistrés, actifs ou retirés
+            </p>
+          </div>
+
+          <div className="flex min-w-0 flex-col justify-center rounded-3xl border border-hairline bg-white p-6 shadow-sm">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-ink-muted">
+              Commandes
+            </span>
+            <div className="mt-1 font-titre text-[1.75rem] font-extrabold leading-tight text-heading">
+              {totalOrdersCount}
+            </div>
+            <p className="mt-1 text-[11px] text-ink-muted">
+              Depuis l&apos;ouverture de votre boutique
             </p>
           </div>
         </div>
 
-        {/*
-         * Courbe des encaissements.
-         *
-         * UNE mesure : ce qui est réellement acquis, net de commission. Le
-         * nombre de commandes est déjà porté par les compteurs au-dessus ;
-         * l'ajouter ici aurait demandé une seconde échelle verticale, et deux
-         * échelles font dire à un graphique ce qu'on veut.
-         */}
-        <div className="rounded-2xl border border-hairline bg-white p-6 shadow-sm">
-          <div className="mb-5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-            <div>
-              <h2 className="text-lg font-bold">Vos encaissements</h2>
-              <p className="text-xs text-ink-muted">
-                Quatorze derniers jours, net de commission KOLI
-              </p>
-            </div>
-            <span className="text-sm font-bold text-brand">
-              {formatMontant(
-                courbe.reduce((s, p) => s + p.valeur, 0),
-                devise,
-              )}{" "}
-              sur la période
-            </span>
-          </div>
-
-          <CourbePerformance
-            devise={devise}
-            points={courbe}
-            couleur={TEINTE_COURBE}
-            libelle="Encaissements nets par jour"
-          />
+        {/* Les commandes récentes, dans le MÊME tableau que l'onglet
+            Commandes : mêmes colonnes, mêmes pastilles, même lecture. Un
+            aperçu qui s'affiche autrement que la liste complète oblige à
+            réapprendre l'écran à chaque fois. */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+          <h2 className="font-titre text-lg font-bold text-heading">
+            Commandes récentes
+          </h2>
+          <ActionListe href="/vendeur/commandes" icone="commandes">
+            Voir toutes les commandes
+          </ActionListe>
         </div>
 
-        {/* Recent Orders Section */}
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-hairline dark:border-slate-800 shadow-sm p-6">
-          <div className="flex flex-wrap justify-between items-center gap-x-4 gap-y-2 mb-6">
-            <div>
-              <h2 className="text-lg font-bold dark:text-white">
-                Commandes récentes
-              </h2>
-              <p className="text-xs text-ink-muted dark:text-slate-400">
-                Suivi des transactions KOLI
-                <MentionModeTest> (mode test)</MentionModeTest>
-              </p>
-            </div>
-            <Link
-              href="/vendeur/commandes"
-              className="inline-flex items-center min-h-[44px] text-xs font-semibold text-brand hover:text-brand-strong"
-            >
-              Voir toutes les commandes →
-            </Link>
-          </div>
-
+        <CarteListe>
           {orders.length === 0 ? (
-            <div className="text-center py-12 border-2 border-dashed border-hairline dark:border-slate-800 rounded-xl">
-              <Icone nom="colis" className="w-9 h-9 mx-auto mb-2 text-brand" />
-              <p className="text-sm font-semibold text-brand dark:text-slate-300">
-                Aucune commande enregistrée pour l&apos;instant
-              </p>
-              <p className="text-xs text-ink-muted mt-1">
-                Créez votre première commande pour générer un lien de paiement
-                KOLI.
-              </p>
-            </div>
+            <ListeVide
+              titre="Aucune commande enregistrée"
+              explication="Créez votre première commande : KOLI génère un lien de paiement à partager, et garde l'argent jusqu'à la réception."
+              action={
+                <ActionListe
+                  href="/vendeur/commandes/nouvelle"
+                  icone="nouveau"
+                  principal
+                >
+                  Créer une commande
+                </ActionListe>
+              }
+            />
           ) : (
-            /* §8 et §68 : sur mobile, les tableaux deviennent des cartes.
-               Le tableau a 5 colonnes demandait ~500px pour une carte de 240px :
-               plus de la moitie de chaque ligne sortait de l'ecran. */
-            <ul className="space-y-3 md:space-y-0 md:divide-y md:divide-hairline md:dark:divide-slate-800/60">
-              {/* En-tetes, uniquement a partir de la tablette. */}
-              <li className="hidden md:grid md:grid-cols-[1.2fr_1.4fr_1fr_1fr_auto] md:gap-4 md:pb-3 border-b border-hairline dark:border-slate-800 text-xs font-bold text-ink-muted dark:text-slate-400 uppercase tracking-wider">
-                <span>Référence</span>
-                <span>Client</span>
-                <span>Statut</span>
-                <span>Montant</span>
-                <span className="text-right">Lien</span>
-              </li>
+            <table className="w-full min-w-[52rem] border-collapse">
+              <caption className="sr-only">
+                Vos six commandes les plus récentes
+              </caption>
+              <EnTeteTableau>
+                <Colonne>Référence</Colonne>
+                <Colonne>Client</Colonne>
+                <Colonne>Statut</Colonne>
+                <Colonne aDroite>Total</Colonne>
+                <Colonne>Créée le</Colonne>
+                <Colonne aDroite>Actions</Colonne>
+              </EnTeteTableau>
 
-              {orders.map((order) => {
-                const totalAmount = order.items.reduce(
-                  (acc, item) => acc + item.unitPrice * item.quantity,
-                  order.deliveryFee,
-                );
+              <tbody>
+                {orders.map((order) => {
+                  const totalAmount = order.items.reduce(
+                    (acc, item) => acc + item.unitPrice * item.quantity,
+                    order.deliveryFee,
+                  );
 
-                return (
-                  <li
-                    key={order.id}
-                    className="rounded-2xl border border-hairline dark:border-slate-800 p-4 md:border-0 md:rounded-none md:p-0 md:py-4 md:grid md:grid-cols-[1.2fr_1.4fr_1fr_1fr_auto] md:gap-4 md:items-center"
-                  >
-                    <div className="flex flex-wrap items-center gap-2 md:block">
-                      <span className="font-mono font-bold text-brand dark:text-emerald-400 break-all">
-                        {order.reference}
-                      </span>
-                      <span
-                        className={`md:hidden inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold ${classesBadgeStatut(order.status)}`}
-                      >
-                        {libelleStatut(order.status)}
-                      </span>
-                    </div>
+                  return (
+                    <LigneTableau key={order.id}>
+                      <Cellule>
+                        <span className="font-mono text-sm font-bold text-brand">
+                          {order.reference}
+                        </span>
+                      </Cellule>
 
-                    <div className="mt-2 md:mt-0 min-w-0">
-                      <span className="block font-medium text-brand dark:text-white break-words">
-                        {order.buyerName}
-                      </span>
-                      <a
-                        href={`tel:${order.buyerPhone.replace(/\s/g, "")}`}
-                        className="inline-flex items-center min-h-[44px] md:min-h-0 text-xs text-ink-muted dark:text-slate-400 whitespace-nowrap hover:text-brand"
-                      >
-                        {order.buyerPhone}
-                      </a>
-                    </div>
+                      <Cellule>
+                        <span className="block font-semibold text-ink">
+                          {order.buyerName}
+                        </span>
+                        {/* Cible tactile de 44 px : c'est un lien `tel:`, et
+                            c'est ainsi qu'on rappelle un client (§74). */}
+                        <a
+                          href={`tel:${order.buyerPhone.replace(/\s/g, "")}`}
+                          className="-my-2 inline-flex min-h-[44px] items-center text-xs text-ink-muted hover:text-brand"
+                        >
+                          {order.buyerPhone}
+                        </a>
+                      </Cellule>
 
-                    <div className="hidden md:block">
-                      <span
-                        className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${classesBadgeStatut(order.status)}`}
-                      >
-                        {libelleStatut(order.status)}
-                      </span>
-                    </div>
+                      <Cellule>
+                        <Pastille classes={classesBadgeStatut(order.status)}>
+                          {libelleStatut(order.status)}
+                        </Pastille>
+                      </Cellule>
 
-                    <div className="flex items-center justify-between gap-2 md:block">
-                      <span className="text-xs text-ink-muted dark:text-slate-400 md:hidden">
-                        Montant
-                      </span>
-                      <span className="font-bold whitespace-nowrap">
-                        {formatMontant(totalAmount, devise)}
-                      </span>
-                    </div>
+                      <Cellule aDroite>
+                        <span className="font-semibold text-ink">
+                          {formatMontant(totalAmount, devise)}
+                        </span>
+                      </Cellule>
 
-                    <div className="mt-3 md:mt-0 md:text-right">
-                      <Link
-                        href={`/pay/${order.reference}`}
-                        aria-label={`Ouvrir le lien de paiement de la commande ${order.reference}`}
-                        className="inline-flex items-center justify-center w-full md:w-auto min-h-[44px] px-3 rounded-lg bg-brand-soft text-brand hover:bg-brand-soft dark:bg-emerald-950/60 dark:text-emerald-300 text-xs font-bold transition-all"
-                      >
-                        <Icone nom="lien" className="w-4 h-4" /> Partager le
-                        lien
-                      </Link>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
+                      <Cellule>
+                        <span className="text-ink-muted">
+                          {JOUR_FR.format(order.createdAt)}
+                        </span>
+                      </Cellule>
+
+                      <Cellule aDroite>
+                        <Link
+                          href={`/pay/${order.reference}`}
+                          aria-label={`Ouvrir le lien de paiement de la commande ${order.reference}`}
+                          title="Lien de paiement"
+                          className="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-brand-soft text-brand transition-colors hover:bg-brand-border"
+                        >
+                          <Icone nom="lien" className="h-4 w-4" />
+                        </Link>
+                      </Cellule>
+                    </LigneTableau>
+                  );
+                })}
+              </tbody>
+            </table>
           )}
-        </div>
+        </CarteListe>
       </main>
     </div>
   );

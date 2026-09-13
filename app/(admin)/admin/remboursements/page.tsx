@@ -7,7 +7,8 @@ import { prisma } from "@/lib/db/prisma";
 import { MenuEspace } from "@/components/ui/MenuEspace";
 import { BarreRecherche } from "@/components/ui/BarreRecherche";
 import { Pagination } from "@/components/ui/Pagination";
-import { formatCFA, pluriel } from "@/lib/format";
+import { formatTotaux, formatMontant, pluriel } from "@/lib/format";
+import { commeDevise, type Devise } from "@/data/markets";
 import { libelleMotif } from "@/lib/disputes/libelles";
 import { TraiterRemboursement } from "@/components/domain/TraiterRemboursement";
 import { Icone } from "@/components/ui/Icone";
@@ -46,7 +47,7 @@ export default async function AdminRemboursementsPage({
       : {}),
   };
 
-  const [remboursements, total, enAttente, volumeAttente] = await Promise.all([
+  const [remboursements, total, enAttente, enAttenteLignes] = await Promise.all([
     prisma.refund.findMany({
       where,
       include: {
@@ -65,14 +66,47 @@ export default async function AdminRemboursementsPage({
     }),
     prisma.refund.count({ where }),
     prisma.refund.count({ where: { status: RefundStatus.PENDING } }),
-    prisma.refund.aggregate({
+    /*
+     * ⚠ On ne peut PAS sommer les remboursements en attente d'un seul coup.
+     *
+     * ┌──────────────────────────────────────────────────────────────────────┐
+     * │  Cet écran agrège TOUS les vendeurs, donc plusieurs monnaies. Un    │
+     * │  `_sum` global additionnait des francs CFA et des francs congolais : │
+     * │  le nombre obtenu ne mesure rien, et il était présenté comme un      │
+     * │  montant.                                                            │
+     * └──────────────────────────────────────────────────────────────────────┘
+     *
+     * On lit donc la devise de chaque commande et on groupe. `groupBy` de
+     * Prisma ne sait pas classer par une colonne d'une AUTRE table — la devise
+     * vit sur `Order`, pas sur `Refund`.
+     *
+     * Charger ces lignes ne contredit pas le §46 : une file d'attente est
+     * bornée par nature — ce sont les remboursements qu'un humain doit
+     * traiter, pas un historique qui grossit sans fin.
+     */
+    prisma.refund.findMany({
       where: { status: RefundStatus.PENDING },
-      _sum: { amount: true },
+      select: { amount: true, order: { select: { currency: true } } },
     }),
   ]);
 
+  /*
+   * `formatTotaux` JUXTAPOSE — « 120 000 FCFA · 4 500 000 FC ». Il n'additionne
+   * pas, et c'est la règle déjà retenue partout ailleurs : une somme entre
+   * monnaies est un nombre qui ne veut rien dire, présenté comme un montant.
+   *
+   * Convertir vers une monnaie de référence serait pire ici : sur un écran de
+   * rapprochement, le chiffre serait vrai à la seconde et faux le lendemain.
+   */
+  const volumeAttente: Partial<Record<Devise, number>> = {};
+  for (const r of enAttenteLignes) {
+    const d = commeDevise(r.order.currency);
+    volumeAttente[d] = (volumeAttente[d] ?? 0) + r.amount;
+  }
+  const volumeAffiche = formatTotaux(volumeAttente);
+
   return (
-    <div className="min-h-screen bg-cream text-ink lg:pl-[var(--largeur-menu)]">
+    <div className="min-h-screen bg-cream text-ink">
       <MenuEspace user={user} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
@@ -86,7 +120,7 @@ export default async function AdminRemboursementsPage({
               "remboursement en attente",
               "remboursements en attente"
             )}
-            {enAttente > 0 && ` · ${formatCFA(volumeAttente._sum.amount ?? 0)}`}
+            {volumeAffiche && ` · ${volumeAffiche}`}
           </p>
         </div>
 
@@ -195,7 +229,7 @@ export default async function AdminRemboursementsPage({
                           Montant
                         </span>
                         <span className="text-base font-semibold">
-                          {formatCFA(r.amount)}
+                          {formatMontant(r.amount, commeDevise(r.order.currency))}
                         </span>
                       </div>
 
@@ -210,6 +244,7 @@ export default async function AdminRemboursementsPage({
                           montant={r.amount}
                           clientNom={r.order.buyerName}
                           articles={articles}
+                          devise={commeDevise(r.order.currency)}
                         />
                       )}
                     </div>

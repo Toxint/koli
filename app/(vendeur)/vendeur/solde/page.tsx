@@ -8,12 +8,38 @@ import { deviseDuVendeur } from "@/data/markets";
 import { chargerSoldeVendeur } from "@/lib/finance/solde";
 import { chargerJournal } from "@/lib/finance/journal";
 import { TableauJournal } from "@/components/domain/TableauJournal";
+import { DemanderVersement } from "@/components/domain/DemanderVersement";
+import {
+  CarteListe,
+  Cellule,
+  Colonne,
+  EnTeteTableau,
+  LigneTableau,
+  Pastille,
+} from "@/components/ui/Liste";
+import { commeDevise } from "@/data/markets";
+import { prisma } from "@/lib/db/prisma";
 import { Icone } from "@/components/ui/Icone";
 import { MentionModeTest } from "@/components/ui/MentionModeTest";
 
 export const metadata: Metadata = { title: "Solde" };
 
 const DERNIERS_MOUVEMENTS = 10;
+const JOUR_FR = new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium" });
+
+const LIBELLE_VERSEMENT: Record<string, string> = {
+  PENDING: "En attente",
+  PAID: "Versé",
+  REJECTED: "Refusé",
+};
+
+/* Les mêmes familles de couleur que partout : ce qui est acquis en violet de
+   la marque, ce qui attend en ambre, ce qui alerte en rouge. */
+const CLASSES_VERSEMENT: Record<string, string> = {
+  PENDING: "bg-gold-soft text-gold-deep",
+  PAID: "bg-brand-soft text-brand",
+  REJECTED: "bg-red-50 text-danger",
+};
 
 export default async function SoldeVendeurPage() {
   const user = await getCurrentUser();
@@ -35,13 +61,20 @@ export default async function SoldeVendeurPage() {
 
   // Le solde vient d'un module partagé avec le tableau de bord (§42) : deux
   // calculs séparés d'un même chiffre finissent toujours par diverger.
-  const [solde, journal] = await Promise.all([
+  const [solde, journal, versements] = await Promise.all([
     chargerSoldeVendeur(sellerId),
     chargerJournal({ sellerId, page: 1, parPage: DERNIERS_MOUVEMENTS }),
+    /* Les versements de CE vendeur, les plus récents d'abord. Bornés : cette
+       liste est un aperçu, pas un historique complet (§46). */
+    prisma.payout.findMany({
+      where: { sellerId },
+      orderBy: { requestedAt: "desc" },
+      take: DERNIERS_MOUVEMENTS,
+    }),
   ]);
 
   return (
-    <div className="min-h-screen bg-cream text-ink lg:pl-[var(--largeur-menu)]">
+    <div className="min-h-screen bg-cream text-ink">
       <MenuEspace
         user={user}
         nomAffiche={user.sellerProfile.businessName || user.name}
@@ -109,21 +142,84 @@ export default async function SoldeVendeurPage() {
           </div>
         </div>
 
-        {/* §43 — l'interface de retrait existe, mais aucun transfert reel. */}
-        <section className="rounded-2xl border border-brand-border bg-brand-soft p-6">
-          <h2 className="text-lg">Retirer mes fonds</h2>
-          <p className="mt-2 text-sm text-ink-muted">
-            Les retraits réels seront disponibles après activation du système de
-            paiement KOLI.
-          </p>
-          <button
-            type="button"
-            disabled
-            className="mt-4 inline-flex items-center justify-center min-h-[48px] px-6 rounded-2xl bg-brand text-white font-semibold text-sm disabled:opacity-50 cursor-not-allowed"
-          >
-            Retirer mes fonds
-          </button>
-        </section>
+        {/*
+          * §43 — le versement EXISTE désormais.
+          *
+          * Ce bloc portait un bouton désactivé et la phrase « les retraits
+          * réels seront disponibles après activation du système de paiement ».
+          * Sur un service dont le sujet est la confiance, c'était le pire
+          * endroit où s'arrêter : un vendeur voyait son solde monter et ne
+          * pouvait pas en sortir l'argent.
+          */}
+        <DemanderVersement
+          versable={solde.versable}
+          enAttente={solde.versementEnAttente}
+          devise={devise}
+        />
+
+        {versements.length > 0 && (
+          <section>
+            <h2 className="mb-3 font-titre text-lg font-bold text-heading">
+              Mes versements
+            </h2>
+            {/* Les versements ont leur propre liste, séparée des mouvements de
+                commande : ils ne passent pas par `Transaction` — `orderId` y
+                est obligatoire, et un versement solde un cumul. */}
+            <CarteListe>
+              <table className="w-full min-w-[44rem] border-collapse">
+                <caption className="sr-only">
+                  Vos demandes de versement, de la plus récente à la plus ancienne
+                </caption>
+                <EnTeteTableau>
+                  <Colonne>Demandé le</Colonne>
+                  <Colonne aDroite>Montant</Colonne>
+                  <Colonne>Numéro</Colonne>
+                  <Colonne>État</Colonne>
+                  <Colonne>Référence</Colonne>
+                </EnTeteTableau>
+                <tbody>
+                  {versements.map((v) => (
+                    <LigneTableau key={v.id}>
+                      <Cellule>
+                        <span className="text-ink-muted">
+                          {JOUR_FR.format(v.requestedAt)}
+                        </span>
+                      </Cellule>
+                      <Cellule aDroite>
+                        <span className="font-semibold text-ink">
+                          {formatMontant(v.amount, commeDevise(v.currency))}
+                        </span>
+                      </Cellule>
+                      <Cellule>
+                        <span className="font-mono text-xs text-ink-muted">
+                          {v.phone}
+                        </span>
+                      </Cellule>
+                      <Cellule>
+                        <Pastille classes={CLASSES_VERSEMENT[v.status]}>
+                          {LIBELLE_VERSEMENT[v.status]}
+                        </Pastille>
+                        {/* Un refus SANS motif est incompréhensible pour celui
+                            qui le reçoit : il ne sait ni pourquoi, ni quoi
+                            corriger. */}
+                        {v.status === "REJECTED" && v.reason && (
+                          <span className="mt-1 block max-w-[18rem] whitespace-normal text-[11px] text-ink-muted">
+                            {v.reason}
+                          </span>
+                        )}
+                      </Cellule>
+                      <Cellule>
+                        <span className="font-mono text-xs text-ink-muted">
+                          {v.providerRef ?? "—"}
+                        </span>
+                      </Cellule>
+                    </LigneTableau>
+                  ))}
+                </tbody>
+              </table>
+            </CarteListe>
+          </section>
+        )}
 
         <section>
           <div className="flex flex-wrap items-center justify-between gap-2 mb-3">

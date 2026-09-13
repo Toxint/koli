@@ -128,6 +128,23 @@ enum TransactionType {
   /// pas le sien — un litige sur la marchandise oppose le client au vendeur et
   /// ne dit rien sur le fait que le colis a été remis.
   DRIVER_PAYOUT
+
+  /// ⚠ IL N'Y A PAS DE `SELLER_PAYOUT` ICI, et c'est un choix.
+  ///
+  /// ┌────────────────────────────────────────────────────────────────────┐
+  /// │  `Transaction.orderId` est OBLIGATOIRE. Un versement au vendeur    │
+  /// │  n'appartient a aucune commande : il solde un cumul.               │
+  /// └────────────────────────────────────────────────────────────────────┘
+  ///
+  /// L'y faire entrer aurait demande de rendre `orderId` nullable — donc de
+  /// desserrer la contrainte qui garantit qu'aucune ligne du grand livre n'est
+  /// orpheline, celle que `verif:schema` verifie. Echanger cette garantie
+  /// contre une commodite d'ecriture serait un mauvais marche : une ligne
+  /// financiere sans rattachement est pire qu'une ligne fausse, elle
+  /// n'apparait plus nulle part.
+  ///
+  /// Le modele `Payout` EST le registre des versements, et
+  /// `chargerSoldeVendeur` l'additionne directement.
 }
 
 enum DeliveryStatus {
@@ -312,6 +329,73 @@ model SellerProfile {
   // §5.3 : « Au debut, chaque vendeur peut utiliser son propre livreur. »
   equipe       SellerDriver[]
   invitations  DriverInvite[]
+  versements   Payout[]
+}
+
+/// Un VERSEMENT au vendeur (§43) — l'argent qui quitte KOLI.
+///
+/// ┌──────────────────────────────────────────────────────────────────────────┐
+/// │  C'est le seul endroit du schema ou de l'argent SORT. Tout le reste     │
+/// │  deplace des soldes a l'interieur de la plateforme.                     │
+/// └──────────────────────────────────────────────────────────────────────────┘
+///
+/// Le vendeur demande, l'administration execute. Deux temps, et c'est
+/// volontaire : iKeePay documente un point d'entree `h2h-payout`, mais il n'a
+/// JAMAIS ete appele. Un versement execute a la main ne peut rien perdre a une
+/// API non eprouvee, et avec quelques vendeurs c'est trivial. L'appel
+/// automatique se branchera derriere la meme abstraction que l'encaissement,
+/// une fois `h2h-payout` exerce pour de vrai.
+model Payout {
+  id       String        @id @default(cuid())
+  sellerId String
+  seller   SellerProfile @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  /// Le montant demande, en entier, dans la devise ci-dessous.
+  amount   Int
+  /// La devise du VERSEMENT, figee a la demande.
+  ///
+  /// Recopiee depuis le vendeur et jamais relue : un vendeur qui changerait de
+  /// monnaie ne doit pas voir ses versements passes se reinterpreter. C'est la
+  /// meme regle que `Transaction.currency`.
+  ///
+  /// ⚠ XOF et XAF s'affichent tous deux « FCFA » et valent exactement la meme
+  /// chose, mais ne sont PAS interchangeables : on ne regle pas un vendeur
+  /// camerounais avec des francs CFA d'Afrique de l'Ouest.
+  currency String
+
+  /// Le numero Mobile Money OU l'argent doit arriver.
+  ///
+  /// Demande a chaque versement plutot que lu sur le compte : c'est la seule
+  /// donnee de la demande qui decide de la DESTINATION de l'argent, et un
+  /// numero change — on en change meme souvent, sur ce marche. Le figer au
+  /// compte ferait partir un versement vers une ligne resiliee, sans que
+  /// personne ne s'en apercoive avant la reclamation.
+  phone    String
+  /// L'operateur, tel que le vendeur le nomme — Wave, Orange Money, MTN…
+  operator String?
+
+  status      PayoutStatus @default(PENDING)
+  /// La reference du transfert chez le prestataire, ou le mode de reglement
+  /// quand il a ete fait a la main. C'est ce qui permet de rapprocher.
+  providerRef String?
+  /// Pourquoi un versement a ete refuse. Un refus sans motif est
+  /// incomprehensible pour celui qui le recoit.
+  reason      String?
+
+  requestedAt DateTime  @default(now())
+  processedAt DateTime?
+  /// QUI a execute. Recopie en clair — le nom survit a la suppression du
+  /// compte administrateur, comme dans le journal d'audit (§48).
+  processedBy String?
+
+  @@index([sellerId, status])
+  @@index([status, requestedAt])
+}
+
+enum PayoutStatus {
+  PENDING
+  PAID
+  REJECTED
 }
 
 model CustomerProfile {

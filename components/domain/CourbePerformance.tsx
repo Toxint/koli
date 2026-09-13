@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, useRef, useState } from "react";
+import { cheminLisse } from "@/lib/finance/lissage";
 import { formatMontant } from "@/lib/format";
 import { type Devise } from "@/data/markets";
 
@@ -23,7 +24,7 @@ export interface PointCourbe {
  * téléphone.
  */
 const L = 640;
-const H = 200;
+const H = 230;
 
 /**
  * Les marges ne sont pas décoratives : elles logent les graduations.
@@ -31,7 +32,7 @@ const H = 200;
  * À gauche, la place des montants ; en bas, celle des dates. Sans elles, le
  * tracé passerait sous les étiquettes, ou les étiquettes sur le tracé.
  */
-const MARGE = { haut: 12, droite: 8, bas: 28, gauche: 46 };
+const MARGE = { haut: 16, droite: 14, bas: 32, gauche: 52 };
 
 const LARGEUR_TRACE = L - MARGE.gauche - MARGE.droite;
 const HAUTEUR_TRACE = H - MARGE.haut - MARGE.bas;
@@ -94,59 +95,6 @@ function court(v: number): string {
 //  Le tracé
 // ═══════════════════════════════════════════════════════════════════════════
 
-/**
- * Courbe lissée passant par tous les points — spline cubique MONOTONE.
- *
- * Le lissage ordinaire (Bézier à tangentes centrées, Catmull-Rom) dépasse : une
- * journée à zéro suivie d'une forte journée fait plonger la courbe SOUS zéro
- * avant de remonter. Sur un graphique d'argent, ce creux inventé se lit comme
- * une perte, et il n'y en a pas eu.
- *
- * Les tangentes de Fritsch–Carlson interdisent ce dépassement : entre deux
- * points, la courbe reste bornée par ces deux points. Elle est donc jolie sans
- * rien affirmer que les données ne portent pas — et les chiffres exacts restent
- * dans le tableau juste en dessous.
- */
-function cheminLisse(pts: { x: number; y: number }[]): string {
-  const n = pts.length;
-  if (n === 0) return "";
-  if (n === 1) return `M ${pts[0].x} ${pts[0].y}`;
-
-  const dx: number[] = [];
-  const pentes: number[] = [];
-  for (let i = 0; i < n - 1; i++) {
-    dx[i] = pts[i + 1].x - pts[i].x;
-    pentes[i] = (pts[i + 1].y - pts[i].y) / dx[i];
-  }
-
-  const tangentes: number[] = new Array(n);
-  tangentes[0] = pentes[0];
-  tangentes[n - 1] = pentes[n - 2];
-
-  for (let i = 1; i < n - 1; i++) {
-    // Changement de sens, ou plateau : tangente horizontale. C'est là que le
-    // lissage naïf inventerait une bosse ou un creux.
-    if (pentes[i - 1] * pentes[i] <= 0) {
-      tangentes[i] = 0;
-      continue;
-    }
-    const p1 = 2 * dx[i] + dx[i - 1];
-    const p2 = dx[i] + 2 * dx[i - 1];
-    tangentes[i] = (p1 + p2) / (p1 / pentes[i - 1] + p2 / pentes[i]);
-  }
-
-  let d = `M ${pts[0].x} ${pts[0].y}`;
-  for (let i = 0; i < n - 1; i++) {
-    const tiers = dx[i] / 3;
-    d +=
-      ` C ${pts[i].x + tiers} ${pts[i].y + tangentes[i] * tiers}` +
-      ` ${pts[i + 1].x - tiers} ${pts[i + 1].y - tangentes[i + 1] * tiers}` +
-      ` ${pts[i + 1].x} ${pts[i + 1].y}`;
-  }
-
-  return d;
-}
-
 // ═══════════════════════════════════════════════════════════════════════════
 
 /**
@@ -176,6 +124,7 @@ export function CourbePerformance({
   devise,
   couleur,
   libelle,
+  seconde,
 }: {
   points: PointCourbe[];
   /**
@@ -196,6 +145,25 @@ export function CourbePerformance({
   couleur: string;
   /** Ce que la courbe mesure — repris dans la description sonore. */
   libelle: string;
+  /**
+   * Une SECONDE série, facultative, sur la MÊME échelle.
+   *
+   * ┌──────────────────────────────────────────────────────────────────────┐
+   * │  « Une courbe porte UNE mesure » interdit deux ÉCHELLES, pas deux    │
+   * │  courbes. Deux montants dans la même monnaie partagent légitimement  │
+   * │  un axe ; un montant et un décompte, non.                            │
+   * └──────────────────────────────────────────────────────────────────────┘
+   *
+   * ⚠ Et la seconde série doit être du MÊME ORDRE DE GRANDEUR que la
+   * première. Sinon l'axe s'étire pour la contenir, et la première se couche
+   * au ras du zéro : le graphique cesse de dire quoi que ce soit de celle
+   * qu'on est venu regarder. `verif:courbes` refuse un plafond au-delà du
+   * double du plus fort jour, et c'est exactement ce qu'il protège.
+   *
+   * Elle n'a ni aire ni point final : elle accompagne la première, elle ne la
+   * concurrence pas.
+   */
+  seconde?: { points: PointCourbe[]; libelle: string; couleur: string };
 }) {
   const id = useId();
   const svgRef = useRef<SVGSVGElement>(null);
@@ -214,7 +182,11 @@ export function CourbePerformance({
    */
   const vide = total === 0;
 
-  const echelle = graduations(Math.max(...valeurs, 0));
+  /* L'échelle tient compte des DEUX séries : bornée sur la seule première, la
+     seconde sortirait du cadre par le haut, coupée net et sans explication. */
+  const echelle = graduations(
+    Math.max(...valeurs, ...(seconde?.points.map((p) => p.valeur) ?? []), 0)
+  );
   const plafond = Math.max(echelle[echelle.length - 1], 1);
 
   const x = (i: number) =>
@@ -227,6 +199,14 @@ export function CourbePerformance({
 
   const sommets = points.map((p, i) => ({ x: x(i), y: y(p.valeur) }));
   const ligne = cheminLisse(sommets);
+
+  /* La seconde série passe par le MÊME lissage — une spline monotone, qui ne
+     dépasse jamais ses propres points. Deux courbes lissées différemment sur
+     un même cadre se compareraient mal : l'œil lirait l'écart entre elles
+     comme une donnée, alors qu'il viendrait du tracé. */
+  const ligneSeconde = seconde
+    ? cheminLisse(seconde.points.map((p, i) => ({ x: x(i), y: y(p.valeur) })))
+    : "";
   const aire = vide
     ? ""
     : `${ligne} L ${x(points.length - 1)} ${base} L ${x(0)} ${base} Z`;
@@ -269,6 +249,32 @@ export function CourbePerformance({
      * première reformulation, en annonçant une régression qui n'existe pas.
      */
     <div data-courbe={libelle}>
+      {/*
+        * La légende — elle n'apparaît QUE s'il y a deux séries.
+        *
+        * Sur une courbe seule, elle répéterait le titre de la carte : deux
+        * fois la même phrase, l'une sous l'autre. À deux séries en revanche
+        * elle devient indispensable — deux traits sans légende, c'est un
+        * dessin dont on ne sait pas ce qu'il montre.
+        */}
+      {seconde && (
+        <ul className="mb-2 flex flex-wrap items-center justify-end gap-x-4 gap-y-1">
+          {[
+            { t: libelle, c: couleur },
+            { t: seconde.libelle, c: seconde.couleur },
+          ].map((s) => (
+            <li key={s.t} className="flex items-center gap-1.5 text-xs text-ink-muted">
+              <span
+                aria-hidden="true"
+                className="h-2 w-2 shrink-0 rounded-full"
+                style={{ backgroundColor: s.c }}
+              />
+              {s.t}
+            </li>
+          ))}
+        </ul>
+      )}
+
       {/*
        * Le cadre du graphique — et RIEN d'autre.
        *
@@ -397,13 +403,36 @@ export function CourbePerformance({
                 stroke={couleur}
                 strokeOpacity="0.13"
                 strokeWidth="1"
+                /* En POINTILLÉ dès qu'il y a deux séries, comme la maquette de
+                   référence. Une grille pleine sous deux traits pleins ajoute
+                   un troisième jeu de lignes continues : l'œil met un instant
+                   à trier ce qui est repère et ce qui est donnée. */
+                strokeDasharray={seconde ? "4 4" : undefined}
                 vectorEffect="non-scaling-stroke"
               />
             )
           )}
 
           <g clipPath={`url(#${id}-revelation)`}>
-            {!vide && (
+            {/*
+              * ⚠ PAS D'AIRE dès qu'il y a deux séries.
+              *
+              * ┌──────────────────────────────────────────────────────────┐
+              * │  « C'est l'AIRE qui porte la courbe, pas le trait » vaut │
+              * │  pour UNE courbe : seule, une ligne fine se lit comme un │
+              * │  fil cerné posé sur du vide.                             │
+              * └──────────────────────────────────────────────────────────┘
+              *
+              * À deux, c'est l'inverse. Une masse remplie sous l'une des
+              * deux la fait paraître principale et l'autre accessoire, alors
+              * qu'on les met côte à côte précisément pour les COMPARER. Et
+              * là où elles se croisent, le remplissage passe par-dessus la
+              * seconde et l'efface.
+              *
+              * Deux traits fins, alors, comme la maquette de référence : ce
+              * qu'on lit est l'écart entre eux, pas le volume sous chacun.
+              */}
+            {!vide && !seconde && (
               <path d={aire} fill={`url(#${id}-aire)`} className="animate-aire" />
             )}
 
@@ -445,11 +474,43 @@ export function CourbePerformance({
                * graphique. Le vert clair d’avant (3,5:1) l’interdisait.
                */
               stroke={couleur}
-              strokeWidth="1.5"
+              strokeWidth="2"
               strokeLinecap="round"
               strokeLinejoin="round"
               vectorEffect="non-scaling-stroke"
             />
+
+            {/* La seconde série : un trait seul, sans aire. Deux
+                remplissages superposés donneraient une teinte composite au
+                croisement, qui n'appartient à aucune des deux. */}
+            {seconde && (
+              <path
+                data-trace="seconde"
+                d={ligneSeconde}
+                fill="none"
+                stroke={seconde.couleur}
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                /*
+                 * PLEINE, comme la maquette — et cela n'a été possible qu'en
+                 * changeant ce qu'elle mesure.
+                 *
+                 * La première version opposait « Encaissé » et « Net pour
+                 * vous » : deux séries qui ne diffèrent que de la commission,
+                 * soit cinq pour cent. À l'échelle du cadre elles se
+                 * touchaient, et il avait fallu pointiller la seconde pour
+                 * qu'on devine qu'il y en avait deux — une rustine sur un
+                 * mauvais choix de mesure.
+                 *
+                 * « Mis sous séquestre » et « Versé » se croisent et
+                 * s'écartent vraiment : l'argent entre au paiement et ne
+                 * repart qu'à la confirmation de réception, des jours plus
+                 * tard. Deux traits pleins suffisent alors à les distinguer.
+                 */
+                vectorEffect="non-scaling-stroke"
+              />
+            )}
           </g>
 
           {/* Le dernier point, toujours marqué : c'est celui qu'on cherche. */}

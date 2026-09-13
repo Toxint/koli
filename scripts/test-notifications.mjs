@@ -223,12 +223,42 @@ let reference;
     )
   )[0].n;
 
-  const pastille = await page.evaluate(() => {
-    const lien = [...document.querySelectorAll("aside a")].find((a) =>
-      /Notifications/.test(a.textContent ?? "")
-    );
-    return lien?.querySelector("span[aria-hidden]")?.textContent?.trim() ?? null;
-  });
+  /*
+   * La cloche se repere par sa DESTINATION, pas par sa balise ni par son texte.
+   *
+   * ┌──────────────────────────────────────────────────────────────────────────┐
+   * │  Il cherchait `aside a` — la colonne laterale, supprimee avec la refonte │
+   * │  — et filtrait sur le TEXTE « Notifications ». La cloche n'en porte pas : │
+   * │  c'est un picto, son nom vit dans `aria-label`.                           │
+   * └──────────────────────────────────────────────────────────────────────────┘
+   *
+   * Deux dependances au balisage, donc, et le controle rendait « affiche :
+   * null » — ce qui se lit « la pastille manque » alors qu'elle etait la. Un
+   * echec qui accuse le mauvais coupable coute le temps qu'il pretend faire
+   * gagner.
+   *
+   * `href="/notifications"` ne changera pas sans que la route change, et si la
+   * route change, ce controle DOIT tomber.
+   */
+  /*
+   * ⚠ UNE seule sonde, lue deux fois.
+   *
+   * Les deux controles qui suivent la recopiaient chacun. Quand la barre est
+   * passee a l'horizontale, j'ai corrige la premiere copie et laisse la
+   * seconde chercher `aside a` : le premier controle est repasse au vert et le
+   * second a continue de rendre « null », c'est-a-dire « le compteur n'est pas
+   * le meme ailleurs » — un diagnostic faux, sur un ecran correct.
+   *
+   * Deux copies du meme selecteur divergent toujours, et c'est celle qu'on
+   * regarde le moins qui ment en premier.
+   */
+  const lirePastille = (p) =>
+    p.evaluate(() => {
+      const lien = document.querySelector('header a[href="/notifications"]');
+      return lien?.querySelector("span[aria-hidden]")?.textContent?.trim() ?? null;
+    });
+
+  const pastille = await lirePastille(page);
 
   verifier(
     nonLues > 0 ? pastille !== null : pastille === null,
@@ -238,12 +268,7 @@ let reference;
 
   // Le compteur doit etre juste sur TOUTES les pages, pas seulement l'accueil.
   await page.goto(`${BASE}/vendeur/solde`, { waitUntil: "networkidle" });
-  const pastilleAilleurs = await page.evaluate(() => {
-    const lien = [...document.querySelectorAll("aside a")].find((a) =>
-      /Notifications/.test(a.textContent ?? "")
-    );
-    return lien?.querySelector("span[aria-hidden]")?.textContent?.trim() ?? null;
-  });
+  const pastilleAilleurs = await lirePastille(page);
   verifier(
     pastilleAilleurs === pastille,
     "le compteur est le meme sur une autre page — pas seulement sur l'accueil",

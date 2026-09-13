@@ -6,17 +6,50 @@ import { prisma } from "@/lib/db/prisma";
 import { BarreRecherche } from "@/components/ui/BarreRecherche";
 import { Pagination } from "@/components/ui/Pagination";
 import { MenuEspace } from "@/components/ui/MenuEspace";
-import { formatMontant, pluriel } from "@/lib/format";
+import {
+  ActionListe,
+  CarteListe,
+  Cellule,
+  Colonne,
+  EnTeteListe,
+  EnTeteTableau,
+  LigneTableau,
+  ListeVide,
+  Pastille,
+} from "@/components/ui/Liste";
+import { formatMontant } from "@/lib/format";
 import { deviseDuVendeur } from "@/data/markets";
 import { BoutonStatutProduit } from "@/components/domain/BoutonStatutProduit";
 import { Icone } from "@/components/ui/Icone";
 
 const PAR_PAGE = 20;
+const JOUR_FR = new Intl.DateTimeFormat("fr-FR", { dateStyle: "medium" });
+
+/**
+ * Les colonnes triables — TOUTES celles qui portent un nombre ou un nom.
+ *
+ * Contrairement au total d'une commande, chacune est une vraie colonne en
+ * base : le tri se fait par PostgreSQL, sur la page demandée seulement (§46).
+ * La liste reste une liste blanche : une clef inconnue dans l'adresse retombe
+ * sur la date, sans erreur.
+ */
+const TRIS: Record<string, keyof Prisma.ProductOrderByWithRelationInput> = {
+  nom: "name",
+  prix: "price",
+  stock: "quantity",
+  date: "createdAt",
+};
 
 export default async function CataloguePage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; statut?: string; page?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    statut?: string;
+    page?: string;
+    tri?: string;
+    sens?: string;
+  }>;
 }) {
   const user = await getCurrentUser();
   if (!user || user.role !== "SELLER" || !user.sellerProfile) {
@@ -26,15 +59,22 @@ export default async function CataloguePage({
   /*
    * La devise du vendeur, une fois pour tout l'écran.
    *
-   * Un vendeur a un pays, donc une monnaie ; et depuis que la commande suit
-   * le vendeur et non l'acheteur, TOUTES ses écritures sont dans cette
-   * monnaie. Rien ne se mélange ici — contrairement aux écrans de
-   * l'administration, qui agrègent plusieurs vendeurs.
+   * Un vendeur a une monnaie — celle qu'il a choisie, à défaut celle de son
+   * pays — et TOUS ses prix sont dans cette monnaie. Rien ne se mélange ici,
+   * contrairement aux écrans de l'administration qui agrègent des vendeurs.
    */
   const devise = deviseDuVendeur(user.sellerProfile);
 
-  const { q, statut, page: pageBrute } = await searchParams;
+  const {
+    q,
+    statut,
+    page: pageBrute,
+    tri: triBrut,
+    sens: sensBrut,
+  } = await searchParams;
   const page = Math.max(1, Number(pageBrute) || 1);
+  const tri = triBrut && triBrut in TRIS ? triBrut : "date";
+  const sens: "asc" | "desc" = sensBrut === "asc" ? "asc" : "desc";
 
   // Recherche et pagination en base (§46), comme pour les commandes : un
   // catalogue peut devenir long, on ne le charge jamais en entier.
@@ -52,42 +92,41 @@ export default async function CataloguePage({
       : {}),
   };
 
-  const [produits, total, actifs] = await Promise.all([
+  const [produits, total] = await Promise.all([
     prisma.product.findMany({
       where,
       include: { images: { orderBy: { position: "asc" }, take: 1 } },
-      orderBy: { createdAt: "desc" },
+      /* Départage par identifiant : deux produits au même prix, sans lui,
+         changeraient d'ordre d'une page à l'autre — et l'un d'eux pourrait
+         apparaître deux fois, ou jamais, en parcourant la pagination. */
+      orderBy: [{ [TRIS[tri]]: sens }, { id: "asc" }],
       skip: (page - 1) * PAR_PAGE,
       take: PAR_PAGE,
     }),
     prisma.product.count({ where }),
-    prisma.product.count({
-      where: { sellerId: user.sellerProfile.id, status: "ACTIVE" },
-    }),
   ]);
 
+  const parametres = { q, statut };
+  const chemin = "/vendeur/produits";
+  const colonne = { tri, sens, chemin, parametres };
+
   return (
-    <div className="min-h-screen bg-cream text-ink lg:pl-[var(--largeur-menu)]">
-      <MenuEspace user={user} nomAffiche={user.sellerProfile.businessName || user.name} />
+    <div className="min-h-screen bg-cream text-ink">
+      <MenuEspace
+        user={user}
+        nomAffiche={user.sellerProfile.businessName || user.name}
+      />
 
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              Mon catalogue
-            </h1>
-            <p className="text-xs text-ink-muted mt-1">
-              {pluriel(actifs, "produit")} au catalogue
-            </p>
-          </div>
-
-          <Link
-            href="/vendeur/produits/nouveau"
-            className="min-h-[48px] px-4 rounded-xl bg-brand hover:bg-brand-strong text-white font-bold text-xs shadow-md transition-all flex items-center justify-center gap-2"
-          >
-            <span>+ Ajouter un produit</span>
-          </Link>
-        </div>
+      <main className="mx-auto max-w-[86rem] space-y-4 px-4 py-6 sm:px-6">
+        <EnTeteListe
+          titre="Catalogue"
+          nombre={total}
+          actions={
+            <ActionListe href="/vendeur/produits/nouveau" icone="nouveau" principal>
+              Ajouter un produit
+            </ActionListe>
+          }
+        />
 
         <BarreRecherche
           placeholder="Nom, catégorie ou description…"
@@ -104,135 +143,172 @@ export default async function CataloguePage({
           ]}
         />
 
-        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-hairline dark:border-slate-800 shadow-sm p-6">
+        <CarteListe
+          pagination={
+            <Pagination
+              page={page}
+              total={total}
+              parPage={PAR_PAGE}
+              parametres={parametres}
+              chemin={chemin}
+              nom="produits"
+            />
+          }
+        >
           {produits.length === 0 ? (
-            <div className="text-center py-12">
-              <Icone nom="etiquette" className="w-9 h-9 mx-auto text-brand" />
-              <p className="text-sm font-semibold">
-                {q || statut
+            <ListeVide
+              titre={
+                q || statut
                   ? "Aucun produit ne correspond à cette recherche"
-                  : "Votre catalogue est vide"}
-              </p>
-              {!q && !statut && (
-                <>
-                  <p className="text-xs text-ink-muted mt-2 max-w-sm mx-auto">
-                    Enregistrez vos produits une seule fois : vous les
-                    sélectionnerez ensuite en un geste à chaque commande.
-                  </p>
-                  <Link
-                    href="/vendeur/produits/nouveau"
-                    className="inline-flex items-center justify-center min-h-[44px] px-5 mt-4 rounded-xl bg-brand hover:bg-brand-strong text-white text-xs font-semibold"
-                  >
+                  : "Votre catalogue est vide"
+              }
+              explication={
+                q || statut
+                  ? "Essayez un autre nom ou une autre catégorie, ou retirez le filtre."
+                  : "Enregistrez vos produits une seule fois : vous les sélectionnerez ensuite en un geste à chaque commande."
+              }
+              action={
+                !q && !statut ? (
+                  <ActionListe href="/vendeur/produits/nouveau" icone="nouveau" principal>
                     Ajouter mon premier produit
-                  </Link>
-                </>
-              )}
-            </div>
+                  </ActionListe>
+                ) : undefined
+              }
+            />
           ) : (
-            /* Cartes et non tableau : a 390px, cinq colonnes deviennent
-               illisibles ou debordent horizontalement. */
-            <div className="space-y-4 divide-y divide-hairline dark:divide-slate-800">
-              {produits.map((produit) => {
-                const image = produit.images[0];
-                const rupture = produit.quantity === 0;
+            <table className="w-full min-w-[52rem] border-collapse">
+              <caption className="sr-only">Les produits de votre catalogue</caption>
+              <EnTeteTableau>
+                <Colonne cle="nom" {...colonne}>
+                  Produit
+                </Colonne>
+                <Colonne cle="prix" aDroite {...colonne}>
+                  Prix
+                </Colonne>
+                <Colonne cle="stock" aDroite {...colonne}>
+                  Stock
+                </Colonne>
+                <Colonne>Statut</Colonne>
+                <Colonne cle="date" {...colonne}>
+                  Ajouté le
+                </Colonne>
+                <Colonne aDroite>Actions</Colonne>
+              </EnTeteTableau>
 
-                return (
-                  <div
-                    key={produit.id}
-                    /* `items-stretch` sous sm : `items-start` dimensionne chaque
-                       colonne sur son contenu maximal, ce qui fait deborder la
-                       page des qu'un libelle est long. */
-                    className="pt-4 first:pt-0 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-4"
-                  >
-                    <div className="flex gap-3 min-w-0">
-                      {image ? (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img
-                          src={image.url}
-                          alt=""
-                          className="w-14 h-14 rounded-xl object-cover border border-hairline shrink-0"
-                        />
-                      ) : (
-                        <div
-                          aria-hidden="true"
-                          className="w-14 h-14 rounded-xl bg-brand-soft flex items-center justify-center text-xl shrink-0"
-                        >
-                          <Icone nom="etiquette" className="w-9 h-9 mx-auto text-brand" />
-                        </div>
-                      )}
+              <tbody>
+                {produits.map((produit) => {
+                  const image = produit.images[0];
+                  const retire = produit.status !== "ACTIVE";
+                  const rupture = produit.quantity === 0;
 
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <h3 className="font-semibold text-base break-words">
-                            {produit.name}
-                          </h3>
-                          {produit.status !== "ACTIVE" && (
-                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-hairline text-ink-muted">
-                              Retiré
+                  return (
+                    <LigneTableau key={produit.id}>
+                      <Cellule>
+                        <div className="flex items-center gap-3">
+                          {image ? (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img
+                              src={image.url}
+                              alt=""
+                              className="h-10 w-10 shrink-0 rounded-lg border border-hairline object-cover"
+                            />
+                          ) : (
+                            <span
+                              aria-hidden="true"
+                              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-brand-soft text-brand"
+                            >
+                              <Icone nom="etiquette" className="h-5 w-5" />
                             </span>
                           )}
-                          {rupture && produit.status === "ACTIVE" && (
-                            <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-red-50 text-danger">
-                              Rupture de stock
+                          {/* `whitespace-normal` + borne : un nom de produit
+                              long passe à la ligne DANS sa cellule au lieu
+                              d'élargir tout le tableau. */}
+                          <span className="min-w-0 max-w-[18rem] whitespace-normal">
+                            <span className="block font-semibold text-ink">
+                              {produit.name}
                             </span>
-                          )}
+                            {produit.category && (
+                              <span className="block text-xs text-ink-muted">
+                                {produit.category}
+                                {produit.weightKg ? ` · ${produit.weightKg} kg` : ""}
+                              </span>
+                            )}
+                          </span>
                         </div>
+                      </Cellule>
 
-                        {produit.category && (
-                          <p className="text-xs text-ink-muted mt-0.5">
-                            {produit.category}
-                          </p>
-                        )}
-                        <p className="text-xs text-ink-muted mt-0.5">
-                          Stock : {produit.quantity}
-                          {produit.weightKg ? ` · ${produit.weightKg} kg` : ""}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Prix a gauche, actions groupees a droite : si la place
-                        manque, c'est le GROUPE de boutons qui passe a la ligne
-                        d'un bloc, au lieu de se disloquer bouton par bouton. */}
-                    <div className="flex flex-wrap items-center justify-between sm:justify-end gap-x-4 gap-y-2 shrink-0">
-                      <div className="text-left sm:text-right">
-                        <span className="text-xs text-ink-muted block">
-                          Prix
-                        </span>
-                        <span className="text-base font-semibold">
+                      <Cellule aDroite>
+                        <span className="font-semibold text-ink">
                           {formatMontant(produit.price, devise)}
                         </span>
-                      </div>
+                      </Cellule>
 
-                      <div className="flex items-center gap-2">
-                        <Link
-                          href={`/vendeur/produits/${produit.id}`}
-                          aria-label={`Modifier ${produit.name}`}
-                          className="inline-flex items-center justify-center min-h-[44px] px-3 rounded-lg bg-brand-soft text-brand hover:bg-brand-soft dark:bg-emerald-950/60 dark:text-emerald-300 text-xs font-bold transition-all"
+                      {/*
+                        * Le stock porte `data-stock` : c'est ce que lit
+                        * `verif:catalogue` pour éprouver le décompte au
+                        * paiement (§17). Il lisait « Stock : 4 » dans le
+                        * texte de la page — une tournure de la mise en page
+                        * en cartes, que le tableau a remplacée par un
+                        * en-tête de colonne.
+                        */}
+                      <Cellule aDroite>
+                        <span
+                          data-stock={produit.quantity}
+                          className={rupture ? "font-semibold text-danger" : "text-ink"}
                         >
-                          Modifier
-                        </Link>
+                          {produit.quantity}
+                        </span>
+                      </Cellule>
 
-                        <BoutonStatutProduit
-                          produitId={produit.id}
-                          nom={produit.name}
-                          statut={produit.status}
-                        />
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                      {/*
+                        * UN statut par ligne, et le plus utile gagne.
+                        *
+                        * « Retiré » l'emporte sur « Rupture » : un produit
+                        * retiré n'est proposé à personne, que son stock soit
+                        * vide ou non. Afficher les deux ferait croire qu'il
+                        * faut réapprovisionner un article qu'on a choisi de ne
+                        * plus vendre.
+                        */}
+                      <Cellule>
+                        {retire ? (
+                          <Pastille classes="bg-hairline text-ink-muted">Retiré</Pastille>
+                        ) : rupture ? (
+                          <Pastille classes="bg-red-50 text-danger">Rupture de stock</Pastille>
+                        ) : (
+                          <Pastille classes="bg-brand-soft text-brand">Au catalogue</Pastille>
+                        )}
+                      </Cellule>
+
+                      <Cellule>
+                        <span className="text-ink-muted">
+                          {JOUR_FR.format(produit.createdAt)}
+                        </span>
+                      </Cellule>
+
+                      <Cellule aDroite>
+                        <div className="flex items-center justify-end gap-1">
+                          <Link
+                            href={`/vendeur/produits/${produit.id}`}
+                            aria-label={`Modifier ${produit.name}`}
+                            title="Modifier"
+                            className="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-brand-soft text-brand transition-colors hover:bg-brand-border"
+                          >
+                            <Icone nom="crayon" className="h-4 w-4" />
+                          </Link>
+                          <BoutonStatutProduit
+                            produitId={produit.id}
+                            nom={produit.name}
+                            statut={produit.status}
+                          />
+                        </div>
+                      </Cellule>
+                    </LigneTableau>
+                  );
+                })}
+              </tbody>
+            </table>
           )}
-
-          <Pagination
-            page={page}
-            total={total}
-            parPage={PAR_PAGE}
-            parametres={{ q, statut }}
-            chemin="/vendeur/produits"
-          />
-        </div>
+        </CarteListe>
       </main>
     </div>
   );

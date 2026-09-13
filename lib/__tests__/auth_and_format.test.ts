@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { formatCFA, isValidLocalPhone } from "../format";
+import { formatMontant, isValidLocalPhone } from "../format";
 import { hashPassword, verifyPassword } from "../auth/password";
 import { encryptSession, decryptSession } from "../auth/session";
 import { UserRole } from "@prisma/client";
@@ -9,13 +9,13 @@ describe("Formatting Utils", () => {
     // Espace fine insecable (U+202F) entre les milliers, espace insecable
     // (U+00A0) avant l'unite : un montant ne doit jamais se couper en fin de
     // ligne sur un ecran etroit.
-    expect(formatCFA(18500)).toBe("18 500 FCFA");
-    expect(formatCFA(1000000)).toBe("1 000 000 FCFA");
-    expect(formatCFA(500)).toBe("500 FCFA");
+    expect(formatMontant(18500, "XOF")).toBe("18 500 FCFA");
+    expect(formatMontant(1000000, "XOF")).toBe("1 000 000 FCFA");
+    expect(formatMontant(500, "XOF")).toBe("500 FCFA");
   });
 
   it("n'utilise aucune espace secable dans un montant", () => {
-    expect(formatCFA(1250000)).not.toMatch(/ /);
+    expect(formatMontant(1250000, "XOF")).not.toMatch(/ /);
   });
 
   it("validates local phone numbers", () => {

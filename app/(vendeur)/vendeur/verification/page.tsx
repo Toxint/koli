@@ -45,7 +45,7 @@ export default async function PageVerificationVendeur() {
   if (!dossier) redirect("/vendeur/dashboard");
 
   return (
-    <div className="min-h-screen bg-cream text-ink lg:pl-[var(--largeur-menu)]">
+    <div className="min-h-screen bg-cream text-ink">
       <MenuEspace user={user} nomAffiche={user.sellerProfile.businessName} />
 
       <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">

@@ -246,15 +246,41 @@ if (reference) {
   await pagePaiement.close();
 }
 
+/*
+ * Le stock du produit du parcours, lu dans SA ligne.
+ *
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │  Ce controle cherchait « Stock : 4 » dans le texte de la page — une      │
+ * │  tournure de l'ancienne mise en page en cartes. Le catalogue est devenu  │
+ * │  un tableau : « Stock » est un EN-TETE, et la cellule ne porte que « 4 ».│
+ * └──────────────────────────────────────────────────────────────────────────┘
+ *
+ * La nouvelle lecture est plus juste que l'ancienne, pas seulement adaptee :
+ * la regex prenait le PREMIER « Stock : N » de la page, quel que soit le
+ * produit. Si la recherche avait rendu deux lignes, elle aurait lu le stock
+ * de l'autre — et un decompte faux serait passe pour juste.
+ *
+ * On cherche donc la ligne qui NOMME le produit, et on y lit `data-stock`.
+ */
+const stockDe = async (nom) =>
+  page.evaluate((n) => {
+    for (const tr of document.querySelectorAll("tbody tr")) {
+      if (!tr.innerText.includes(n)) continue;
+      const s = tr.querySelector("[data-stock]");
+      return s ? Number(s.getAttribute("data-stock")) : null;
+    }
+    return null;
+  }, nom);
+
 // Le stock ne doit PAS avoir bouge : la commande n'est pas payee.
 await page.goto(`${BASE}/vendeur/produits?q=${encodeURIComponent(PRODUIT)}`, {
   waitUntil: "networkidle",
 });
-texte = await page.evaluate(() => document.body.innerText);
+const stockAvant = await stockDe(PRODUIT);
 verifier(
-  /Stock\s*:\s*4/.test(texte),
+  stockAvant === 4,
   "un lien de paiement non regle n'immobilise pas le stock",
-  texte.match(/Stock\s*:\s*\d+/)?.[0] ?? "stock illisible"
+  stockAvant === null ? "ligne du produit introuvable" : `stock lu : ${stockAvant}`
 );
 
 // Paiement, puis re-verification du stock.
@@ -273,11 +299,11 @@ if (reference) {
   await page.goto(`${BASE}/vendeur/produits?q=${encodeURIComponent(PRODUIT)}`, {
     waitUntil: "networkidle",
   });
-  texte = await page.evaluate(() => document.body.innerText);
+  const stockApres = await stockDe(PRODUIT);
   verifier(
-    /Stock\s*:\s*2/.test(texte),
+    stockApres === 2,
     "le stock est decompte au paiement (4 - 2 = 2)",
-    texte.match(/Stock\s*:\s*\d+/)?.[0] ?? "stock illisible"
+    stockApres === null ? "ligne du produit introuvable" : `stock lu : ${stockApres}`
   );
 }
 

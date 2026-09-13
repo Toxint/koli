@@ -58,7 +58,7 @@ export default async function DriverDashboardPage() {
   });
 
   return (
-    <div className="min-h-screen bg-cream text-ink lg:pl-[var(--largeur-menu)]">
+    <div className="min-h-screen bg-cream text-ink">
       <MenuEspace user={user} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-fade-in">
@@ -196,7 +196,7 @@ export default async function DriverDashboardPage() {
           {/* Courbe des revenus. UNE mesure : ce qui lui revient. Le nombre de
               courses est deja porte par les compteurs ci-dessus — l ajouter ici
               aurait demande une seconde echelle verticale. */}
-          <div className="carte-koli rounded-2xl bg-white p-6">
+          <div data-carte-courbe="" className="carte-koli rounded-3xl bg-white p-6">
             <div className="mb-5 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
               <div>
                 <h3 className="text-base font-bold">Vos revenus, jour par jour</h3>

@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { trancherLitigeAction } from "@/lib/disputes/actions";
-import { formatCFA } from "@/lib/format";
+import { formatMontant } from "@/lib/format";
+import { type Devise } from "@/data/markets";
 import { Icone } from "@/components/ui/Icone";
 
 /**
@@ -18,12 +19,22 @@ export function ArbitrageLitige({
   reference,
   montantVendeur,
   montantClient,
+  devise,
 }: {
   reference: string;
   /** Ce que toucherait le vendeur : les articles, hors livraison. */
   montantVendeur: number;
   /** Ce que serait remboursé au client : articles + livraison. */
   montantClient: number;
+  /**
+   * La monnaie de la COMMANDE en litige.
+   *
+   * C'est le seul endroit de KOLI où une personne décide seule du sort d'un
+   * montant séquestré, et elle décide à partir de ces deux chiffres. Ils
+   * s'écrivaient en francs CFA quelle que soit la commande — un arbitrage
+   * rendu sur une somme fausse, et qui ne se rejoue pas.
+   */
+  devise: Devise;
 }) {
   const router = useRouter();
   const [decision, setDecision] = useState<string | null>(null);
@@ -49,12 +60,12 @@ export function ArbitrageLitige({
     {
       valeur: "SELLER_WINS",
       titre: "En faveur du vendeur",
-      effet: `Les fonds sont versés au vendeur : ${formatCFA(montantVendeur)}.`,
+      effet: `Les fonds sont versés au vendeur : ${formatMontant(montantVendeur, devise)}.`,
     },
     {
       valeur: "CUSTOMER_WINS",
       titre: "En faveur du client",
-      effet: `Un remboursement de ${formatCFA(montantClient)} est enclenché.`,
+      effet: `Un remboursement de ${formatMontant(montantClient, devise)} est enclenché.`,
     },
   ];
 

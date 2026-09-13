@@ -1,5 +1,56 @@
-import { PaymentStatus, OrderStatus } from "@prisma/client";
+import { PaymentStatus, OrderStatus, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
+import { commeDevise, type Devise } from "@/data/markets";
+
+/**
+ * Un montant qui ne peut PAS être un seul nombre.
+ *
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │  Ces écrans agrègent TOUS les vendeurs, donc plusieurs monnaies. Une     │
+ * │  somme entre elles n'est pas mal étiquetée — elle n'existe pas.          │
+ * └──────────────────────────────────────────────────────────────────────────┘
+ *
+ * Le tableau de bord additionnait des francs CFA et des francs congolais, et
+ * présentait le résultat comme un montant. `formatTotaux` les JUXTAPOSE à
+ * l'affichage — « 120 000 FCFA · 4 500 000 FC ».
+ *
+ * Convertir vers une monnaie de référence serait pire ici : sur un écran de
+ * rapprochement comptable, le chiffre serait vrai à la seconde et faux le
+ * lendemain, sans que rien ne le date.
+ */
+export type MontantParDevise = Partial<Record<Devise, number>>;
+
+/**
+ * Somme groupée par la devise de la COMMANDE, calculée en base.
+ *
+ * `Payment`, `Fund` et `Refund` ne portent pas de devise : elle vit sur
+ * `Order`. Or `groupBy` de Prisma ne sait pas classer par une colonne d'une
+ * autre table — il faut une jointure, donc du SQL.
+ *
+ * ⚠ **On ne charge pas les lignes pour les additionner en mémoire.** Ces
+ * requêtes portent sur l'intégralité de la plateforme ; le §46 l'interdit, et
+ * c'est exactement ce que `GROUP BY` fait à notre place.
+ *
+ * ⚠ **Les identifiants sont GUILLEMETÉS.** PostgreSQL replie en minuscules
+ * tout identifiant nu : `FROM Order` y chercherait une table `order`, qui de
+ * surcroît est un mot réservé.
+ *
+ * ⚠ **`SUM()` sur un entier rend un `bigint`**, que le pilote restitue en
+ * `BigInt`. Sans la conversion, l'arithmétique d'affichage lèverait
+ * « Cannot mix BigInt and other types ».
+ */
+async function sommeParDevise(requete: Prisma.Sql): Promise<MontantParDevise> {
+  const lignes =
+    await prisma.$queryRaw<{ devise: string; total: bigint | null }[]>(requete);
+
+  const parDevise: MontantParDevise = {};
+  for (const l of lignes) {
+    if (l.total === null) continue;
+    const d = commeDevise(l.devise);
+    parDevise[d] = (parDevise[d] ?? 0) + Number(l.total);
+  }
+  return parDevise;
+}
 
 /**
  * Agregats du tableau de bord administrateur (§34).
@@ -37,11 +88,11 @@ export interface StatistiquesAdmin {
     reussis: number;
     enAttente: number;
     echoues: number;
-    volumeEncaisse: number;
+    volumeEncaisse: MontantParDevise;
   };
   fonds: {
-    sequestre: number;
-    libere: number;
+    sequestre: MontantParDevise;
+    libere: MontantParDevise;
   };
   litiges: {
     ouverts: number;
@@ -50,7 +101,7 @@ export interface StatistiquesAdmin {
   remboursements: {
     enAttente: number;
     total: number;
-    volume: number;
+    volume: MontantParDevise;
   };
   commission: {
     tauxActif: number | null;
@@ -61,7 +112,7 @@ export interface StatistiquesAdmin {
      * liberes, faute de prelevement effectif : le tableau de bord annoncait
      * une recette que la plateforme n'avait jamais encaissee.
      */
-    prelevee: number;
+    prelevee: MontantParDevise;
     /** Nombre de prelevements inscrits au journal. */
     nombrePrelevements: number;
   };
@@ -111,29 +162,35 @@ export async function chargerStatistiquesAdmin(): Promise<StatistiquesAdmin> {
     prisma.payment.count({ where: { status: PaymentStatus.SUCCEEDED } }),
     prisma.payment.count({ where: { status: PaymentStatus.PENDING } }),
     prisma.payment.count({ where: { status: PaymentStatus.FAILED } }),
-    prisma.payment.aggregate({
-      where: { status: PaymentStatus.SUCCEEDED },
-      _sum: { amount: true },
-    }),
+    sommeParDevise(Prisma.sql`
+      SELECT o.currency AS devise, SUM(p.amount) AS total
+        FROM "Payment" p JOIN "Order" o ON o.id = p."orderId"
+       WHERE p.status = 'SUCCEEDED'
+       GROUP BY o.currency`),
 
     // `released` ne remet pas `secured` a false : sans le filtre
     // `released: false`, les fonds deja verses resteraient comptes comme
     // sequestres et l'engagement de la plateforme serait surevalue.
-    prisma.fund.aggregate({
-      where: { secured: true, released: false },
-      _sum: { amount: true },
-    }),
-    prisma.fund.aggregate({
-      where: { released: true },
-      _sum: { amount: true },
-    }),
+    sommeParDevise(Prisma.sql`
+      SELECT o.currency AS devise, SUM(f.amount) AS total
+        FROM "Fund" f JOIN "Order" o ON o.id = f."orderId"
+       WHERE f.secured = true AND f.released = false
+       GROUP BY o.currency`),
+    sommeParDevise(Prisma.sql`
+      SELECT o.currency AS devise, SUM(f.amount) AS total
+        FROM "Fund" f JOIN "Order" o ON o.id = f."orderId"
+       WHERE f.released = true
+       GROUP BY o.currency`),
 
     prisma.dispute.count({ where: { status: "OPEN" } }),
     prisma.dispute.count(),
 
     prisma.refund.count({ where: { status: "PENDING" } }),
     prisma.refund.count(),
-    prisma.refund.aggregate({ _sum: { amount: true } }),
+    sommeParDevise(Prisma.sql`
+      SELECT o.currency AS devise, SUM(r.amount) AS total
+        FROM "Refund" r JOIN "Order" o ON o.id = r."orderId"
+       GROUP BY o.currency`),
 
     prisma.commission.findFirst({
       where: { isActive: true },
@@ -141,15 +198,29 @@ export async function chargerStatistiquesAdmin(): Promise<StatistiquesAdmin> {
       select: { ratePercent: true },
     }),
 
-    prisma.transaction.aggregate({
+    /* `Transaction` porte SA PROPRE devise — recopiée depuis la commande à
+       l'écriture, précisément pour qu'un regroupement comme celui-ci soit
+       possible sans jointure. `groupBy` suffit donc ici. */
+    prisma.transaction.groupBy({
+      by: ["currency"],
       where: { type: "COMMISSION" },
       _sum: { amount: true },
       _count: { _all: true },
     }),
   ]);
 
-  const montantLibere = libere._sum.amount ?? 0;
   const taux = commissionActive?.ratePercent ?? null;
+
+  /* La commission s'écrit en NÉGATIF au journal (`preleverCommission`). Ce
+     qu'on affiche est ce que la plateforme a encaissé : sa valeur absolue. */
+  const commissionParDevise: MontantParDevise = {};
+  let nombrePrelevements = 0;
+  for (const l of commissionPrelevee) {
+    const d = commeDevise(l.currency);
+    commissionParDevise[d] =
+      (commissionParDevise[d] ?? 0) + Math.abs(l._sum.amount ?? 0);
+    nombrePrelevements += l._count._all;
+  }
 
   return {
     utilisateurs: { total, vendeurs, livreurs, clients, suspendus },
@@ -165,24 +236,19 @@ export async function chargerStatistiquesAdmin(): Promise<StatistiquesAdmin> {
       reussis: paiementsReussis,
       enAttente: paiementsEnAttente,
       echoues: paiementsEchoues,
-      volumeEncaisse: volumeEncaisse._sum.amount ?? 0,
+      volumeEncaisse,
     },
-    fonds: {
-      sequestre: sequestre._sum.amount ?? 0,
-      libere: montantLibere,
-    },
+    fonds: { sequestre, libere },
     litiges: { ouverts: litigesOuverts, total: litigesTotal },
     remboursements: {
       enAttente: remboursementsEnAttente,
       total: remboursementsTotal,
-      volume: volumeRembourse._sum.amount ?? 0,
+      volume: volumeRembourse,
     },
     commission: {
       tauxActif: taux,
-      // Les ecritures COMMISSION sont negatives (debit du point de vue du
-      // vendeur) : on les repasse en positif pour l'affichage.
-      prelevee: Math.abs(commissionPrelevee._sum.amount ?? 0),
-      nombrePrelevements: commissionPrelevee._count._all,
+      prelevee: commissionParDevise,
+      nombrePrelevements,
     },
   };
 }

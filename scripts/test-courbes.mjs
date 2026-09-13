@@ -121,12 +121,30 @@ const connecter = async (page, identifiant) => {
     .catch(() => {});
 };
 
-/** La carte qui porte la courbe, titre et total compris. */
+/**
+ * La carte qui porte la courbe, titre et total compris.
+ *
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │  Elle se designait par sa CLASSE :                                       │
+ * │  `ancestor::div[contains(@class,"rounded-2xl")][1]`.                     │
+ * └──────────────────────────────────────────────────────────────────────────┘
+ *
+ * Un arrondi n'est pas un contrat. Passer la carte de `rounded-2xl` a
+ * `rounded-3xl` — une retouche purement visuelle — faisait viser l'ancetre
+ * suivant, ou rien du tout ; et le controle annoncait alors « le total ne dit
+ * pas ce que porte le registre » sur une carte parfaitement juste.
+ *
+ * La page d'origine portait meme un commentaire pour prevenir du piege, ce qui
+ * est l'aveu qu'il en etait un : un repere qu'il faut se rappeler de ne pas
+ * toucher finira par etre touche.
+ *
+ * `data-carte-courbe` ne sert qu'a ca, et le dit.
+ */
 const carteDe = (page) =>
   page
     .locator("[data-courbe]")
     .first()
-    .locator('xpath=ancestor::div[contains(@class,"rounded-2xl")][1]');
+    .locator("xpath=ancestor::div[@data-carte-courbe][1]");
 
 const totalAffiche = async (carte) => {
   const m = (await carte.innerText()).match(
@@ -265,7 +283,35 @@ try {
 
   const attendue = serieAttendue(ecritures);
   const totalAttendu = attendue.reduce((s, v) => s + v, 0);
-  const maxAttendu = Math.max(...attendue);
+
+  /*
+   * ⚠ L'echelle borne DEUX series depuis la refonte du tableau de bord.
+   *
+   * ┌──────────────────────────────────────────────────────────────────────┐
+   * │  La courbe porte « Verse » (net libere) ET « Mis sous sequestre » —  │
+   * │  deux montants du meme commerce, dans la meme monnaie, donc sur le   │
+   * │  meme axe. Le plafond se regle sur le plus haut des DEUX.            │
+   * └──────────────────────────────────────────────────────────────────────┘
+   *
+   * Borne sur le seul net, ce controle refuserait une echelle parfaitement
+   * correcte des que le sequestre d'une journee depasse la libration la plus
+   * forte — ce qui est le cas ordinaire, l'argent entrant avant de repartir.
+   *
+   * Ce qu'il continue de protéger n'a PAS changé : un axe deux fois trop haut
+   * ecrase les courbes au ras du zero et fait paraitre nulle une bonne
+   * quinzaine. On ne relache pas la borne, on lui donne la bonne reference.
+   */
+  const sequestres = await lire(
+    `SELECT f.amount, f."securedAt" AS "createdAt"
+       FROM "Fund" f
+      WHERE f."sellerId" = ? AND f.secured = true AND f."securedAt" IS NOT NULL`,
+    vendeur.id
+  );
+  const attendueSequestre = serieAttendue(
+    sequestres.map((f) => ({ ...f, type: "FUNDS_RELEASED" }))
+  );
+
+  const maxAttendu = Math.max(...attendue, ...attendueSequestre);
 
   const ctxV = await navigateur.newContext({
     viewport: { width: 1280, height: 900 },

@@ -232,6 +232,7 @@ export default async function PageFacture({
           reference={facture.referenceCommande}
           total={facture.total}
           vendeur={facture.vendeur}
+          devise={devise}
         />
       </div>
     </main>

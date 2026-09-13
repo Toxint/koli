@@ -56,7 +56,10 @@ export type NomIcone =
   | "recherche"
   | "plus"
   | "fleche-droite"
-  | "fermer";
+  | "fermer"
+  // Actions de liste
+  | "crayon"
+  | "whatsapp";
 
 const CHEMINS: Record<NomIcone, string> = {
   // ── Navigation ────────────────────────────────────────
@@ -132,6 +135,26 @@ const CHEMINS: Record<NomIcone, string> = {
   plus: "M12 5v14M5 12h14",
   "fleche-droite": "M5 12h14M13 6l6 6-6 6",
   fermer: "M6 6l12 12M18 6L6 18",
+
+  // ── Actions de liste ──────────────────────────────────
+  // Le crayon de « Modifier » : dans une colonne d'actions, un bouton-icône
+  // tient la ligne là où un libellé la ferait passer à deux hauteurs. Son
+  // nom accessible porte le mot, et le nom du produit (`aria-label`).
+  crayon: "M4 20h4L18.5 9.5a2.1 2.1 0 00-3-3L5 17v3zM13.5 6.5l3 3",
+
+  /*
+   * WhatsApp — la bulle et le combiné, au trait, dans la grille 24×24.
+   *
+   * Redessinée à la main comme le reste du jeu, et non reprise de leur SVG
+   * officiel : celui-ci est une marque déposée, fournie en aplat vert, et il
+   * n'hériterait ni de `currentColor` ni de la graisse commune. Elle jurerait
+   * à côté des vingt-huit autres.
+   *
+   * La queue de bulle pointe en BAS À GAUCHE, comme la vraie : c'est ce
+   * détail, plus que la forme du combiné, qui la fait reconnaître à 16 px.
+   */
+  whatsapp:
+    "M20 12a8 8 0 01-11.9 6.96L4 20l1.1-4A8 8 0 1120 12zM9.2 8.6c.3 0 .5.1.6.4l.6 1.4c.1.2 0 .4-.1.6l-.4.5c-.1.2-.2.4 0 .7.5.8 1.2 1.5 2 2 .3.2.5.1.7-.1l.5-.5c.2-.2.4-.2.6-.1l1.4.7c.3.1.4.4.3.7-.2.8-1 1.3-1.8 1.2-2.4-.3-4.6-2.5-4.9-4.9-.1-.8.4-1.6 1.2-1.8z",
 };
 
 export function Icone({

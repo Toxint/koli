@@ -140,10 +140,31 @@ verifier(
   "deux commandes du meme acheteur font UN client, pas deux",
   `${occurrences} occurrence(s)`
 );
+/*
+ * Le nombre de commandes, lu dans SA ligne.
+ *
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │  Ce controle cherchait « 2 commandes » dans le texte de la page — une    │
+ * │  tournure de l'ancienne mise en page en cartes. L'ecran est devenu un    │
+ * │  tableau : « Commandes » est un EN-TETE, la cellule ne porte que « 2 ».  │
+ * └──────────────────────────────────────────────────────────────────────────┘
+ *
+ * Et la nouvelle lecture est plus juste, pas seulement adaptee : la regex
+ * prenait le PREMIER « N commandes » de la page, quel que soit l'acheteur. On
+ * cherche desormais la ligne qui NOMME celui-ci, et on y lit `data-commandes`.
+ */
+const commandesDe = await page.evaluate((nom) => {
+  for (const tr of document.querySelectorAll("tbody tr")) {
+    if (!tr.innerText.includes(nom)) continue;
+    const c = tr.querySelector("[data-commandes]");
+    return c ? Number(c.getAttribute("data-commandes")) : null;
+  }
+  return null;
+}, INVITE.nom);
 verifier(
-  /2 commandes/i.test(texte),
+  commandesDe === 2,
   "le nombre de commandes est exact",
-  texte.match(/\d+ commandes?/)?.[0] ?? "introuvable"
+  commandesDe === null ? "ligne de l'acheteur introuvable" : `lu : ${commandesDe}`
 );
 
 // ── 3. Le total ne compte que ce qui a ete REELLEMENT paye

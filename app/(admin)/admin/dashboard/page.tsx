@@ -2,16 +2,34 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth/actions";
 import { MenuEspace } from "@/components/ui/MenuEspace";
-import { formatCFA, pluriel } from "@/lib/format";
+import { formatTotaux, pluriel } from "@/lib/format";
 import { libelleStatut, classesBadgeStatut } from "@/lib/orders/statusLabels";
 import { Icone } from "@/components/ui/Icone";
 import {
   chargerStatistiquesAdmin,
   chargerActivitesRecentes,
+  type MontantParDevise,
 } from "@/lib/admin/stats";
 import { MentionModeTest } from "@/components/ui/MentionModeTest";
 
 /** Une tuile de chiffre clé. */
+/**
+ * Un montant de l'administration — JUXTAPOSÉ par monnaie, jamais additionné.
+ *
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │  Ces chiffres agrègent TOUS les vendeurs, donc plusieurs pays. Ils      │
+ * │  s'écrivaient en francs CFA, et la somme mêlait des monnaies : le       │
+ * │  nombre affiché ne mesurait rien, et il était présenté comme un montant.│
+ * └──────────────────────────────────────────────────────────────────────────┘
+ *
+ * `formatTotaux` rend « 120 000 FCFA · 4 500 000 FC ». Rien à agréger ⇒ il
+ * rend `null`, et l'on écrit « — » : un tiret se remarque, un « 0 FCFA » dans
+ * une monnaie que personne n'a choisie se croit.
+ */
+function montant(parDevise: MontantParDevise): string {
+  return formatTotaux(parDevise) ?? "—";
+}
+
 function Tuile({
   titre,
   valeur,
@@ -92,7 +110,7 @@ export default async function AdminDashboardPage() {
   });
 
   return (
-    <div className="min-h-screen bg-cream text-ink lg:pl-[var(--largeur-menu)]">
+    <div className="min-h-screen bg-cream text-ink">
       <MenuEspace user={user} />
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -160,17 +178,17 @@ export default async function AdminDashboardPage() {
             />
             <Tuile
               titre="Volume encaissé"
-              valeur={formatCFA(s.paiements.volumeEncaisse)}
+              valeur={montant(s.paiements.volumeEncaisse)}
               detail="Articles + frais de livraison"
             />
             <Tuile
               titre="Fonds séquestrés"
-              valeur={formatCFA(s.fonds.sequestre)}
+              valeur={montant(s.fonds.sequestre)}
               detail="Engagement actuel de la plateforme"
             />
             <Tuile
               titre="Fonds libérés"
-              valeur={formatCFA(s.fonds.libere)}
+              valeur={montant(s.fonds.libere)}
               detail="Versés aux vendeurs après confirmation client"
             />
           </div>
@@ -208,7 +226,7 @@ export default async function AdminDashboardPage() {
               </span>
             </div>
             <p className="text-sm font-semibold mt-2">
-              {formatCFA(s.remboursements.volume)}
+              {montant(s.remboursements.volume)}
             </p>
             {s.remboursements.total === 0 && (
               <p className="text-xs text-ink-muted mt-3">
@@ -240,7 +258,7 @@ export default async function AdminDashboardPage() {
                   <span className="text-xs text-ink-muted">taux en vigueur</span>
                 </div>
                 <p className="text-sm font-semibold mt-2">
-                  {formatCFA(s.commission.prelevee)}
+                  {montant(s.commission.prelevee)}
                 </p>
                 {/* Ce chiffre est désormais lu au journal, et non plus projeté.
                     La distinction compte : la version précédente annonçait une

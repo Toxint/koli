@@ -4,13 +4,37 @@ import { formatMontant } from "@/lib/format";
 import { commeDevise } from "@/data/markets";
 import { libelleStatut, classesBadgeStatut } from "@/lib/orders/statusLabels";
 import { Icone } from "@/components/ui/Icone";
+import {
+  Cellule,
+  Colonne,
+  EnTeteTableau,
+  LigneTableau,
+  ListeVide,
+  Pastille,
+} from "@/components/ui/Liste";
 
 /**
  * Liste de factures (§38, phase 20).
  *
- * En cartes empilées et non en tableau : à 390px, sept colonnes débordent ou
- * deviennent illisibles, et c'est l'écran de la quasi-totalité des
- * utilisateurs.
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │  En TABLEAU depuis la refonte. Son nom disait déjà « tableau » ; le      │
+ * │  balisage était une pile de cartes.                                      │
+ * └──────────────────────────────────────────────────────────────────────────┘
+ *
+ * L'ancien commentaire disait : « à 390 px, sept colonnes débordent ou
+ * deviennent illisibles ». C'était vrai d'un tableau qui pousse la PAGE ; le
+ * débordement est désormais enfermé dans `CarteListe` (`overflow-x-auto`), et
+ * c'est le tableau qui défile, jamais le document (§8). Le choix ne se pose
+ * donc plus dans les mêmes termes.
+ *
+ * Il sert **deux** écrans — les factures du vendeur et celles du client — et
+ * c'est pour cela qu'il existe : deux listes de factures écrites séparément
+ * finiraient par afficher deux vérités différentes de la même pièce.
+ *
+ * ⚠ Chaque ligne porte `data-facture` avec son numéro. `verif:factures` lit
+ * cet attribut plutôt que de chercher `FAC-\d{4}-\d{6}` dans le texte d'un
+ * `<li>` : le contrôle survit ainsi à la prochaine refonte, alors qu'un
+ * sélecteur de balisage la subit.
  */
 
 const LIBELLE_PAIEMENT: Record<string, string> = {
@@ -45,67 +69,98 @@ export function TableauFactures({
   vide: { titre: string; explication: string };
 }) {
   if (lignes.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <Icone nom="recu" className="w-9 h-9 mx-auto text-brand" />
-        <p className="text-sm font-semibold mt-2">{vide.titre}</p>
-        <p className="text-xs text-ink-muted mt-1 max-w-sm mx-auto">
-          {vide.explication}
-        </p>
-      </div>
-    );
+    return <ListeVide titre={vide.titre} explication={vide.explication} />;
   }
 
   return (
-    <ul data-factures="" className="divide-y divide-hairline">
-      {lignes.map((f) => (
-        <li
-          key={f.numero}
-          className="py-4 first:pt-0 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4"
-        >
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="font-mono font-bold text-sm">{f.numero}</span>
-              <span
-                className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${classesPaiement(f.statutPaiement)}`}
-              >
-                {LIBELLE_PAIEMENT[f.statutPaiement] ?? f.statutPaiement}
-              </span>
-              <span
-                className={`px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${classesBadgeStatut(f.statutCommande)}`}
-              >
-                {libelleStatut(f.statutCommande)}
-              </span>
-            </div>
+    <table
+      data-factures=""
+      className="w-full min-w-[58rem] border-collapse"
+    >
+      <caption className="sr-only">
+        Vos factures, de la plus récente à la plus ancienne
+      </caption>
+      <EnTeteTableau>
+        <Colonne>Numéro</Colonne>
+        <Colonne>{libelleContrepartie}</Colonne>
+        <Colonne>Paiement</Colonne>
+        <Colonne>Commande</Colonne>
+        <Colonne>Émise le</Colonne>
+        <Colonne aDroite>Total</Colonne>
+        <Colonne aDroite>Actions</Colonne>
+      </EnTeteTableau>
 
-            <p className="text-xs text-ink-muted mt-1 break-words">
-              {libelleContrepartie} : {f.contrepartie} ·{" "}
-              <span className="font-mono">{f.referenceCommande}</span>
-            </p>
-            <p className="text-[11px] text-ink-muted mt-0.5">
-              Émise le{" "}
-              <time dateTime={f.emiseLe.toISOString()}>
+      <tbody>
+        {lignes.map((f) => (
+          <LigneTableau key={f.numero}>
+            <Cellule>
+              <span
+                data-facture={f.numero}
+                className="font-mono text-sm font-bold text-brand"
+              >
+                {f.numero}
+              </span>
+            </Cellule>
+
+            {/* `data-contrepartie` : côté client, `verif:factures` vérifie que
+                cette colonne nomme le VENDEUR et non l'acheteur lui-même — une
+                liste où chaque ligne porte son propre nom n'apprend rien. Il
+                cherchait « Vendeur : » dans le texte, une tournure des cartes ;
+                dans un tableau, « Vendeur » est un en-tête. */}
+            <Cellule>
+              <span
+                data-contrepartie={f.contrepartie}
+                className="block max-w-[16rem] whitespace-normal font-semibold text-ink"
+              >
+                {f.contrepartie}
+              </span>
+              <span className="block font-mono text-xs text-ink-muted">
+                {f.referenceCommande}
+              </span>
+            </Cellule>
+
+            <Cellule>
+              <Pastille classes={classesPaiement(f.statutPaiement)}>
+                {LIBELLE_PAIEMENT[f.statutPaiement] ?? f.statutPaiement}
+              </Pastille>
+            </Cellule>
+
+            <Cellule>
+              <Pastille classes={classesBadgeStatut(f.statutCommande)}>
+                {libelleStatut(f.statutCommande)}
+              </Pastille>
+            </Cellule>
+
+            <Cellule>
+              <time
+                dateTime={f.emiseLe.toISOString()}
+                className="text-ink-muted"
+              >
                 {DATE_FR.format(f.emiseLe)}
               </time>
-            </p>
-          </div>
+            </Cellule>
 
-          <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0">
-            <span className="font-semibold tabular-nums whitespace-nowrap">
-              {formatMontant(f.total, commeDevise(f.devise))}
-            </span>
+            {/* La devise vient de la PIÈCE, pas du lecteur : une facture est
+                un document figé, et le registre ne se relit pas. */}
+            <Cellule aDroite>
+              <span className="font-semibold text-ink">
+                {formatMontant(f.total, commeDevise(f.devise))}
+              </span>
+            </Cellule>
 
-            <Link
-              href={`/facture/${f.referenceCommande}`}
-              aria-label={`Ouvrir la facture ${f.numero}`}
-              className="inline-flex items-center justify-center gap-1.5 min-h-[44px] px-3 rounded-lg bg-brand-soft text-brand hover:bg-brand-soft text-xs font-bold transition-all"
-            >
-              <Icone nom="recu" className="w-4 h-4" />
-              Ouvrir
-            </Link>
-          </div>
-        </li>
-      ))}
-    </ul>
+            <Cellule aDroite>
+              <Link
+                href={`/facture/${f.referenceCommande}`}
+                aria-label={`Ouvrir la facture ${f.numero}`}
+                title="Ouvrir"
+                className="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-brand-soft text-brand transition-colors hover:bg-brand-border"
+              >
+                <Icone nom="recu" className="h-4 w-4" />
+              </Link>
+            </Cellule>
+          </LigneTableau>
+        ))}
+      </tbody>
+    </table>
   );
 }

@@ -54,6 +54,32 @@ export const ACTIONS_AUDIT = {
   KYC_DOCUMENT_REVIEWED: "KYC_DOCUMENT_REVIEWED",
 
   /**
+   * Un vendeur a DEMANDÉ un versement (§43).
+   *
+   * Consignée bien qu'aucun argent n'ait encore bougé : c'est le seul point du
+   * système où quelqu'un réclame de l'argent, et la demande décide de la
+   * DESTINATION — un numéro Mobile Money saisi à cet instant. Le jour où un
+   * versement part sur un mauvais numéro, c'est cette ligne qui dira lequel
+   * avait été demandé, et par qui.
+   */
+  SELLER_PAYOUT_REQUESTED: "SELLER_PAYOUT_REQUESTED",
+
+  /**
+   * Un versement a été EXÉCUTÉ ou REFUSÉ par l'administration (§43).
+   *
+   * ┌────────────────────────────────────────────────────────────────────┐
+   * │  C'est le seul acte de KOLI qui fait SORTIR de l'argent. Tout le  │
+   * │  reste déplace des soldes à l'intérieur de la plateforme.          │
+   * └────────────────────────────────────────────────────────────────────┘
+   *
+   * Il ne se rejoue pas, et il ne s'annule pas : l'argent est parti. La trace
+   * porte donc le montant, le numéro, et la référence du transfert — de quoi
+   * rapprocher notre registre du relevé du prestataire, ce qui est exactement
+   * ce qui manquait quand les deux paiements du 6 septembre ont été perdus.
+   */
+  SELLER_PAYOUT_SETTLED: "SELLER_PAYOUT_SETTLED",
+
+  /**
    * Un rappel du prestataire est arrivé et n'a RIEN produit.
    *
    * ┌────────────────────────────────────────────────────────────────────┐
@@ -156,6 +182,11 @@ export const LIBELLES_ACTION: Record<string, string> = {
   DRIVER_INVITE_REVOKED: "Lien d'invitation livreur révoqué",
   DRIVER_JOINED_TEAM: "Livreur entré dans une équipe",
   DRIVER_REMOVED_FROM_TEAM: "Livreur retiré d'une équipe",
+  /* Les deux temps du versement (§43). Distincts, parce que la demande et
+     l'exécution ne sont pas le fait de la même personne — et c'est exactement
+     ce qu'on relit le jour où un versement part au mauvais endroit. */
+  SELLER_PAYOUT_REQUESTED: "Versement demandé par un vendeur",
+  SELLER_PAYOUT_SETTLED: "Versement réglé par l'administration",
 };
 
 export function libelleAction(action: string): string {

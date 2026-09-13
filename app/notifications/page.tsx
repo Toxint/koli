@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { getCurrentUser } from "@/lib/auth/actions";
 import { chargerNotifications } from "@/lib/notifications/lecture";
-import { DashboardNav } from "@/components/ui/DashboardNav";
+import { BarreEspace } from "@/components/ui/BarreEspace";
 import { Pagination } from "@/components/ui/Pagination";
 import { Icone } from "@/components/ui/Icone";
 import { navigationDuRole, accueilDuRole, libelleRole } from "@/lib/navigation";
@@ -47,8 +47,15 @@ export default async function PageNotifications({
   });
 
   return (
-    <div className="min-h-screen bg-cream text-ink lg:pl-[var(--largeur-menu)]">
-      <DashboardNav
+    <div className="min-h-screen bg-cream text-ink">
+      {/*
+        * `BarreEspace` en direct, et non `MenuEspace`.
+        *
+        * Cette page a DÉJÀ compté les non-lues — c'est son sujet. Passer par
+        * `MenuEspace` referait la même requête pour un nombre qu'on tient
+        * dans la main, sur le seul écran où il ne peut pas être faux.
+        */}
+      <BarreEspace
         userName={user.name}
         roleName={libelleRole(user.role)}
         homeHref={accueilDuRole(user.role)}
@@ -56,7 +63,7 @@ export default async function PageNotifications({
         notificationsNonLues={nonLues}
       />
 
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
+      <main className="mx-auto max-w-3xl space-y-6 px-4 py-6 sm:px-6">
         <div className="flex flex-wrap justify-between items-start gap-4">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">

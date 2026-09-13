@@ -6,7 +6,14 @@ import {
   definirTauxCommissionAction,
   suspendreCommissionAction,
 } from "@/lib/finance/actions";
-import { formatCFA } from "@/lib/format";
+/**
+ * Un nombre SANS unité, groupé par milliers.
+ *
+ * Il reprend l'espace insécable de `formatMontant` — « 20 000 » ne doit pas se
+ * couper entre deux lignes — mais sans symbole : voir l'exemple plus bas.
+ */
+const nombre = (v: number) =>
+  new Intl.NumberFormat("fr-FR").format(v).replace(/ | | /g, " ");
 import { Icone } from "@/components/ui/Icone";
 
 /**
@@ -106,16 +113,33 @@ export function ReglageCommission({
             aria-live="polite"
             className="rounded-2xl bg-brand-soft/50 border border-brand-border px-4 py-3"
           >
+            {/*
+              * ⚠ AUCUNE monnaie dans cet exemple, et c'est délibéré.
+              *
+              * ┌──────────────────────────────────────────────────────────┐
+              * │  Le taux s'applique à dix-sept pays et treize monnaies.  │
+              * │  Cette phrase illustre un POURCENTAGE : elle est vraie   │
+              * │  dans toutes, et fausse dès qu'on en nomme une.          │
+              * └──────────────────────────────────────────────────────────┘
+              *
+              * Elle écrivait « sur une vente de 20 000 FCFA » — `formatCFA`
+              * est `formatMontant(…, "XOF")` en dur — à un administrateur
+              * dont la plateforme encaisse aussi en francs congolais. Le
+              * chiffre était de surcroît une MOYENNE entre monnaies, donc un
+              * nombre qui n'était ni l'une ni l'autre.
+              *
+              * C'est la même décision que pour les messages de validation :
+              * « d'au moins 100 » plutôt que « d'au moins 100 FCFA ».
+              */}
             <p className="text-xs text-ink">
               Sur une vente de{" "}
-              <span className="font-semibold">{formatCFA(exempleVente)}</span>,
-              KOLI retiendrait{" "}
-              <span className="font-semibold">{formatCFA(apercu)}</span> et le
-              vendeur toucherait{" "}
+              <span className="font-semibold">{nombre(exempleVente)}</span>, KOLI
+              retiendrait <span className="font-semibold">{nombre(apercu)}</span>{" "}
+              et le vendeur toucherait{" "}
               <span className="font-semibold">
-                {formatCFA(exempleVente - apercu)}
+                {nombre(exempleVente - apercu)}
               </span>
-              .
+              , dans la monnaie de la vente.
             </p>
           </div>
         )}

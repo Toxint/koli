@@ -25,7 +25,27 @@ import pg from "pg";
 
 chargerEnv();
 
-const DOSSIER = "scripts";
+/**
+ * Où chercher du SQL écrit à la main.
+ *
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │  `scripts/` ne suffit plus : `lib/` en porte désormais, et c'est celui   │
+ * │  qui SERT LES PAGES.                                                     │
+ * └──────────────────────────────────────────────────────────────────────────┘
+ *
+ * `lib/admin/stats.ts` agrège les montants par devise — `Payment`, `Fund` et
+ * `Refund` ne portent pas de monnaie, elle vit sur `Order`, et `groupBy` de
+ * Prisma ne sait pas classer par une colonne d'une autre table. Il faut une
+ * jointure, donc du SQL.
+ *
+ * Une requête de script qui casse fait échouer un contrôle ; une requête de
+ * `lib/` qui casse fait échouer une PAGE, chez l'utilisateur. C'était
+ * exactement l'inverse de l'ordre de priorité.
+ */
+const DOSSIERS = [
+  { chemin: "scripts", extensions: [".mjs"] },
+  { chemin: "lib", extensions: [".ts"], recursif: true },
+];
 const EST_SQL = /^\s*(SELECT|INSERT\s+INTO|UPDATE|DELETE\s+FROM|WITH)\b/i;
 
 /**
@@ -89,10 +109,23 @@ const identifiantCalcule = (sql) =>
   // En position de nom : juste apres SELECT, FROM, JOIN, INTO, UPDATE.
   /\b(SELECT|FROM|JOIN|INTO|UPDATE)\s+\$\{/i.test(sql);
 
-const fichiers = fs
-  .readdirSync(DOSSIER)
-  .filter((f) => f.endsWith(".mjs") && f !== path.basename(process.argv[1]))
-  .sort();
+/** Tous les fichiers d'un dossier, en descendant si on le demande. */
+function lister({ chemin, extensions, recursif }) {
+  const trouves = [];
+  for (const e of fs.readdirSync(chemin, { withFileTypes: true })) {
+    const complet = path.join(chemin, e.name);
+    if (e.isDirectory()) {
+      if (recursif) trouves.push(...lister({ chemin: complet, extensions, recursif }));
+      continue;
+    }
+    if (!extensions.some((x) => e.name.endsWith(x))) continue;
+    if (e.name === path.basename(process.argv[1])) continue;
+    trouves.push(complet);
+  }
+  return trouves;
+}
+
+const fichiers = DOSSIERS.flatMap(lister).sort();
 
 const url = process.env.DATABASE_URL ?? process.env.DIRECT_URL;
 if (!url) {
@@ -109,7 +142,7 @@ const client = new pg.Client({
 
 await client.connect();
 
-console.log("\n=== REQUETES DES SCRIPTS ===\n");
+console.log("\n=== REQUETES ECRITES A LA MAIN ===\n");
 
 let total = 0;
 let refusees = 0;
@@ -117,7 +150,7 @@ let passees = 0;
 let compteur = 0;
 
 for (const fichier of fichiers) {
-  const source = fs.readFileSync(path.join(DOSSIER, fichier), "utf8");
+  const source = fs.readFileSync(fichier, "utf8");
   const requetes = litteraux(source);
   if (requetes.length === 0) continue;
 
@@ -156,7 +189,7 @@ console.log("");
 const reste = passees ? ` (${passees} a identifiant calcule, non verifiables)` : "";
 console.log(
   refusees === 0
-    ? `Les ${total} requetes des scripts sont valides contre le schema${reste}.`
+    ? `Les ${total} requetes ecrites a la main sont valides contre le schema${reste}.`
     : `${refusees} requete(s) sur ${total} sont refusees par la base${reste}.`
 );
 process.exit(refusees > 0 ? 1 : 0);

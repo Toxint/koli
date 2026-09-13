@@ -7,7 +7,14 @@ import { AuthHeader } from "@/components/ui/AuthHeader";
 import { registerAction } from "@/lib/auth/actions";
 import { BoutonGoogle } from "@/components/ui/BoutonGoogle";
 import { Icone } from "@/components/ui/Icone";
-import { MARCHES, SYMBOLE, type Devise, type Marche } from "@/data/markets";
+import {
+  MARCHES,
+  SYMBOLE,
+  DEVISES_OUVERTES,
+  ouvertAuxVendeurs,
+  type Devise,
+  type Marche,
+} from "@/data/markets";
 
 type RoleType = "SELLER" | "DRIVER" | "CLIENT";
 
@@ -66,8 +73,24 @@ const NOM_DEVISE: Record<Devise, string> = {
   GMD: "dalasi gambien",
 };
 
-/* L'ordre d'affichage : les plus proches du public d'abord, pas l'alphabet. */
-const DEVISES = Object.keys(NOM_DEVISE) as Devise[];
+/**
+ * Les devises OUVERTES, et elles seules.
+ *
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │  `NOM_DEVISE` garde les treize noms — les commandes passées et les      │
+ * │  acheteurs en ont besoin. Le menu du vendeur n'en propose que deux.     │
+ * └──────────────────────────────────────────────────────────────────────────┘
+ *
+ * L'essai réel ouvre aux sept pays de la zone franc CFA (voir
+ * `DEVISES_OUVERTES` dans `data/markets.ts`) : iKeePay règle en dollars, et
+ * seul le franc CFA porte un risque de change que KOLI puisse absorber.
+ *
+ * ⚠ Ce filtre ne PROTÈGE rien : la valeur voyage dans le formulaire, et
+ * quiconque ouvre les outils du navigateur peut en poser une autre. La garde
+ * est dans `registerAction`, côté serveur. Celui-ci évite simplement de
+ * proposer un choix qu'on refusera ensuite.
+ */
+const DEVISES = DEVISES_OUVERTES;
 
 /** L'apparence d'une carte de role, selectionnee ou non — par le CSS, pas par React. */
 const CARTE_ROLE =
@@ -586,7 +609,7 @@ export function FormulaireInscription({
                   * `registerAction` enregistre, et la changer casserait
                   * `deviseDuPays`.
                   */}
-                {MARCHES.map((marche: Marche) => (
+                {MARCHES.filter(ouvertAuxVendeurs).map((marche: Marche) => (
                   <option key={marche.code} value={marche.name}>
                     {SYMBOLE[marche.devise]} — {marche.name}
                   </option>

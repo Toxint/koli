@@ -7,7 +7,8 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import { formatCFA } from "@/lib/format";
+import { formatMontant } from "@/lib/format";
+import { type Devise } from "@/data/markets";
 import { Icone } from "@/components/ui/Icone";
 
 /**
@@ -60,11 +61,26 @@ export function PartagerFacture({
   reference,
   total,
   vendeur,
+  devise,
 }: {
   numero: string;
   reference: string;
   total: number;
   vendeur: string;
+  /**
+   * La monnaie de la PIÈCE, jamais un défaut.
+   *
+   * ┌──────────────────────────────────────────────────────────────────────┐
+   * │  Ce message QUITTE l'application : il part par WhatsApp ou par SMS,  │
+   * │  et arrive chez le client. On ne le rattrape pas.                    │
+   * └──────────────────────────────────────────────────────────────────────┘
+   *
+   * Il écrivait « Total réglé : X FCFA » pour tout le monde — `formatCFA`
+   * n'est rien d'autre que `formatMontant(…, "XOF")` écrit en dur. Un reçu de
+   * Kinshasa annonçait donc des francs CFA, soit environ quatre fois la somme
+   * réellement payée, dans un message envoyé à l'acheteur au nom du vendeur.
+   */
+  devise: Devise;
 }) {
   const [ouvert, setOuvert] = useState(false);
   const [copie, setCopie] = useState(false);
@@ -87,7 +103,7 @@ export function PartagerFacture({
 
   const message = `Reçu KOLI ${numero}
 Commande ${reference} — ${vendeur}
-Total réglé : ${formatCFA(total)}
+Total réglé : ${formatMontant(total, devise)}
 
 Voir le reçu : ${lien}`;
 

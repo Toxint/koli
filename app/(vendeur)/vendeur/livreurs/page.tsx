@@ -46,7 +46,7 @@ export default async function VendeurLivreursPage() {
   const disponibles = equipe.filter((m) => m.disponible && m.actif).length;
 
   return (
-    <div className="min-h-screen bg-cream text-ink lg:pl-[var(--largeur-menu)]">
+    <div className="min-h-screen bg-cream text-ink">
       <MenuEspace
         user={user}
         nomAffiche={user.sellerProfile.businessName || user.name}

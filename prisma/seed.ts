@@ -1,4 +1,4 @@
-import { PrismaClient, UserRole, UserStatus, SellerVerificationStatus, OrderStatus, PaymentStatus, PaymentProviderType, DeliveryStatus } from "@prisma/client";
+import { PrismaClient, UserRole, UserStatus, SellerVerificationStatus, OrderStatus, PaymentStatus, PaymentProviderType, DeliveryStatus, TransactionType } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import bcrypt from "bcryptjs";
 import { generateOrderReference } from "../lib/orders/reference";
@@ -389,6 +389,221 @@ async function main() {
       },
     },
   });
+
+  /*
+   * 7. QUINZE JOURS DE VENTES MENÉES À TERME
+   *
+   * ┌──────────────────────────────────────────────────────────────────────────┐
+   * │  Le jeu de démonstration s'arrêtait au SÉQUESTRE : aucune commande n'y   │
+   * │  était jamais terminée, aucun fonds jamais libéré.                       │
+   * └──────────────────────────────────────────────────────────────────────────┘
+   *
+   * Conséquence, sur le seul écran qu'un nouveau venu ouvre en premier : la
+   * courbe des encaissements était plate, l'anneau des commandes terminées
+   * affichait « 0 sur 13 », et les trois blocs de revenu annonçaient zéro. Le
+   * produit paraissait cassé alors qu'il allait très bien — il n'avait
+   * simplement rien à montrer.
+   *
+   * C'est aussi la faiblesse déjà consignée à propos de `verif:courbes` : les
+   * écritures que la courbe affichait étaient celles qu'un test amont avait
+   * laissées en passant, sans que rien n'en garantisse ni la présence, ni la
+   * date, ni le montant.
+   *
+   * ⚠ Ces ventes sont FABRIQUÉES, et n'ont donc leur place que sur le poste.
+   * `prisma/amorce.ts` — l'amorce de production — n'en crée aucune, et ce
+   * fichier ne doit jamais tourner contre Supabase (§5).
+   */
+  /*
+   * Le taux est un POURCENTAGE — 5, pas 0,05.
+   *
+   * ⚠ C est l unite de `Commission.ratePercent` et de `Transaction.rate` en
+   * production (`preleverCommission` ecrit `rate: taux`, ou taux vaut 5). Une
+   * premiere version de ce jeu ecrivait 0,05 : la page Solde annonçait alors
+   * « Commission KOLI 0.05 % », cent fois moins que la realite, sur un ecran qui
+   * explique au vendeur ce qu on lui retient.
+   */
+  const TAUX_COMMISSION = 5;
+
+  /* Des montants qui VARIENT, et deux jours creux.
+   *
+   * Une série régulière dessinerait une droite : on ne verrait ni la forme de
+   * la courbe, ni l'écart entre le brut et le net, ni ce que fait un jour sans
+   * vente. Les zéros sont là exprès — c'est le cas que le lissage monotone
+   * doit traverser sans plonger sous l'axe. */
+  const VENTES = [
+    22000, 0, 14500, 31000, 18500, 26500, 0,
+    38000, 12000, 29500, 21000, 45000, 17500, 33000, 24000,
+  ];
+
+  for (let i = 0; i < VENTES.length; i++) {
+    const brut = VENTES[i];
+    if (brut === 0) continue;
+
+    /*
+     * ⚠ Le PAIEMENT date du jour `i` ; la LIBÉRATION vient un à trois jours
+     * après. Pas l'inverse.
+     *
+     * ┌──────────────────────────────────────────────────────────────────────┐
+     * │  L'argent entre au paiement et ne repart qu'à la confirmation de     │
+     * │  réception par le client. Entre les deux, il dort sous séquestre.    │
+     * └──────────────────────────────────────────────────────────────────────┘
+     *
+     * Deux versions ont précédé celle-ci, et chacune donnait une courbe
+     * fausse :
+     *
+     * · les deux le MÊME jour — les deux séries du tableau de bord se
+     *   confondaient trait pour trait, une légende annonçant deux mesures
+     *   qu'on ne pouvait pas distinguer ;
+     * · le paiement calculé EN ARRIÈRE depuis la libération — les séquestres
+     *   se regroupaient alors sur quelques dates et la courbe tombait à zéro
+     *   entre chaque pic, un peigne au lieu d'une tendance.
+     *
+     * En partant du paiement, les entrées se répartissent sur les quinze
+     * jours et les versements les suivent, décalés. C'est le rythme réel d'une
+     * boutique, et c'est ce que le vendeur vient lire.
+     *
+     * Minuit plus une heure ouvrable : une écriture posée à minuit pile tombe
+     * sur la frontière du découpage en jours, et `verif:courbes` déclare alors
+     * le contrôle indécidable.
+     */
+    const paiement = new Date();
+    paiement.setHours(11, 15, 0, 0);
+    paiement.setDate(paiement.getDate() - (VENTES.length - 1 - i));
+
+    const decalage = 1 + (i % 3);
+    const quand = new Date(paiement);
+    quand.setHours(16, 40, 0, 0);
+    quand.setDate(quand.getDate() + decalage);
+
+    /*
+     * ⚠ Une libération datée d'AUJOURD'HUI doit être déjà PASSÉE.
+     *
+     * ┌──────────────────────────────────────────────────────────────────────┐
+     * │  16 h 40 est dans le futur pour qui prépare sa base le matin. La     │
+     * │  vente basculait alors « en attente », et le bloc « Revenus du       │
+     * │  jour » affichait 0 FCFA avec un badge « −100 % » — sur une boutique │
+     * │  qui venait pourtant d'encaisser.                                    │
+     * └──────────────────────────────────────────────────────────────────────┘
+     *
+     * On la ramène une demi-heure en arrière. Le jeu de démonstration doit
+     * montrer une journée EN COURS, pas une journée qui n'a pas commencé :
+     * c'est exactement ce qu'on vient regarder en ouvrant l'écran le matin.
+     */
+    const memeJour =
+      quand.getFullYear() === new Date().getFullYear() &&
+      quand.getMonth() === new Date().getMonth() &&
+      quand.getDate() === new Date().getDate();
+    if (memeJour && quand.getTime() > Date.now()) {
+      quand.setTime(Date.now() - 30 * 60 * 1000);
+    }
+
+    /*
+     * ⚠ Une libération dans le FUTUR n'existe pas.
+     *
+     * Les dernières ventes sont payées mais pas encore confirmées : elles
+     * restent SOUS SÉQUESTRE, ce qui est exactement l'état d'une boutique
+     * vivante — et ce qui donne au bloc « Revenus en attente » un chiffre qui
+     * n'est pas zéro.
+     */
+    const enAttente = quand.getTime() > Date.now();
+
+    /* La formule de `calculerCommission` (lib/finance/commission.ts), recopiee
+       a l identique : plancher, jamais arrondi. Ce module importe le client
+       Prisma de l application, et l importer ici en ouvrirait un second. */
+    const commission = Math.floor((brut * TAUX_COMMISSION) / 100);
+
+    const vente = await prisma.order.create({
+      data: {
+        reference: generateOrderReference(),
+        sellerId: sellerProfileId,
+        customerId: customerProfileId,
+        buyerName: "Awa Koné",
+        buyerPhone: "+2250505050505",
+        buyerCountry: "Côte d'Ivoire",
+        buyerCity: "Abidjan",
+        buyerAddress: "Cocody Angré 8ème Tranche",
+        deliveryFee: 1500,
+        status: enAttente ? OrderStatus.FUNDS_SECURED : OrderStatus.COMPLETED,
+        createdAt: paiement,
+        items: {
+          create: [{ productId: product1.id, quantity: 1, unitPrice: brut }],
+        },
+        payment: {
+          create: {
+            provider: PaymentProviderType.TEST,
+            status: PaymentStatus.SUCCEEDED,
+            amount: brut + 1500,
+            simulatedOutcome: "SUCCESS",
+            confirmedAt: paiement,
+            createdAt: paiement,
+          },
+        },
+        fund: {
+          create: {
+            sellerId: sellerProfileId,
+            amount: brut,
+            secured: true,
+            released: !enAttente,
+            securedAt: paiement,
+            releasedAt: enAttente ? null : quand,
+          },
+        },
+        /*
+         * ⚠ UNE FACTURE PAR PAIEMENT ABOUTI, sans exception (§38).
+         *
+         * ┌──────────────────────────────────────────────────────────────┐
+         * │  « Une facture est émise automatiquement dès qu'un paiement   │
+         * │  aboutit. » Ces ventes-ci en posaient un sans elle.          │
+         * └──────────────────────────────────────────────────────────────┘
+         *
+         * `verif:factures` l'a vu : « 8 factures / 21 paiements ». Ce
+         * n'est pas une incomplétude d'affichage — un jeu de données qui
+         * viole l'invariant qu'il sert à éprouver fait échouer le contrôle
+         * sur du sain, et l'on cherche alors le défaut dans le code des
+         * factures, où il n'y en a pas.
+         *
+         * La numérotation part à 3 : les deux commandes de démonstration
+         * plus haut occupent 1 et 2. `rangSuivant` lit le plus grand
+         * numéro, pas le nombre de pièces — un trou dans la série se
+         * verrait au premier rapprochement comptable.
+         */
+        invoice: {
+          create: {
+            number: formaterNumeroFacture(paiement.getFullYear(), 3 + i),
+            createdAt: paiement,
+          },
+        },
+      },
+    });
+
+    /* Les DEUX écritures, comme en production : la libération en positif, la
+       commission en NÉGATIF. C'est ce signe que `chargerCourbeVendeur` et
+       `chargerSoldeVendeur` retranchent — l'écrire à l'endroit ferait
+       culminer la courbe au-dessus du solde annoncé sur le même écran. */
+    /* ⚠ AUCUNE écriture pour une vente encore sous séquestre : le grand
+       livre n'enregistre que ce qui a eu lieu. En poser une d'avance ferait
+       compter au vendeur un argent qu'il n'a pas touché. */
+    if (!enAttente)
+      await prisma.transaction.createMany({
+      data: [
+        {
+          orderId: vente.id,
+          type: TransactionType.FUNDS_RELEASED,
+          amount: brut,
+          currency: "XOF",
+          createdAt: quand,
+        },
+        {
+          orderId: vente.id,
+          type: TransactionType.COMMISSION,
+          amount: -commission,
+          currency: "XOF",
+          rate: TAUX_COMMISSION,
+          createdAt: quand,
+        },
+      ],
+    });
+  }
 
   console.log("✅ Database seeded successfully!");
   console.log("-----------------------------------------");

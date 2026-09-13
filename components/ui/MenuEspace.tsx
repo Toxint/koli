@@ -1,4 +1,4 @@
-import { DashboardNav } from "@/components/ui/DashboardNav";
+import { BarreEspace } from "@/components/ui/BarreEspace";
 import { compterNonLues } from "@/lib/notifications/lecture";
 import {
   navigationDuRole,
@@ -8,9 +8,9 @@ import {
 } from "@/lib/navigation";
 
 /**
- * Menu latéral, avec son compteur de notifications.
+ * La barre de l'espace, avec son compteur de notifications.
  *
- * `DashboardNav` est un composant client : il ne peut pas interroger la base.
+ * `BarreEspace` est un composant client : il ne peut pas interroger la base.
  * Le nombre de notifications non lues doit pourtant être juste **dès le
  * premier rendu** — affiché à zéro puis corrigé après coup, il ferait manquer
  * ce qui vient d'arriver, précisément sur la page où l'on se trouve.
@@ -34,7 +34,7 @@ export async function MenuEspace({
   const nonLues = await compterNonLues(user.id);
 
   return (
-    <DashboardNav
+    <BarreEspace
       userName={nomAffiche || user.name}
       roleName={libelleRole(user.role)}
       homeHref={accueilDuRole(user.role)}

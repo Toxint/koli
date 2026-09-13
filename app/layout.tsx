@@ -73,22 +73,25 @@ export const viewport: Viewport = {
 };
 
 /**
- * Rétablit l'état du menu latéral AVANT le premier rendu.
+ * Efface le souvenir du menu LATÉRAL, qui n'existe plus.
  *
- * Sans cela, la page s'affiche menu déployé puis se replie une fois React
- * monté : un sursaut de mise en page à chaque navigation, pour qui a choisi de
- * replier. Le script est minuscule et synchrone, précisément pour s'exécuter
- * avant la peinture.
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │  Le menu est passé d'une barre latérale repliable à une barre            │
+ * │  HORIZONTALE. Il n'occupe plus de colonne, et rien ne se replie.         │
+ * └──────────────────────────────────────────────────────────────────────────┘
  *
- * Le `try` est indispensable : `localStorage` lève en navigation privée sur
+ * Ce script rétablissait la largeur repliée avant la première peinture. Laissé
+ * tel quel, il réintroduirait **4,75 rem de marge fantôme** à gauche de chaque
+ * page — mais seulement pour les gens qui avaient replié l'ancien menu. Un
+ * défaut invisible sur cette machine, et bien réel chez eux.
+ *
+ * Il retire donc la clef au lieu de la lire. Une fois passée chez tout le
+ * monde, cette ligne pourra disparaître à son tour.
+ *
+ * Le `try` reste indispensable : `localStorage` lève en navigation privée sur
  * certains navigateurs, et une exception ici casserait tout le document.
  */
-const RETABLIR_MENU = `try{
-  if(localStorage.getItem('koli-menu-replie')==='1'){
-    document.documentElement.style.setProperty('--largeur-menu','4.75rem');
-    document.documentElement.dataset.menuKoliReplie='1';
-  }
-}catch(e){}`;
+const OUBLIER_ANCIEN_MENU = `try{localStorage.removeItem('koli-menu-replie')}catch(e){}`;
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
@@ -97,7 +100,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${jakarta.variable} ${inter.variable} ${serifAccent.variable}`}
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: RETABLIR_MENU }} />
+        <script dangerouslySetInnerHTML={{ __html: OUBLIER_ANCIEN_MENU }} />
       </head>
       {/*
        * Le mode de paiement, porte par le DOCUMENT.
