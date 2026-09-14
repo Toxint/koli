@@ -21,6 +21,7 @@ import { formatMontant, formatTotaux, pluriel } from "@/lib/format";
 import { commeDevise, type Devise } from "@/data/markets";
 import { Icone } from "@/components/ui/Icone";
 import { MentionModeTest } from "@/components/ui/MentionModeTest";
+import { estFictive } from "@/lib/notifications/textes";
 
 export const metadata: Metadata = { title: "Versements" };
 
@@ -86,7 +87,7 @@ export default async function AdminVersementsPage({
       : {}),
   };
 
-  const [versements, total, enAttente, enAttenteLignes] = await Promise.all([
+  const [versements, total, enAttente, enAttenteLignes, administrateurs] = await Promise.all([
     prisma.payout.findMany({
       where,
       include: {
@@ -120,7 +121,31 @@ export default async function AdminVersementsPage({
       where: { status: PayoutStatus.PENDING },
       _sum: { amount: true },
     }),
+    /* Qui, dans l'équipe, peut être PRÉVENU d'une demande — voir l'avertissement
+       plus bas. Quelques lignes : l'équipe n'a pas cinquante administrateurs. */
+    prisma.user.findMany({
+      where: { role: "ADMIN", status: "ACTIVE" },
+      select: { email: true, emailBouncedAt: true },
+    }),
   ]);
+
+  /*
+   * ⚠ PERSONNE NE PEUT RECEVOIR L'AVIS — et cela ne se voyait nulle part.
+   *
+   * ┌──────────────────────────────────────────────────────────────────────────┐
+   * │  L'administrateur en ligne est `admin@koli.ci`. Or `koli.ci` est sur    │
+   * │  la liste des adresses de DÉMONSTRATION, que le canal écarte exprès     │
+   * │  (§8) : le courriel « un vendeur demande un versement » ne partirait    │
+   * │  jamais, et rien ne le dirait.                                          │
+   * └──────────────────────────────────────────────────────────────────────────┘
+   *
+   * C'est exactement la forme des deux paiements perdus du 6 septembre 2026 :
+   * une panne muette sur le chemin par lequel arrive l'information. L'écran le
+   * DIT, plutôt que de laisser la file se remplir en silence.
+   */
+  const joignables = administrateurs.filter(
+    (a) => a.email && !estFictive(a.email) && !a.emailBouncedAt
+  ).length;
 
   const parDevise: Partial<Record<Devise, number>> = {};
   for (const l of enAttenteLignes) {
@@ -139,6 +164,22 @@ export default async function AdminVersementsPage({
           {pluriel(enAttente, "demande en attente", "demandes en attente")}
           {volumeAttente && ` · ${volumeAttente}`}
         </p>
+
+        {joignables === 0 && (
+          <div className="rounded-2xl border border-red-200 bg-red-50 p-4">
+            <p className="flex items-start gap-2 text-sm text-danger">
+              <Icone nom="alerte" className="mt-0.5 h-4 w-4 shrink-0" />
+              <span>
+                <strong>Aucun administrateur ne peut être prévenu par courriel.</strong>{" "}
+                Les demandes de versement s&apos;affichent ici, mais personne ne
+                recevra d&apos;avis : l&apos;adresse du compte administrateur est
+                une adresse de démonstration, ou elle a rebondi. Un vendeur peut
+                donc attendre son argent sans que l&apos;équipe le sache.
+                Renseignez une vraie adresse sur le compte administrateur.
+              </span>
+            </p>
+          </div>
+        )}
 
         <div className="rounded-2xl border border-brand-border bg-brand-soft/50 p-4">
           <p className="flex items-start gap-2 text-xs text-ink-muted">
@@ -239,6 +280,17 @@ export default async function AdminVersementsPage({
                         <span className="block font-mono text-sm font-bold text-brand">
                           {v.phone}
                         </span>
+                        {/* Le nom du TITULAIRE, à comparer à ce qu'affiche
+                            l'application de transfert avant d'envoyer : deux
+                            chiffres inversés donnent un numéro valide
+                            appartenant à quelqu'un d'autre, et seul le nom le
+                            trahit. Nul pour les versements demandés avant
+                            l'existence des numéros enregistrés. */}
+                        {v.holderName && (
+                          <span className="block text-xs font-semibold text-ink">
+                            {v.holderName}
+                          </span>
+                        )}
                         <span className="block text-xs text-ink-muted">
                           {v.operator ?? "opérateur non précisé"}
                         </span>

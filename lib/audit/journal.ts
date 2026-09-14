@@ -64,6 +64,17 @@ export const ACTIONS_AUDIT = {
    */
   SELLER_PAYOUT_REQUESTED: "SELLER_PAYOUT_REQUESTED",
 
+  /*
+   * Les numéros de retrait ENREGISTRÉS par un vendeur (§43).
+   *
+   * Ces lignes décident d'où part l'argent. Le jour où un versement arrive au
+   * mauvais endroit, la première question est « depuis quand ce numéro
+   * était-il là, et qui l'a mis ? » — sans trace, cette question n'a pas de
+   * réponse, et un numéro changé la veille ressemble à un numéro de toujours.
+   */
+  SELLER_PAYOUT_ACCOUNT_SAVED: "SELLER_PAYOUT_ACCOUNT_SAVED",
+  SELLER_PAYOUT_ACCOUNT_REMOVED: "SELLER_PAYOUT_ACCOUNT_REMOVED",
+
   /**
    * Un versement a été EXÉCUTÉ ou REFUSÉ par l'administration (§43).
    *
@@ -96,6 +107,18 @@ export const ACTIONS_AUDIT = {
    * qui pourrait remplir le journal en frappant l'adresse.
    */
   PAYMENT_CALLBACK_DISCARDED: "PAYMENT_CALLBACK_DISCARDED",
+
+  /*
+   * Un paiement en attente fermé À LA MAIN, après vérification chez le
+   * prestataire (`npm run paiement:expirer`).
+   *
+   * Faute de route de consultation chez iKeePay, le code ne peut pas savoir
+   * si une intention a abouti : c'est un humain qui va lire leur historique.
+   * Sa conclusion doit donc s'écrire quelque part — sans cette ligne, un
+   * paiement passerait d'« en attente » à « expiré » sans que personne puisse
+   * dire qui l'a décidé ni sur quelle constatation.
+   */
+  PAYMENT_EXPIRED_MANUALLY: "PAYMENT_EXPIRED_MANUALLY",
 
   /* ── Équipes de livraison (§5.3) ──
    *
@@ -170,6 +193,7 @@ export async function consigner(
 /** Libellés français des actions, pour l'écran de consultation. */
 export const LIBELLES_ACTION: Record<string, string> = {
   PAYMENT_CALLBACK_DISCARDED: "Rappel de paiement écarté",
+  PAYMENT_EXPIRED_MANUALLY: "Paiement fermé après vérification chez le prestataire",
   COMMISSION_RATE_SET: "Taux de commission modifié",
   COMMISSION_SUSPENDED: "Commission suspendue",
   ACCOUNT_STATUS_SET: "Statut de compte modifié",
@@ -187,6 +211,8 @@ export const LIBELLES_ACTION: Record<string, string> = {
      ce qu'on relit le jour où un versement part au mauvais endroit. */
   SELLER_PAYOUT_REQUESTED: "Versement demandé par un vendeur",
   SELLER_PAYOUT_SETTLED: "Versement réglé par l'administration",
+  SELLER_PAYOUT_ACCOUNT_SAVED: "Numéro de retrait enregistré",
+  SELLER_PAYOUT_ACCOUNT_REMOVED: "Numéro de retrait supprimé",
 };
 
 export function libelleAction(action: string): string {

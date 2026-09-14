@@ -2,9 +2,12 @@ import { describe, it, expect } from "vitest";
 import { NotificationType } from "@prisma/client";
 import {
   MESSAGES,
+  MESSAGES_VERSEMENT,
   SANS_COURRIEL,
+  estAvisDeVersement,
   estFictive,
   motifDeNonEnvoi,
+  type ContexteDuVersement,
   type MontantsDeLaCommande,
 } from "@/lib/notifications/textes";
 
@@ -133,8 +136,14 @@ describe("chaque type est TRANCHÉ", () => {
    * été perdus.
    */
   it("aucun type n'est ni écrit ni écarté", () => {
+    /* Les avis de VERSEMENT ont leurs propres textes : ils ne parlent pas
+       d'une commande, donc ils ne sont pas dans `MESSAGES`. Les oublier ici
+       ferait crier ce contrôle sur du sain. */
     const orphelins = Object.values(NotificationType).filter(
-      (type) => !MESSAGES[type] && !SANS_COURRIEL.includes(type)
+      (type) =>
+        !MESSAGES[type] &&
+        !estAvisDeVersement(type) &&
+        !SANS_COURRIEL.includes(type)
     );
 
     expect(
@@ -286,5 +295,89 @@ describe("les adresses de démonstration", () => {
   it("ne devine pas : un nom qui ressemble à un test passe quand même", () => {
     expect(estFictive("testa@gmail.com")).toBe(false);
     expect(estFictive("boutique-test@premiummarketafrica.com")).toBe(false);
+  });
+});
+
+/**
+ * Les deux avis de VERSEMENT (§43).
+ *
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │  Ce sont les deux seuls courriels de KOLI qui annoncent un mouvement     │
+ * │  d'argent SORTANT. L'un va à l'équipe, l'autre au vendeur, et ils ne     │
+ * │  doivent pas dire la même chose.                                         │
+ * └──────────────────────────────────────────────────────────────────────────┘
+ */
+describe("les avis de versement", () => {
+  const contexte: ContexteDuVersement = {
+    montant: "50 000 FCFA",
+    vendeur: "Boutique Awa",
+    numero: "+2250701020304",
+    titulaire: "Awa Kone",
+    reference: "TR-2026-0042",
+  };
+
+  it("reconnaît les deux types, et seulement eux", () => {
+    expect(estAvisDeVersement("PAYOUT_REQUESTED")).toBe(true);
+    expect(estAvisDeVersement("PAYOUT_PAID")).toBe(true);
+    expect(estAvisDeVersement("FUNDS_SECURED")).toBe(false);
+  });
+
+  it("dit à l'administration QUI demande, COMBIEN et OÙ", () => {
+    const texte = MESSAGES_VERSEMENT.PAYOUT_REQUESTED.corps(contexte);
+    expect(texte).toContain("Boutique Awa");
+    expect(texte).toContain("50 000 FCFA");
+    // Le numéro et le titulaire : c'est ce que l'équipe va recopier, et le nom
+    // est le seul garde-fou contre deux chiffres inversés.
+    expect(texte).toContain("+2250701020304");
+    expect(texte).toContain("Awa Kone");
+  });
+
+  it("n'écrit PAS le numéro du vendeur dans le courriel du vendeur", () => {
+    /*
+     * Il sait où il a demandé son argent. Le lui réécrire ferait voyager sa
+     * destination dans une boîte aux lettres, qui se transfère et se lit
+     * par-dessus l'épaule — pour rien.
+     */
+    const texte = MESSAGES_VERSEMENT.PAYOUT_PAID.corps(contexte);
+    expect(texte).not.toContain("+2250701020304");
+    expect(texte).toContain("50 000 FCFA");
+    expect(texte).toContain("TR-2026-0042");
+  });
+
+  it("tient debout sans référence de transfert", () => {
+    // Même règle que les autres textes : registre muet ⇒ phrase sans chiffre,
+    // et elle reste correcte. On cherche les marques d'un gabarit cassé.
+    const texte = MESSAGES_VERSEMENT.PAYOUT_PAID.corps({
+      ...contexte,
+      reference: null,
+    });
+    expect(texte).not.toMatch(/:\s*\./);
+    expect(texte).not.toMatch(/\s\./);
+    expect(texte).not.toMatch(/ {2}/);
+  });
+
+  it("tient debout sans nom de titulaire", () => {
+    const texte = MESSAGES_VERSEMENT.PAYOUT_REQUESTED.corps({
+      ...contexte,
+      titulaire: null,
+    });
+    expect(texte).not.toMatch(/:\s*\./);
+    expect(texte).not.toMatch(/\s\./);
+    expect(texte).not.toMatch(/ {2}/);
+    expect(texte).toContain("+2250701020304");
+  });
+
+  it("ne pousse à cliquer nulle part", () => {
+    // Décision de l'utilisateur : un courriel qui annonce de l'argent et pousse
+    // à cliquer ressemble exactement à celui qui l'imite.
+    for (const message of Object.values(MESSAGES_VERSEMENT)) {
+      expect(message.corps(contexte)).not.toMatch(/https?:\/\//);
+    }
+  });
+
+  it("ne nomme jamais la commission", () => {
+    for (const message of Object.values(MESSAGES_VERSEMENT)) {
+      expect(message.corps(contexte)).not.toMatch(/commission/i);
+    }
   });
 });

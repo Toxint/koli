@@ -9,6 +9,8 @@ import { refusDeVersement } from "@/lib/finance/versement";
 import { deviseDuVendeur } from "@/data/markets";
 import { ACTIONS_AUDIT, consigner } from "@/lib/audit/journal";
 import { formatMontant } from "@/lib/format";
+import { notifier } from "@/lib/notifications/envoi";
+import { declencherExpedition } from "@/lib/notifications/courriel";
 
 /**
  * Le VERSEMENT au vendeur (§43) — le seul acte de KOLI qui fait sortir de
@@ -72,8 +74,36 @@ export async function demanderVersementAction(
     String(formData.get("montant") ?? "").replace(/\s/g, ""),
     10
   );
-  const telephone = String(formData.get("telephone") ?? "").trim();
-  const operateur = String(formData.get("operateur") ?? "").trim() || null;
+  /*
+   * ⚠ La DESTINATION est relue en base, comme le montant.
+   *
+   * Depuis le 14 septembre 2026, le vendeur ne retape plus son numéro : il
+   * choisit l'un de ses comptes enregistrés (§43). Le formulaire ne porte donc
+   * qu'un identifiant — et un identifiant venu du navigateur ne prouve rien.
+   * Le `where` borne au vendeur connecté : sans cela, un vendeur pourrait faire
+   * envoyer SON solde sur le numéro d'un autre compte, ou l'inverse.
+   *
+   * Le numéro, l'opérateur et le titulaire sont ensuite RECOPIÉS sur le
+   * versement. Le jour où le vendeur corrige ce compte, un versement déjà
+   * demandé garde sa destination : un registre ne se relit pas.
+   */
+  const compteId = String(formData.get("compteId") ?? "").trim();
+  const compte = compteId
+    ? await prisma.payoutAccount.findFirst({
+        where: { id: compteId, sellerId },
+      })
+    : null;
+
+  if (!compte) {
+    return {
+      success: false,
+      error:
+        "Choisissez le numéro qui doit recevoir l'argent, ou enregistrez-en un.",
+    };
+  }
+
+  const telephone = compte.phone;
+  const operateur = compte.operator;
 
   const refus = refusDeVersement({
     versable: solde.versable,
@@ -94,6 +124,10 @@ export async function demanderVersementAction(
         currency: devise,
         phone: telephone,
         operator: operateur,
+        /* Le nom du titulaire suit le numéro : c'est ce que l'administration
+           compare à ce qu'affiche l'application de transfert avant d'envoyer.
+           Un chiffre inversé donne un numéro valide ; seul le nom le trahit. */
+        holderName: compte.holderName,
         status: PayoutStatus.PENDING,
       },
     });
@@ -110,12 +144,45 @@ export async function demanderVersementAction(
            faudra pouvoir relire le jour où un versement part au mauvais
            endroit. */
         numero: telephone,
+        titulaire: compte.holderName,
         operateur: operateur ?? "non précisé",
       },
     });
 
+    /*
+     * L'ADMINISTRATION est prévenue, et c'est la seule notification de KOLI
+     * qui lui soit adressée.
+     *
+     * ┌────────────────────────────────────────────────────────────────────┐
+     * │  Sans elle, un vendeur attend son argent pendant qu'une demande    │
+     * │  dort dans une file que personne n'a pensé à ouvrir.               │
+     * └────────────────────────────────────────────────────────────────────┘
+     *
+     * TOUS les administrateurs, pas un seul : désigner « l'administrateur »
+     * supposerait qu'il n'y en a qu'un, et le jour où il y en a deux, c'est le
+     * absent qui serait notifié.
+     */
+    const administrateurs = await tx.user.findMany({
+      where: { role: "ADMIN", status: "ACTIVE" },
+      select: { id: true },
+    });
+
+    await notifier(tx, {
+      type: "PAYOUT_REQUESTED",
+      entite: "Payout",
+      entiteId: cree.id,
+      destinataires: administrateurs.map((a) => a.id),
+      /* Un administrateur qui demanderait un versement pour lui-même n'a pas
+         besoin qu'on le lui apprenne (règle 2 des notifications). */
+      exclure: user.id,
+    });
+
     return cree;
   });
+
+  /* Hors de la transaction, et après la réponse : l'expédition ne retient pas
+     le vendeur, et un courriel parti ne se rappelle pas. */
+  declencherExpedition();
 
   revalidatePath("/vendeur/solde");
 
@@ -157,7 +224,9 @@ export async function reglerVersementAction(
 
   const versement = await prisma.payout.findUnique({
     where: { id: payoutId },
-    include: { seller: { select: { businessName: true } } },
+    /* `userId` en plus du nom : c'est lui qu'il faut pour prévenir le vendeur
+       que son argent est parti. */
+    include: { seller: { select: { businessName: true, userId: true } } },
   });
   if (!versement) return { success: false, error: "Versement introuvable." };
 
@@ -227,6 +296,24 @@ export async function reglerVersementAction(
         motif: motif ?? "",
       },
     });
+
+    /*
+     * Le VENDEUR est prévenu que son argent est parti.
+     *
+     * Seulement pour un versement EXÉCUTÉ. Un refus s'affiche dans son espace
+     * avec son motif ; lui écrire « votre versement a été refusé » sans que
+     * personne ne puisse répondre à la question suivante — « pourquoi, et que
+     * dois-je corriger ? » — serait un courriel qui inquiète sans servir. Le
+     * jour où l'on voudra l'écrire, il faudra y mettre le motif.
+     */
+    if (decision === "PAID") {
+      await notifier(tx, {
+        type: "PAYOUT_PAID",
+        entite: "Payout",
+        entiteId: payoutId,
+        destinataires: [versement.seller.userId],
+      });
+    }
   });
   } catch (e) {
     if (e instanceof Error && e.message === "CONCURRENT") {
@@ -238,6 +325,10 @@ export async function reglerVersementAction(
     }
     throw e;
   }
+
+  /* Après la réponse, hors transaction : le vendeur apprend par courriel que
+     son argent est parti, sans que l'administrateur attende Resend. */
+  declencherExpedition();
 
   revalidatePath("/admin/versements");
   revalidatePath("/vendeur/solde");

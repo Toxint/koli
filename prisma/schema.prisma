@@ -200,6 +200,21 @@ enum NotificationType {
   FUNDS_RELEASED
   DISPUTE_OPEN
   REFUND
+
+  // ── Le VERSEMENT au vendeur (§43) ──
+  //
+  // Les deux seuls avis qui ne parlent pas d une commande : ils portent sur un
+  // `Payout`, et leur `entityId` est donc l identifiant du versement, pas une
+  // reference de commande.
+  //
+  // PAYOUT_REQUESTED part vers l ADMINISTRATION : sans lui, un vendeur peut
+  // attendre son argent pendant qu une demande dort dans une file que personne
+  // n a ouverte. C est la seule notification de KOLI adressee a l equipe.
+  //
+  // PAYOUT_PAID part vers le VENDEUR : c est l aboutissement de toute la
+  // promesse, le moment ou l argent arrive vraiment.
+  PAYOUT_REQUESTED
+  PAYOUT_PAID
 }
 
 // ── Identité ────────────────────────────────────────────
@@ -330,6 +345,49 @@ model SellerProfile {
   equipe       SellerDriver[]
   invitations  DriverInvite[]
   versements   Payout[]
+  comptesRetrait PayoutAccount[]
+}
+
+/// Un numero Mobile Money ENREGISTRE par le vendeur pour ses retraits (§43).
+///
+/// ┌──────────────────────────────────────────────────────────────────────────┐
+/// │  Demande de l'utilisateur, le 14 septembre 2026 : « qu'il ne puisse pas │
+/// │  commencer a mettre les numeros a chaque fois qu'il a besoin            │
+/// │  d'effectuer un retrait ».                                              │
+/// └──────────────────────────────────────────────────────────────────────────┘
+///
+/// ⚠ Cela DEFAIT en partie une garde ecrite ici meme : le numero etait
+/// redemande a chaque versement pour qu'un transfert ne parte jamais vers une
+/// ligne resiliee sans que personne le voie. La protection est conservee
+/// autrement — le vendeur ne SAISIT plus, mais il CHOISIT, et l'ecran lui
+/// montre le numero complet et le nom du titulaire avant qu'il valide. Ce qui
+/// est interdit, c'est le pre-remplissage silencieux.
+///
+/// `holderName` n'est pas decoratif : chez la plupart des operateurs, un
+/// transfert arrive a un numero mais s'affiche sous le nom du titulaire. C'est
+/// ce que l'administration compare avant d'envoyer, et c'est ce qui rattrape un
+/// chiffre inverse.
+model PayoutAccount {
+  id       String        @id @default(cuid())
+  sellerId String
+  seller   SellerProfile @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  /// Le numero Mobile Money, tel que le vendeur l'a saisi.
+  phone      String
+  /// L'operateur, choisi dans la liste de son pays — « Wave », « Orange Money »…
+  operator   String
+  /// Le nom EXACT du titulaire du compte Mobile Money.
+  holderName String
+  /// Un surnom libre : « mon numero perso », « le compte de la boutique ».
+  label      String?
+
+  /// Le compte propose en premier. Un seul par vendeur — l'action le garantit.
+  isDefault Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sellerId])
 }
 
 /// Un VERSEMENT au vendeur (§43) — l'argent qui quitte KOLI.
@@ -370,9 +428,22 @@ model Payout {
   /// numero change — on en change meme souvent, sur ce marche. Le figer au
   /// compte ferait partir un versement vers une ligne resiliee, sans que
   /// personne ne s'en apercoive avant la reclamation.
+  ///
+  /// ⚠ Depuis le 14 septembre 2026, il est CHOISI parmi les comptes enregistres
+  /// du vendeur (`PayoutAccount`) plutot que retape — mais il reste RECOPIE
+  /// ici, jamais reference. Un vendeur qui corrige son numero apres coup ne
+  /// doit pas changer la destination d'un versement deja demande : on relirait
+  /// alors l'histoire, et le registre dirait qu'on a paye ailleurs.
   phone    String
   /// L'operateur, tel que le vendeur le nomme — Wave, Orange Money, MTN…
   operator String?
+  /// Le nom du titulaire du compte Mobile Money, recopie du compte choisi.
+  ///
+  /// C'est ce que l'administration compare a ce qu'affiche l'application de
+  /// transfert avant d'envoyer : un chiffre inverse donne un numero valide, et
+  /// seul le nom le trahit. Nul pour les versements demandes avant l'existence
+  /// des comptes enregistres.
+  holderName String?
 
   status      PayoutStatus @default(PENDING)
   /// La reference du transfert chez le prestataire, ou le mode de reglement

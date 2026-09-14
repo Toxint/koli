@@ -111,6 +111,80 @@ export const MESSAGES: Partial<
 };
 
 /**
+ * Ce que porte un avis de VERSEMENT.
+ *
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │  Les deux seuls courriels de KOLI qui ne parlent pas d'une commande.     │
+ * │  Leur `entityId` est l'identifiant d'un `Payout`, pas une référence.     │
+ * └──────────────────────────────────────────────────────────────────────────┘
+ *
+ * Il leur faut donc leur propre contexte : les montants d'une commande n'ont
+ * rien à dire sur un versement, qui solde un cumul.
+ */
+export interface ContexteDuVersement {
+  /** Le montant demandé, déjà formaté dans la monnaie du versement. */
+  montant: string;
+  /** La boutique concernée — c'est elle que l'administration cherche. */
+  vendeur: string;
+  /** Le numéro Mobile Money de destination. */
+  numero: string;
+  /** Le nom du titulaire du compte, quand il est connu. */
+  titulaire: string | null;
+  /** La référence du transfert, une fois exécuté. */
+  reference: string | null;
+}
+
+/**
+ * Les avis de versement.
+ *
+ * Quatre décisions, et chacune se déferait sans être écrite :
+ *
+ * - **Celui de l'ADMINISTRATION porte le numéro de destination.** C'est le seul
+ *   courriel de KOLI qui en contient un, et c'est voulu : il est adressé à
+ *   l'équipe, qui doit précisément aller recopier ce numéro. Le nom du
+ *   titulaire l'accompagne — deux chiffres inversés donnent un numéro valide
+ *   appartenant à quelqu'un d'autre, et seul le nom le trahit.
+ *
+ * - **Celui du VENDEUR ne le porte pas.** Il sait où il a demandé son argent ;
+ *   le lui réécrire ferait voyager sa destination dans une boîte aux lettres,
+ *   pour rien. Il porte le montant et la référence du transfert, qui sont ce
+ *   qu'il vérifiera auprès de son opérateur.
+ *
+ * - **Aucun montant n'est recalculé** : il vient du registre, comme partout
+ *   ailleurs. Refaire le calcul, c'est se donner une seconde chance de se
+ *   tromper, et l'écart ne se verrait que dans la boîte du destinataire.
+ *
+ * - **Aucun lien cliquable**, comme les autres textes : un courriel qui annonce
+ *   de l'argent et pousse à cliquer ressemble exactement à celui qui l'imite.
+ */
+export const MESSAGES_VERSEMENT: Record<
+  "PAYOUT_REQUESTED" | "PAYOUT_PAID",
+  { objet: string; corps: (c: ContexteDuVersement) => string }
+> = {
+  PAYOUT_REQUESTED: {
+    objet: "Un vendeur demande un versement",
+    corps: (c) =>
+      `${c.vendeur} demande un versement de ${c.montant}, sur le ${c.numero}${
+        c.titulaire ? ` au nom de ${c.titulaire}` : ""
+      }. La demande attend dans la file des versements.`,
+  },
+  PAYOUT_PAID: {
+    objet: "Votre versement a été effectué",
+    corps: (c) =>
+      `Votre versement de ${c.montant} a été effectué.${
+        c.reference ? ` Référence du transfert : ${c.reference}.` : ""
+      } L'argent arrive sur le numéro que vous avez choisi ; si vous ne le voyez pas, vérifiez auprès de votre opérateur avant de nous écrire.`,
+  },
+};
+
+/** Ce type d'avis porte-t-il sur un versement plutôt que sur une commande ? */
+export function estAvisDeVersement(
+  type: NotificationType
+): type is "PAYOUT_REQUESTED" | "PAYOUT_PAID" {
+  return type === "PAYOUT_REQUESTED" || type === "PAYOUT_PAID";
+}
+
+/**
  * Les types qui ne partent DÉLIBÉRÉMENT pas par courriel.
  *
  * ┌──────────────────────────────────────────────────────────────────────────┐
@@ -175,7 +249,9 @@ export function motifDeNonEnvoi(n: {
   // une panne, c'est une information.
   if (!n.adresse?.trim()) return "aucune adresse";
 
-  if (!MESSAGES[n.type]) {
+  /* Un avis de versement a ses propres textes : il ne parle pas d'une commande
+     et n'a rien à chercher dans `MESSAGES`. */
+  if (!MESSAGES[n.type] && !estAvisDeVersement(n.type)) {
     return SANS_COURRIEL.includes(n.type)
       ? "pas de courriel pour ce type (choix)"
       : "aucun texte pour ce type";
@@ -189,7 +265,13 @@ export function motifDeNonEnvoi(n: {
    * cassé, adressé à un vrai vendeur, sur une application dont le sujet est la
    * confiance.
    */
-  if (!n.reference?.trim()) return "aucune reference de commande";
+  /* Pour un avis de versement, `reference` porte l'identifiant du `Payout` :
+     la règle reste la même — sans lui, on ne saurait pas de quoi on parle. */
+  if (!n.reference?.trim()) {
+    return estAvisDeVersement(n.type)
+      ? "aucune reference de versement"
+      : "aucune reference de commande";
+  }
 
   if (estFictive(n.adresse)) return "adresse de demonstration";
 
@@ -232,6 +314,9 @@ export function motifDeNonEnvoi(n: {
  * c'est exactement le courriel qu'on ne rattrape pas.
  */
 export const MOTIF_COMMANDE_ABSENTE = "commande absente du registre";
+
+/** Le pendant, pour un avis qui porte sur un versement effacé du registre. */
+export const MOTIF_VERSEMENT_ABSENT = "versement absent du registre";
 
 /**
  * Les domaines FICTIFS, vers lesquels on n'écrit jamais.

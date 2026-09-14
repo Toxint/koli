@@ -9,6 +9,8 @@ import { chargerSoldeVendeur } from "@/lib/finance/solde";
 import { chargerJournal } from "@/lib/finance/journal";
 import { TableauJournal } from "@/components/domain/TableauJournal";
 import { DemanderVersement } from "@/components/domain/DemanderVersement";
+import { ComptesRetrait } from "@/components/domain/ComptesRetrait";
+import { marcheDuPays } from "@/data/markets";
 import {
   CarteListe,
   Cellule,
@@ -61,7 +63,7 @@ export default async function SoldeVendeurPage() {
 
   // Le solde vient d'un module partagé avec le tableau de bord (§42) : deux
   // calculs séparés d'un même chiffre finissent toujours par diverger.
-  const [solde, journal, versements] = await Promise.all([
+  const [solde, journal, versements, comptes] = await Promise.all([
     chargerSoldeVendeur(sellerId),
     chargerJournal({ sellerId, page: 1, parPage: DERNIERS_MOUVEMENTS }),
     /* Les versements de CE vendeur, les plus récents d'abord. Bornés : cette
@@ -71,7 +73,17 @@ export default async function SoldeVendeurPage() {
       orderBy: { requestedAt: "desc" },
       take: DERNIERS_MOUVEMENTS,
     }),
+    /* Les numéros enregistrés : le vendeur en CHOISIT un à chaque retrait
+       plutôt que de le retaper. Le compte proposé en premier passe devant. */
+    prisma.payoutAccount.findMany({
+      where: { sellerId },
+      orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
+    }),
   ]);
+
+  /* Les opérateurs desservis dans le pays du vendeur, pas une liste écrite à la
+     main : `data/markets.ts` porte ceux du prestataire, pays par pays. */
+  const operateurs = marcheDuPays(user.sellerProfile.country ?? "")?.operateurs ?? [];
 
   return (
     <div className="min-h-screen bg-cream text-ink">
@@ -155,7 +167,13 @@ export default async function SoldeVendeurPage() {
           versable={solde.versable}
           enAttente={solde.versementEnAttente}
           devise={devise}
+          comptes={comptes}
         />
+
+        {/* La gestion des numéros vit SOUS la demande de retrait : on vient
+            ici pour retirer, pas pour administrer une liste. Le lien « Gérer
+            mes numéros » du formulaire descend jusqu'ici. */}
+        <ComptesRetrait comptes={comptes} operateurs={operateurs} />
 
         {versements.length > 0 && (
           <section>

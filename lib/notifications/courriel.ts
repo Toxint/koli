@@ -1,8 +1,12 @@
 import { prisma } from "@/lib/db/prisma";
 import {
   MESSAGES,
+  MESSAGES_VERSEMENT,
   MOTIF_COMMANDE_ABSENTE,
+  MOTIF_VERSEMENT_ABSENT,
+  estAvisDeVersement,
   motifDeNonEnvoi,
+  type ContexteDuVersement,
   type MontantsDeLaCommande,
 } from "@/lib/notifications/textes";
 import { TENTATIVES_MAX, refusDefinitif } from "@/lib/notifications/reessai";
@@ -155,6 +159,37 @@ async function montantsDe(reference: string): Promise<MontantsDeLaCommande | nul
   };
 }
 
+/**
+ * Le contexte d'un avis de VERSEMENT, lu au registre (§43).
+ *
+ * Même règle que `montantsDe` : le verdict décide s'il faut écrire, pas
+ * seulement quoi écrire. Un versement effacé — reprise de données, ménage — ne
+ * doit annoncer ni « votre versement a été effectué » ni le contraire.
+ */
+async function versementDe(id: string): Promise<ContexteDuVersement | null> {
+  const versement = await prisma.payout.findUnique({
+    where: { id },
+    select: {
+      amount: true,
+      currency: true,
+      phone: true,
+      holderName: true,
+      providerRef: true,
+      seller: { select: { businessName: true, user: { select: { name: true } } } },
+    },
+  });
+
+  if (!versement) return null;
+
+  return {
+    montant: formatMontant(versement.amount, commeDevise(versement.currency)),
+    vendeur: versement.seller.businessName || versement.seller.user.name,
+    numero: versement.phone,
+    titulaire: versement.holderName,
+    reference: versement.providerRef,
+  };
+}
+
 /** Vrai si la configuration permet d'envoyer quoi que ce soit. */
 export function courrielConfigure(): boolean {
   return Boolean(process.env.RESEND_API_KEY?.trim());
@@ -207,7 +242,13 @@ export async function expedierNotificationsEnAttente(): Promise<Resultat> {
   let ignorees = 0;
 
   for (const n of enAttente) {
-    const message = MESSAGES[n.type];
+    /* Deux familles d'avis : ceux qui parlent d'une COMMANDE, et les deux qui
+       parlent d'un VERSEMENT. Ils n'ont ni les mêmes textes ni le même
+       registre à interroger. */
+    const versement = estAvisDeVersement(n.type);
+    const message = estAvisDeVersement(n.type)
+      ? MESSAGES_VERSEMENT[n.type]
+      : MESSAGES[n.type];
 
     /*
      * Marque COMME TRAITEE, avec son motif.
@@ -243,16 +284,42 @@ export async function expedierNotificationsEnAttente(): Promise<Resultat> {
      * orpheline est marquee avec son motif — sinon elle reviendrait a chaque
      * passage et bloquerait la file derriere elle.
      */
-    const montants = await montantsDe(reference);
+    const contexte = versement
+      ? await versementDe(reference)
+      : await montantsDe(reference);
 
-    if (!montants) {
+    if (!contexte) {
       await prisma.notification.update({
         where: { id: n.id },
-        data: { sentAt: new Date(), sendError: MOTIF_COMMANDE_ABSENTE },
+        data: {
+          sentAt: new Date(),
+          sendError: versement ? MOTIF_VERSEMENT_ABSENT : MOTIF_COMMANDE_ABSENTE,
+        },
       });
       ignorees++;
       continue;
     }
+
+    /*
+     * L'OBJET ne porte pas l'identifiant d'un versement.
+     *
+     * Les avis de commande le font — la référence `KOLI-XXXX` est ce que le
+     * destinataire reconnaît. Un `Payout` n'a pas de référence lisible : son
+     * identifiant est un `cuid`, et l'écrire dans l'objet donnerait
+     * « Votre versement a été effectué — cmtpr596j000304l7metwf5cy ».
+     */
+    const objet = versement
+      ? message.objet
+      : `${message.objet} — ${reference}`;
+
+    const corps = versement
+      ? (message as (typeof MESSAGES_VERSEMENT)["PAYOUT_PAID"]).corps(
+          contexte as ContexteDuVersement
+        )
+      : (message as NonNullable<(typeof MESSAGES)[keyof typeof MESSAGES]>).corps(
+          reference,
+          contexte as MontantsDeLaCommande
+        );
 
     try {
       const reponse = await fetch(API, {
@@ -265,14 +332,8 @@ export async function expedierNotificationsEnAttente(): Promise<Resultat> {
           from: EXPEDITEUR,
           ...(REPONDRE_A ? { reply_to: REPONDRE_A } : {}),
           to: [adresse],
-          subject: `${message.objet} — ${reference}`,
-          text: [
-            `Bonjour ${n.user.name},`,
-            "",
-            message.corps(reference, montants),
-            "",
-            "— KOLI",
-          ].join("\n"),
+          subject: objet,
+          text: [`Bonjour ${n.user.name},`, "", corps, "", "— KOLI"].join("\n"),
         }),
         // Un envoi qui traîne ne doit pas retenir la file. Il repassera.
         signal: AbortSignal.timeout(8000),

@@ -36,6 +36,30 @@ import { DEVISES_OUVERTES } from "@/data/markets";
  */
 export const VERSEMENT_MINIMUM = 4000;
 
+/**
+ * Le délai PROMIS au vendeur, en heures — **24, décidé le 14 septembre 2026.**
+ *
+ * ┌──────────────────────────────────────────────────────────────────────────┐
+ * │  Ce délai n'est PAS celui du prestataire : iKeePay exécute un payout     │
+ * │  « instantanément » (leur réponse du 13 septembre 2026). C'est le nôtre, │
+ * │  celui d'un être humain qui exécute la demande à la main (§43).          │
+ * └──────────────────────────────────────────────────────────────────────────┘
+ *
+ * L'utilisateur l'a formulé ainsi : un vendeur africain a besoin de son argent
+ * « à chaque instant » pour racheter du stock et payer ses publicités. Trois
+ * jours ouvrés seraient confortables pour l'administration et coûteux pour lui
+ * — or c'est lui qui raconte son expérience autour de lui.
+ *
+ * ⚠ **Il est écrit ICI et nulle part ailleurs.** Les conditions d'utilisation
+ * et l'écran de solde le lisent : une promesse recopiée à deux endroits finit
+ * par dire deux choses, et c'est celle des conditions qui engage.
+ *
+ * ⚠ **Le raccourcir est une décision d'EXPLOITATION, pas de code.** Promettre
+ * six heures oblige à traiter les demandes six fois par jour, week-ends
+ * compris. Tenir 24 heures vaut mieux que manquer 6.
+ */
+export const DELAI_VERSEMENT_HEURES = 24;
+
 export interface DemandeDeVersement {
   /** Ce que le vendeur peut demander MAINTENANT, demandes en cours déduites. */
   versable: number;

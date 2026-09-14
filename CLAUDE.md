@@ -394,7 +394,7 @@ npm run admin:motdepasse     # changer le mot de passe administrateur, en local 
 (Playwright) contre le **vrai serveur** et lisent la **vraie base**. Un écran
 peut mentir sans que la base bouge, et l'inverse.
 
-**388 tests unitaires** par ailleurs (`npm test`, Vitest).
+**413 tests unitaires** par ailleurs (`npm test`, Vitest).
 
 ---
 
@@ -2272,9 +2272,9 @@ Suffisant pour un essai à quelques vendeurs.
 conséquence — le courrier est réparti entre les deux —, mais le contrôle
 d'ImprovMX peut rester orange.
 
-⚠ `RESEND_REPLY_TO` est posée dans `.env` (le poste). **Elle ne l'est pas encore
-sur Vercel** : la session du CLI a expiré le 13 septembre (`403 invalidToken`),
-et `npx vercel login` est un geste de l'utilisateur, dans un navigateur.
+✓ `RESEND_REPLY_TO` est posée dans `.env` ET sur l'aperçu Vercel (13 septembre
+2026), le site d'essai redéployé. Pas encore sur la production, qui reste muette
+tant qu'elle est en mode test.
 
 ### La clef Resend ne sait QUE envoyer, et depuis un seul domaine
 
@@ -2337,8 +2337,17 @@ utilisateur. La méthode qui a marché, et qui resservira :
    tableau de bord.
 5. On efface sa ligne de `.env`.
 
-Clefs restantes au compte : `koli-envoi-2` (celle de `.env`, envoi seul) et
-`Onboarding` (l'autre projet, non touchée).
+Clefs restantes au compte : `koli-envoi-3` (celle de `.env`, envoi seul, depuis
+la seconde fuite) et `Onboarding` (l'autre projet, non touchée).
+
+**La même clef temporaire suffit à TOUT faire** — éprouvé à la seconde rotation :
+créer la nouvelle clef d'envoi (`POST /api-keys`, `sending_access` +
+`domain_id` ; la réponse porte le jeton, écrit directement dans `.env`), et
+recréer le webhook (`POST /webhooks` ; la réponse porte `signing_secret`).
+L'utilisateur n'a qu'un geste : créer la temporaire. ⚠ L'ORDRE compte : nouvelle
+valeur sur Vercel et essai redéployé AVANT de supprimer l'ancienne — un 401 de
+Resend est un refus DÉFINITIF pour la file d'envoi, et les notifications
+tombées dans l'intervalle seraient perdues.
 
 **Conséquence à connaître** : plus aucune clef de ce poste ne peut administrer
 le compte Resend. Créer un domaine, lire les clefs, en révoquer une — tout cela
@@ -2352,6 +2361,125 @@ journalier et mensuel du forfait gratuit ne se lisent pas par l'API — à
 regarder sur leur tableau de bord avant de compter dessus, car une commande
 complète produit cinq à six courriels sur sa vie.
 
+### Seconde fuite de secrets, le 13 septembre 2026 — et sa rotation
+
+Quelques heures après la première, et pendant l'inventaire qui préparait le
+passage de la production en `ikeepay`. Pour dire « présente (N car.) » ou
+« ABSENTE », une commande shell a été écrite ainsi :
+
+```bash
+echo "${v:+présente (${#v} car.)}${v:-ABSENTE}"
+```
+
+`${v:-ABSENTE}` rend **la valeur elle-même** quand elle existe. Six secrets
+sont partis en clair dans la conversation : `IKEEPAY_PUBLIC_KEY`,
+`IKEEPAY_SECRET_KEY`, `IKEEPAY_WEBHOOK_TOKEN`, `RESEND_WEBHOOK_SECRET`,
+`RESEND_API_KEY` (la nouvelle) et `CRON_SECRET`.
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│  On ne fait JAMAIS passer une variable secrète par le shell, même dans une │
+│  expansion « conditionnelle ». Un script node lit `.env` et n'écrit que    │
+│  des VERDICTS : longueur, préfixe public (`pk_`, `sk_`), égalité à une     │
+│  autre valeur. Jamais la valeur, jamais une réponse d'API entière.         │
+└────────────────────────────────────────────────────────────────────────────┘
+
+Le passage de la production était **suspendu** tant que la rotation n'était pas
+finie : un site qui encaisse pour de vrai avec des clefs exposées n'est pas un
+site prêt.
+
+✓ **La rotation est TERMINÉE le 14 septembre 2026** — les six secrets exposés
+sont remplacés et chacun est vérifié par l'EFFET, jamais par la configuration :
+l'ancien refusé, le nouveau accepté. Ce qui reste devant le passage de la
+production n'est plus la sécurité, c'est le MODÈLE ÉCONOMIQUE (§4).
+
+**La méthode qui a servi six fois, et qui resservira** — pour un secret qui vit
+aussi chez un tiers (le jeton de rappel), l'ORDRE tient en trois temps : on tire
+le nouveau et on met l'adresse complète dans le PRESSE-PAPIERS (jamais à
+l'écran), l'utilisateur la colle chez le tiers, puis on pose la valeur sur
+Vercel et on redéploie. Entre les deux, l'encaissement est coupé — donc aucun
+paiement ne doit avoir lieu dans cette fenêtre. L'ancienne valeur est mise de
+côté hors du dépôt le temps de prouver qu'elle est bien REFUSÉE, puis effacée.
+
+**Où en est la rotation :**
+
+| Secret | État |
+|---|---|
+| Clefs iKeePay (publique + secrète) | ✓ régénérées par l'utilisateur, posées dans `.env`, remplacées sur Vercel (aperçu ET production), essai redéployé et vérifié : sa page de paiement porte la nouvelle clef publique |
+| `IKEEPAY_WEBHOOK_TOKEN` | ✓ tiré au sort le 14 septembre 2026, posé dans `.env`, `.env.local` et sur Vercel (aperçu ET production), essai redéployé. Vérifié par l'effet : sans jeton **401**, ancien **401**, nouveau **200** avec sa trace `PAYMENT_CALLBACK_DISCARDED` |
+| `CRON_SECRET` | ✓ tiré au sort, posé dans `.env` et `.env.local`, remplacé sur Vercel (aperçu ET production), les deux sites redéployés avec le même code. Vérifié par l'effet sur les deux sites et en local : l'ancien → 401, le nouveau → 200 |
+| `RESEND_API_KEY` | ✓ `koli-envoi-3` créée PAR L'API avec la clef temporaire (envoi seul, domaine `koli.`), écrite dans `.env` sans passer par la conversation, posée sur l'aperçu Vercel. Portée vérifiée : domaines **401**, racine **403**, `koli.` **200**. `koli-envoi-2` supprimée (**400**), puis la temporaire s'est supprimée elle-même (**400**) |
+| `RESEND_WEBHOOK_SECRET` | ✓ **Resend a une API des webhooks** : un nouveau webhook (même adresse, mêmes trois événements) a été créé, son secret écrit dans `.env` et sur l'aperçu, l'essai redéployé, puis l'ancien webhook supprimé. Vérifié sur l'essai : rappel signé du nouveau secret **200**, de l'ancien **401** |
+
+⚠ **Régénérer une paire iKeePay coupe l'encaissement jusqu'au redéploiement.**
+Le tunnel est bâti avec la clef publique lue au démarrage : tant que Vercel porte
+l'ancienne, plus personne ne peut payer. Remplacer les variables ne suffit pas —
+une variable ne s'applique qu'aux déploiements **suivants**. Le site d'essai a
+été relancé depuis son propre déploiement (`POST /v13/deployments` avec
+`deploymentId`), puis l'alias `koli-essai.vercel.app` y a été reporté.
+
+⚠ **L'utilisateur avait collé la clef secrète une ligne trop bas**, sur une
+ligne orpheline sans `IKEEPAY_SECRET_KEY=` devant. L'application n'aurait rien
+lu, et `ikeepay:verifier` aurait dit « manquante » d'une clef pourtant présente
+dans le fichier. Vérifier la PLACE d'une valeur collée, pas seulement son
+existence.
+
+
+### Les deux pages légales décrivent enfin le service RÉEL
+
+Écrites le 14 septembre 2026, sur demande de l'utilisateur : « écris-les en
+mode réel, plus de test ». Elles étaient des **pages d'attente** depuis le
+début — « les conditions définitives seront publiées une fois arrêté le
+partenaire financier ». Le partenaire est arrêté, les vendeurs arrivent, et un
+service qui prend l'argent d'un acheteur sans dire à quelles conditions n'est
+pas un service de confiance.
+
+**Les chiffres sont LUS, jamais recopiés.** Le taux de commission vient de la
+base (`tauxCommissionActif`), le minimum de versement et le délai promis de
+`lib/finance/versement.ts`, la liste des sept pays de `data/markets.ts`. Un
+document juridique qui annonce 5 % pendant que le code en prélève 7 est pire
+qu'un document absent : c'est la preuve écrite qu'on a menti.
+
+⚠ **D'où `revalidate = 3600` sur les conditions.** Le taux se change depuis
+l'administration, sans déploiement (§41) ; pré-rendue une fois pour toutes, la
+page annoncerait l'ancien taux jusqu'au déploiement suivant.
+
+**Le délai de versement est un ENGAGEMENT, et il vit dans UNE constante**
+(`DELAI_VERSEMENT_HEURES = 24`). Ce n'est pas le délai du prestataire — iKeePay
+verse « instantanément » — c'est le nôtre, celui d'un humain qui exécute à la
+main (§43). L'utilisateur a tranché ainsi : un vendeur africain a besoin de son
+argent « à chaque instant » pour racheter du stock et payer ses publicités ;
+trois jours ouvrés seraient confortables pour l'administration et coûteux pour
+lui. Le raccourcir est une décision d'EXPLOITATION — promettre six heures
+oblige à traiter les demandes six fois par jour, week-ends compris.
+
+**On ne promet que ce que le code TIENT.** Chaque phrase correspond à un
+comportement existant : le code de réception connu du seul acheteur, la
+conversion faite par le partenaire à son taux, le numéro de versement redemandé
+à chaque fois, la commission retenue à la libération. « Remboursement sous
+48 h » n'était pas tenu, donc n'est pas écrit.
+
+**La politique de confidentialité NOMME les sous-traitants** — le partenaire
+financier, Resend, Vercel et Supabase, avec ce que chacun voit. Un service qui
+dit « nous ne partageons pas vos données » alors que ses courriels passent chez
+un tiers ment par omission. Elle dit aussi la **limite du droit d'effacement** :
+fermer un compte n'efface pas les factures des ventes déjà faites — elles sont
+la preuve de l'autre partie.
+
+⚠ **La mention de mode test CHANGE, elle ne disparaît pas.** Tant que la
+production tourne en `test`, le visiteur doit lire que ce site-là simule :
+sinon le document affirme un prélèvement qui n'a pas lieu — le symétrique exact
+de la faute que `verif:mentions` existe pour empêcher. Les 33 mentions restent
+sous garde.
+
+⚠ **AUCUNE FORME JURIDIQUE N'EST DÉCLARÉE**, et c'est un choix de l'utilisateur
+du 14 septembre 2026 : les documents nomment « KOLI » et l'adresse de contact,
+rien d'autre. Tenable pour un essai à quelques vendeurs, insuffisant dès qu'un
+litige dépasse l'amiable — il n'y a alors personne à assigner, et rien à
+opposer. À reprendre avant d'ouvrir largement.
+
+⚠ **Un lien posé dans un paragraphe fait 38 px de haut**, et `verif:responsive`
+l'a refusé sur les deux renvois croisés entre les deux pages. `inline-block
+min-h-[44px] py-1` — un doigt ne vise pas une ligne de texte comme une souris.
 
 ### Un montant ne peut pas revenir à la ligne, seulement déborder
 
@@ -2990,6 +3118,140 @@ tableau de bord, et que le §80 exige.
 `5`. La page Solde annonçait « Commission KOLI 0.05 % ». La production écrit un
 POURCENTAGE (`preleverCommission` → `rate: taux`, où taux vaut 5).
 
+### Le vendeur ENREGISTRE ses numéros de retrait, puis il en CHOISIT un
+
+Demande de l'utilisateur, le 14 septembre 2026 : « qu'il ne puisse pas commencer
+à mettre les numéros à chaque fois qu'il a besoin d'effectuer un retrait ».
+`PayoutAccount`, `lib/finance/comptes-retrait.ts` (la règle, pure),
+`comptes-retrait-actions.ts` (l'écriture), le bloc « Mes numéros de retrait »
+sous le formulaire de `/vendeur/solde`.
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│  Cela DÉFAIT en partie une garde écrite ici même : le numéro était         │
+│  redemandé à chaque versement pour qu'un transfert ne parte jamais vers    │
+│  une ligne résiliée sans que personne le voie.                            │
+└────────────────────────────────────────────────────────────────────────────┘
+
+**Ce qui remplace cette garde n'est pas la confiance, c'est le CHOIX.** Le
+vendeur ne saisit plus, mais il coche — et l'écran lui montre le numéro
+**complet** et le nom du titulaire en face de chaque bouton radio. Ce qui reste
+interdit, c'est le pré-remplissage silencieux d'un champ : là, on valide sans
+avoir rien relu.
+
+Sept décisions, et chacune se déferait sans être écrite :
+
+- **Le nom du TITULAIRE est obligatoire**, et recopié sur chaque versement
+  (`Payout.holderName`). Chez la plupart des opérateurs, un transfert s'annonce
+  sous le nom du titulaire : c'est le seul garde-fou contre deux chiffres
+  inversés, qui donnent un numéro valide appartenant à quelqu'un d'autre.
+  L'administration le lit dans sa file, à côté du numéro.
+- **Le numéro est recopié sur le versement, jamais référencé.** Un vendeur qui
+  corrige son compte après coup ne doit pas changer la destination d'un
+  versement déjà demandé — on relirait l'histoire, et le registre dirait qu'on
+  a payé ailleurs.
+- **L'opérateur se choisit dans la liste du PAYS** (`data/markets.ts`), pas au
+  clavier. Un nom inventé produirait un versement qu'aucune application de
+  transfert ne sait exécuter, et l'administration ne le découvrirait qu'en
+  envoyant. ⚠ Le vendeur de démonstration n'a **pas de pays** (`country` nul,
+  voir « Un vendeur sans pays… ») : le champ retombe alors en saisie libre, et
+  c'est ce chemin-là que la campagne exerce.
+- **Le doublon se juge sur les CHIFFRES**, et l'un peut être le suffixe de
+  l'autre : « +225 07 01 02 03 04 » et « 0701020304 » sont la même ligne. Deux
+  entrées identiques dans la liste de choix sont précisément la confusion à
+  éviter au moment de décider où part l'argent.
+- **Le PREMIER compte devient celui proposé, sans qu'on le demande.** Sinon
+  l'écran offrirait une liste d'un seul élément non coché — une question dont
+  la réponse est évidente est une question de trop.
+- **Toute écriture est bornée au vendeur connecté**, par `where { id, sellerId }`.
+  L'identifiant voyage dans le formulaire : s'y fier laisserait un vendeur
+  faire partir un versement sur le numéro d'un concurrent.
+- **Cinq numéros au maximum.** La borne ne protège pas la base — elle protège
+  le moment du choix : une liste longue se parcourt mal sur un téléphone, et
+  l'on y coche vite le mauvais.
+
+`npm run verif:versements` — **35 contrôles**, dont l'enregistrement joué dans
+le navigateur. Falsifié en retirant `sellerId` du `where` : le contrôle du
+détournement rend « 1 versement(s) détourné(s) vers +2250799000403 » — 4 000
+FCFA partis sur le numéro d'un autre vendeur. Falsification retirée aussitôt et
+vérifiée absente.
+
+⚠ **Deux pièges de contrôle, et le premier a produit un faux diagnostic.**
+
+- **Une navigation qui ne diffère que par le FRAGMENT ne recharge rien.**
+  `page.goto(".../solde#numeros-de-retrait")` depuis cette même adresse laisse
+  la page en place, avec l'état React de la tentative précédente — et son
+  message d'erreur encore affiché. Le contrôle lisait donc le message de
+  l'essai d'avant : « un numéro sans titulaire est refusé » échouait en citant
+  le refus d'un numéro trop court. On recharge pour de bon, et l'on attend que
+  le message **change**.
+- **Un contrôle doit viser le BON formulaire.** « Le formulaire de retrait ne
+  redemande plus le numéro » cherchait un champ `[name=telephone]` dans toute
+  la page — or celui d'enregistrement en porte un, légitimement. Il vise
+  désormais `form:has(#montant)`.
+
+⚠ **Le contrôle du détournement pose lui-même le compte du concurrent.** Il
+dépendait sinon du solde du second vendeur de démonstration : il ne s'exerçait
+qu'une fois sur deux, et le disait — mais un contrôle qui ne s'exerce qu'au
+hasard du jeu de données finit par ne rien prouver.
+
+⚠ **La migration `comptes_de_retrait` ÉLARGIT** (table ajoutée, colonne
+nullable) : elle se déploie donc **AVANT** le code, et le §8 rappelle que cela
+vaut au PUSH, puisqu'un push sur `master` redéploie la production.
+
+### Les deux courriels du versement — et l'adresse qui ne reçoit rien
+
+Demande de l'utilisateur, le 14 septembre 2026 : être prévenu quand un vendeur
+demande un retrait, et que le vendeur soit prévenu quand il est effectué.
+`PAYOUT_REQUESTED` (vers l'administration) et `PAYOUT_PAID` (vers le vendeur),
+migration `avis_de_versement`.
+
+**Ce sont les deux seuls avis de KOLI qui ne parlent pas d'une commande.** Leur
+`entityId` porte l'identifiant d'un `Payout`, pas une référence `KOLI-XXXX` —
+d'où `MESSAGES_VERSEMENT` à côté de `MESSAGES`, son propre contexte
+(`versementDe`), son propre motif d'abandon (`MOTIF_VERSEMENT_ABSENT`) et un
+objet SANS identifiant : « Votre versement a été effectué — cmtpr596j0003… »
+n'apprend rien à personne.
+
+Quatre décisions, et chacune se déferait sans être écrite :
+
+- **Celui de l'ADMINISTRATION porte le numéro de destination et le nom du
+  titulaire.** C'est le seul courriel de KOLI qui contienne un numéro, et c'est
+  voulu : il est adressé à l'équipe, qui doit aller le recopier dans son
+  application Mobile Money. Le nom est ce qui rattrape deux chiffres inversés.
+- **Celui du VENDEUR ne le porte PAS.** Il sait où il a demandé son argent ; le
+  lui réécrire ferait voyager sa destination dans une boîte aux lettres, qui se
+  transfère et se lit par-dessus l'épaule. Un test l'exige.
+- **`PAYOUT_REQUESTED` va à TOUS les administrateurs actifs**, jamais à « l'ˮ
+  administrateur : le jour où il y en a deux, c'est l'absent qui serait
+  notifié. L'auteur de l'action est exclu, comme partout (règle 2 des
+  notifications).
+- **Un REFUS n'écrit rien**, et c'est un choix. Le vendeur voit le refus et son
+  motif dans son espace ; un courriel « votre versement a été refusé » sans le
+  motif inquiéterait sans servir. Le jour où on l'écrira, il faudra y mettre le
+  motif.
+
+┌────────────────────────────────────────────────────────────────────────────┐
+│  ⚠ L'ADMINISTRATEUR EN LIGNE EST `admin@koli.ci` — une adresse de          │
+│  DÉMONSTRATION, que le canal écarte exprès. Le courriel « un vendeur       │
+│  demande un versement » ne partirait donc JAMAIS, et rien ne le dirait.    │
+└────────────────────────────────────────────────────────────────────────────┘
+
+C'est exactement la forme des deux paiements perdus du 6 septembre 2026 : une
+panne muette sur le chemin par lequel arrive l'information. `/admin/versements`
+**le dit** désormais, en rouge, quand aucun administrateur actif n'a d'adresse
+recevable — démonstration, absente, ou fermée après rebond. Le remède n'est pas
+dans le code : il faut poser une vraie adresse sur le compte administrateur en
+ligne.
+
+⚠ **La liste des adresses de démonstration reste EXPLICITE** (`koli.ci`,
+`exemple.ci`, `example.com`, `test.local`) : c'est elle qui protège la
+réputation d'envoi pendant les campagnes. On ne la contourne pas pour faire
+passer un courriel — on change l'adresse du compte.
+
+`verif:versements` compte **37 contrôles** : deux de plus, qui lisent la base
+plutôt que la boîte aux lettres — l'avis de demande n'existe que pour des
+comptes `ADMIN`, l'avis d'exécution que pour le `SELLER` concerné.
+
 ### Seuls les sept pays du franc CFA sont ouverts aux VENDEURS
 
 Décision de l'utilisateur, le 12 septembre 2026. `DEVISES_OUVERTES` et
@@ -3049,6 +3311,28 @@ dont la commande est figée chez KOLI.
   seule trace d'un client débité. Vérifié avant de l'écrire : la crainte
   inverse — un rattrapage qui fait disparaître un vrai paiement — ne se produit
   pas par ce chemin.
+
+**Et c'est pourquoi la liste ne se vide JAMAIS toute seule.** Un paiement qui
+n'aboutit pas y reste indéfiniment — le 14 septembre 2026, `KOLI-RXZ3QSD9` y
+figurait depuis huit jours. Une liste de travail qui garde ses vieux dossiers
+finit par ne plus être lue, et c'est le même défaut qu'un contrôle qui crie sur
+du sain.
+
+`npm run paiement:expirer -- <référence> [--appliquer]` **écrit la conclusion**
+de la vérification humaine : paiement à `EXPIRED` avec son motif, et une ligne
+`PAYMENT_EXPIRED_MANUALLY` au journal d'audit. Quatre gardes :
+
+- il refuse tout paiement qui n'est PAS en attente — on ne rouvre pas un
+  encaissement abouti par un script ;
+- sans `--appliquer` il montre et ne touche à rien, comme `supabase:registre` ;
+- l'écriture est **conditionnelle sur l'état de départ** : un rappel arrivé
+  pendant qu'on lisait l'écran ne se fait pas écraser ;
+- il n'efface rien et ne touche pas au stock — un paiement en attente n'a rien
+  décrémenté (§17).
+
+⚠ **Il ne se lance qu'APRÈS avoir cherché la référence dans l'historique
+iKeePay et ne l'y avoir PAS trouvée.** C'est la seule preuve qu'aucun client
+n'a été débité, et elle ne vient pas du code.
 
 ### La campagne traverse les coupures du VPN
 

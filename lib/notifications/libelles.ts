@@ -148,6 +148,31 @@ const FORMULATIONS: Record<NotificationType, ParRole> = {
       detail: "Le remboursement de votre commande a été traité.",
     },
   },
+
+  /*
+   * Les deux avis de VERSEMENT (§43).
+   *
+   * Le premier est le seul de KOLI adressé à l'ÉQUIPE : il n'a donc pas de
+   * formulation « client » ni « vendeur », et son défaut parle à un
+   * administrateur. Le second est son exact opposé — il annonce au vendeur que
+   * l'argent est parti, l'aboutissement de toute la promesse.
+   */
+  PAYOUT_REQUESTED: {
+    defaut: {
+      titre: "Versement demandé",
+      detail: "Un vendeur attend son argent : la demande est dans la file.",
+    },
+  },
+  PAYOUT_PAID: {
+    defaut: {
+      titre: "Versement effectué",
+      detail: "L'argent a été envoyé sur le numéro choisi.",
+    },
+    SELLER: {
+      titre: "Votre versement est parti",
+      detail: "L'argent a été envoyé sur le numéro que vous avez choisi.",
+    },
+  },
 };
 
 export function formulerNotification(
@@ -175,6 +200,17 @@ export function lienNotification(
   entiteId: string | null,
   role: UserRole
 ): string | null {
+  /*
+   * Un avis de VERSEMENT ne mène pas à une commande.
+   *
+   * Son `entityId` est l'identifiant d'un `Payout` : le passer aux liens
+   * ci-dessous enverrait chercher une commande qui n'existe pas — une
+   * notification qui mène à « introuvable » est pire qu'une sans lien.
+   */
+  if (entite === "Payout") {
+    return role === "ADMIN" ? "/admin/versements" : "/vendeur/solde";
+  }
+
   if (entite !== "Order" || !entiteId) return null;
 
   switch (role) {
