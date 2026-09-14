@@ -4,7 +4,12 @@ import { Icone } from "@/components/ui/Icone";
 import { isTestMode } from "@/lib/config/mode";
 import { tauxCommissionActif } from "@/lib/finance/commission";
 import { DELAI_VERSEMENT_HEURES, VERSEMENT_MINIMUM } from "@/lib/finance/versement";
-import { MARCHES, ouvertAuxVendeurs } from "@/data/markets";
+import {
+  DEVISES_OUVERTES,
+  MARCHES,
+  SYMBOLE,
+  ouvertAuxVendeurs,
+} from "@/data/markets";
 
 export const metadata: Metadata = {
   title: "Conditions d'utilisation",
@@ -82,6 +87,21 @@ export default async function ConditionsPage() {
   const taux = await tauxCommissionActif();
   const paysOuverts = MARCHES.filter(ouvertAuxVendeurs).map((m) => m.name);
   const minimum = VERSEMENT_MINIMUM.toLocaleString("fr-FR");
+
+  /*
+   * Le symbole est DÉDUIT de la zone ouverte, jamais écrit à la main.
+   *
+   * `verif:devises` a refusé « 4 000 FCFA » dans ce document, et il avait
+   * raison : c'est la faute de `formatCFA` sous un autre nom — un nom de
+   * monnaie figé dans une phrase qui, le jour où une autre devise s'ouvrira,
+   * mentira sans que rien ne le signale. XOF et XAF portent aujourd'hui le
+   * même symbole, donc cette expression rend « FCFA » ; le jour où le franc
+   * congolais entrera, elle rendra « FCFA / FC », et la phrase restera vraie
+   * sans que personne ait eu à y penser.
+   */
+  const symboleDeLaZone = [
+    ...new Set(DEVISES_OUVERTES.map((d) => SYMBOLE[d])),
+  ].join(" / ");
 
   return (
     <main className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
@@ -242,7 +262,7 @@ export default async function ConditionsPage() {
           <li>
             Montant minimum d&apos;une demande :{" "}
             <strong className="text-ink dark:text-slate-100">
-              {minimum} FCFA
+              {minimum} {symboleDeLaZone}
             </strong>
             .
           </li>

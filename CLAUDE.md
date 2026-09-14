@@ -3198,6 +3198,18 @@ hasard du jeu de données finit par ne rien prouver.
 nullable) : elle se déploie donc **AVANT** le code, et le §8 rappelle que cela
 vaut au PUSH, puisqu'un push sur `master` redéploie la production.
 
+✓ **En ligne depuis le 14 septembre 2026.** Les deux migrations
+(`comptes_de_retrait`, `avis_de_versement`) ont été appliquées à Supabase — 15
+sur 15, `verif:schema` vert — **puis** le code poussé (`0b3b44b`), dans cet
+ordre. La production affiche les conditions avec les chiffres du registre
+(commission 5 %, versement sous 24 h) et reste en `PAYMENT_MODE=test`.
+
+✓ **Le compte administrateur en ligne porte désormais
+`koli@premiummarketafrica.com`** (`npm run admin:adresse`), et non plus
+`admin@koli.ci` : c'est ce qui rend l'avis de demande de versement livrable. On
+s'y connecte avec cette adresse ou avec le numéro du compte ; le mot de passe
+n'a pas changé.
+
 ### Les deux courriels du versement — et l'adresse qui ne reçoit rien
 
 Demande de l'utilisateur, le 14 septembre 2026 : être prévenu quand un vendeur

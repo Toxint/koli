@@ -76,6 +76,7 @@
     "ikeepay:surveiller": "node scripts/surveiller-paiement.mjs",
     "admin:motdepasse": "node scripts/mot-de-passe-admin.mjs",
     "admin:adresse": "node scripts/adresse-admin.mjs",
+    "admin:commission": "node scripts/taux-commission.mjs",
     "verif:versements": "node scripts/test-versements.mjs",
     "verif:chaine": "npm run typecheck && npm run lint && npm test && npm run verif:latence && npm run verif:prealables && npm run verif:requetes && npm run verif:schema && npm run verif:responsive && npm run verif:liens && npm run verif:connexion && npm run verif:deconnexion && npm run verif:menu && npm run verif:session && npm run verif:motdepasse && npm run verif:inscription && npm run verif:sansjs && npm run verif:rebonds && npm run verif:catalogue && npm run verif:clients && npm run verif:etapes && npm run verif:jalons && npm run verif:rappel && npm run verif:litiges && npm run verif:transactions && npm run verif:courbes && npm run verif:annonces && npm run verif:livreurs && npm run verif:mentions && npm run verif:devises && npm run verif:versements && npm run verif:rapprochement && npm run verif:factures && npm run verif:notifications && npm run verif:kyc && npm run verif:journal && npm run verif:admin && npm run verif:google && npm run verif:parcours",
     "verif:rapprochement": "node scripts/test-rapprochement.mjs"

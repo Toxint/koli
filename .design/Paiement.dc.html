@@ -1,0 +1,155 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@1&display=swap">
+  <style>
+    body { margin: 0; font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif; color: #241c22; background: #dcecd2; }
+    a { color: #5b1348; text-decoration: none; }
+    a:hover { color: #3e0d33; }
+    .titre { font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-weight: 800; letter-spacing: -0.03em; }
+    .sur { font-size: 10.5px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+  </style>
+</helmet>
+
+<!-- La page de paiement, vue par l'acheteur, sur son téléphone.
+     C'est l'écran le plus important du produit : quelqu'un qui ne connaît pas
+     KOLI s'apprête à envoyer de l'argent. Tout ici sert à répondre à une seule
+     question — « qui tient mon argent, et jusqu'à quand ? ». -->
+<div style="width: 390px; background: #dcecd2;">
+
+  <div style="display: flex; align-items: center; justify-content: center; gap: 8px; padding: 16px 20px;">
+    <svg width="22" height="22" viewBox="0 0 100 100" fill="none" aria-hidden="true">
+      <path d="M50 12a38 38 0 1 0 33 19" stroke="#5b1348" stroke-width="17" stroke-linecap="round"/>
+      <path d="M57 46a12 12 0 1 1-11 17" stroke="#5b1348" stroke-width="13" stroke-linecap="round"/>
+    </svg>
+    <span class="titre" style="font-size: 17px; color: #3e0d33;">KOLI</span>
+  </div>
+
+  <!-- La promesse, avant tout le reste -->
+  <div style="margin: 0 16px; border-radius: 20px; background: #3e0d33; padding: 20px 20px 18px;">
+    <div style="display: flex; gap: 12px;">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" style="flex-shrink: 0;" aria-hidden="true">
+        <path d="M12 3 4 6.5v5c0 4.6 3.2 8.4 8 9.5 4.8-1.1 8-4.9 8-9.5v-5L12 3Z" stroke="#ffc93c" stroke-width="1.8" stroke-linejoin="round"/>
+        <path d="m9 12 2.2 2.2L15.5 10" stroke="#ffc93c" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div>
+        <div class="titre" style="font-size: 17px; color: #fff;">Votre argent est gardé, pas envoyé</div>
+        <p style="margin: 7px 0 0; font-size: 13.5px; line-height: 1.55; color: #d3bccb;">
+          Boutique Awa ne touchera rien tant que vous n'aurez pas reçu votre commande et donné votre code.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Le détail de la commande -->
+  <div style="margin: 14px 16px 0; border: 1px solid #e6cedc; border-radius: 20px; background: #fff; overflow: hidden;">
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 18px 14px; border-bottom: 1px solid #f1e9ee;">
+      <span class="sur" style="color: #8a7f90;">Commande KOLI-7QF3MZ</span>
+      <span style="font-size: 12.5px; color: #5c5364;">14 sept.</span>
+    </div>
+
+    <div style="display: flex; gap: 13px; padding: 16px 18px;">
+      <div style="width: 58px; height: 58px; border-radius: 13px; background: #f4ede1; display: grid; place-items: center; flex-shrink: 0;">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 8.5 12 4l8 4.5v7L12 20l-8-4.5v-7Z" stroke="#7d5a12" stroke-width="1.7" stroke-linejoin="round"/><path d="m4 8.5 8 4.5 8-4.5M12 13v7" stroke="#7d5a12" stroke-width="1.7" stroke-linejoin="round"/></svg>
+      </div>
+      <div style="flex-grow: 1;">
+        <div style="font-size: 15px; font-weight: 700; line-height: 1.35;">Ensemble pagne wax — 2 pièces</div>
+        <div style="margin-top: 4px; font-size: 13px; color: #5c5364;">Vendu par Boutique Awa · Abidjan</div>
+      </div>
+    </div>
+
+    <div style="padding: 0 18px 6px;">
+      <div style="display: flex; justify-content: space-between; padding: 9px 0; font-size: 14px; color: #4a4150;">
+        <span>2 × 18 500 FCFA</span><span>37 000 FCFA</span>
+      </div>
+      <div style="display: flex; justify-content: space-between; padding: 9px 0; font-size: 14px; color: #4a4150; border-bottom: 1px solid #f1e9ee;">
+        <span>Livraison — Cocody</span><span>1 500 FCFA</span>
+      </div>
+      <div style="display: flex; align-items: flex-end; justify-content: space-between; padding: 14px 0 4px;">
+        <span style="font-size: 14px; font-weight: 600; color: #241c22;">Total à payer</span>
+        <span class="titre" style="font-size: 30px; color: #3e0d33;">38 500 FCFA</span>
+      </div>
+      <div style="padding-bottom: 16px; text-align: right; font-size: 12.5px; color: #5c5364;">Aucun frais ajouté</div>
+    </div>
+  </div>
+
+  <!-- Le choix de l'opérateur : ce que le doigt touche -->
+  <div style="margin: 14px 16px 0;">
+    <div class="sur" style="color: #6b6072;">Payer avec</div>
+    <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 10px;">
+      <div style="display: flex; align-items: center; gap: 10px; height: 56px; padding: 0 14px; border: 2px solid #5b1348; border-radius: 15px; background: #fff;">
+        <span style="display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; background: #fff4d6;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="3" stroke="#7d5a12" stroke-width="1.8"/><path d="M10 17.5h4" stroke="#7d5a12" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </span>
+        <span style="font-size: 14.5px; font-weight: 600;">Orange Money</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px; height: 56px; padding: 0 14px; border: 1px solid #e0dbe2; border-radius: 15px; background: #fff;">
+        <span style="display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; background: #f3f5f2;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 14c3-6 6-6 9 0s5 4 7-2" stroke="#5c5364" stroke-width="1.9" stroke-linecap="round"/></svg>
+        </span>
+        <span style="font-size: 14.5px; font-weight: 600;">Wave</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px; height: 56px; padding: 0 14px; border: 1px solid #e0dbe2; border-radius: 15px; background: #fff;">
+        <span style="display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; background: #f3f5f2;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8" stroke="#5c5364" stroke-width="1.9"/></svg>
+        </span>
+        <span style="font-size: 14.5px; font-weight: 600;">MTN Money</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 10px; height: 56px; padding: 0 14px; border: 1px solid #e0dbe2; border-radius: 15px; background: #fff;">
+        <span style="display: grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; background: #f3f5f2;">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h14M12 5v14" stroke="#5c5364" stroke-width="1.9" stroke-linecap="round"/></svg>
+        </span>
+        <span style="font-size: 14.5px; font-weight: 600;">Moov Money</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- L'action -->
+  <div style="margin: 18px 16px 0;">
+    <div style="display: flex; align-items: center; justify-content: center; gap: 9px; height: 58px; border-radius: 16px; background: #5b1348; color: #fff; font-size: 16.5px; font-weight: 700;">
+      Payer 38 500 FCFA
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12h13m-5-6 6 6-6 6" stroke="#ffc93c" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </div>
+    <p style="margin: 12px 4px 0; font-size: 12.5px; line-height: 1.55; color: #5c5364; text-align: center;">
+      Vous validerez sur votre téléphone. Aucun numéro ni code secret ne passe par KOLI.
+    </p>
+  </div>
+
+  <!-- Ce qui se passe ensuite : le doute qu'il faut lever ici, pas après -->
+  <div style="margin: 22px 16px 26px; border-top: 1px solid #c6dcbc; padding-top: 20px;">
+    <div class="sur" style="color: #6b6072;">Ensuite</div>
+    <div style="display: flex; flex-direction: column; gap: 14px; margin-top: 14px;">
+      <div style="display: flex; gap: 12px;">
+        <span style="display: grid; place-items: center; width: 26px; height: 26px; border-radius: 999px; background: #f7eaf1; font-size: 12px; font-weight: 700; color: #5b1348; flex-shrink: 0;">1</span>
+        <div>
+          <div style="font-size: 14px; font-weight: 600;">Awa prépare et expédie</div>
+          <div style="margin-top: 2px; font-size: 13px; line-height: 1.5; color: #5c5364;">Elle voit que l'argent existe, sans pouvoir le prendre.</div>
+        </div>
+      </div>
+      <div style="display: flex; gap: 12px;">
+        <span style="display: grid; place-items: center; width: 26px; height: 26px; border-radius: 999px; background: #f7eaf1; font-size: 12px; font-weight: 700; color: #5b1348; flex-shrink: 0;">2</span>
+        <div>
+          <div style="font-size: 14px; font-weight: 600;">Vous recevez un code à six chiffres</div>
+          <div style="margin-top: 2px; font-size: 13px; line-height: 1.5; color: #5c5364;">Ne le donnez qu'une fois le colis entre vos mains, et vérifié.</div>
+        </div>
+      </div>
+      <div style="display: flex; gap: 12px;">
+        <span style="display: grid; place-items: center; width: 26px; height: 26px; border-radius: 999px; background: #f7eaf1; font-size: 12px; font-weight: 700; color: #5b1348; flex-shrink: 0;">3</span>
+        <div>
+          <div style="font-size: 14px; font-weight: 600;">Un problème ? Vous ouvrez un litige</div>
+          <div style="margin-top: 2px; font-size: 13px; line-height: 1.5; color: #5c5364;">Tant que vous n'avez pas confirmé, l'argent reste bloqué chez KOLI.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</x-dc>
+</body>
+</html>

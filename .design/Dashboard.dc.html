@@ -1,0 +1,235 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@1&display=swap">
+  <style>
+    body { margin: 0; font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif; color: #241c22; background: #dcecd2; }
+    a { color: #5b1348; text-decoration: none; }
+    a:hover { color: #3e0d33; }
+    .titre { font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-weight: 800; letter-spacing: -0.03em; }
+    .sur { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+  </style>
+</helmet>
+
+<!-- Tableau de bord vendeur — la forme décidée le 11 septembre : trois blocs
+     de revenu à gauche, deux courbes fines à droite. Ce qui change ici, c'est
+     la respiration : une seule barre, des filets plutôt que des ombres, et la
+     première action du vendeur posée là où l'œil tombe. -->
+<div style="width: 1440px; min-height: 900px; background: #dcecd2; padding: 22px;">
+
+  <!-- La carte blanche qui porte tout l'espace connecté -->
+  <div style="border: 1px solid #c6dcbc; border-radius: 24px; background: #fff; overflow: hidden;">
+
+    <!-- Barre horizontale -->
+    <div style="display: flex; align-items: center; gap: 26px; padding: 14px 24px; border-bottom: 1px solid #eef1ec;">
+      <div style="display: flex; align-items: center; gap: 9px;">
+        <svg width="26" height="26" viewBox="0 0 100 100" fill="none" aria-hidden="true">
+          <path d="M50 12a38 38 0 1 0 33 19" stroke="#5b1348" stroke-width="17" stroke-linecap="round"/>
+          <path d="M57 46a12 12 0 1 1-11 17" stroke="#5b1348" stroke-width="13" stroke-linecap="round"/>
+        </svg>
+        <span class="titre" style="font-size: 18px; color: #3e0d33;">KOLI</span>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 4px; flex-grow: 1;">
+        <span style="display: inline-flex; align-items: center; height: 38px; padding: 0 15px; border-radius: 10px; background: #f7eaf1; font-size: 14px; font-weight: 600; color: #5b1348;">Tableau de bord</span>
+        <span style="display: inline-flex; align-items: center; height: 38px; padding: 0 15px; border-radius: 10px; font-size: 14px; font-weight: 500; color: #4a4150;">Commandes</span>
+        <span style="display: inline-flex; align-items: center; height: 38px; padding: 0 15px; border-radius: 10px; font-size: 14px; font-weight: 500; color: #4a4150;">Produits</span>
+        <span style="display: inline-flex; align-items: center; height: 38px; padding: 0 15px; border-radius: 10px; font-size: 14px; font-weight: 500; color: #4a4150;">Clients</span>
+        <span style="display: inline-flex; align-items: center; height: 38px; padding: 0 15px; border-radius: 10px; font-size: 14px; font-weight: 500; color: #4a4150;">Solde</span>
+        <span style="display: inline-flex; align-items: center; gap: 6px; height: 38px; padding: 0 15px; border-radius: 10px; font-size: 14px; font-weight: 500; color: #4a4150;">
+          Plus
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="#4a4150" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>
+      </div>
+
+      <span style="display: inline-flex; align-items: center; gap: 8px; height: 42px; padding: 0 18px; border-radius: 999px; background: #5b1348; color: #fff; font-size: 14px; font-weight: 600;">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 5v14M5 12h14" stroke="#ffc93c" stroke-width="2.4" stroke-linecap="round"/></svg>
+        Nouvelle commande
+      </span>
+
+      <span style="display: inline-flex; align-items: center; gap: 9px; height: 42px; padding: 0 6px 0 14px; border-radius: 999px; border: 1px solid #e6e2e8;">
+        <span style="font-size: 14px; font-weight: 600; color: #3e0d33;">Boutique Awa</span>
+        <span style="display: grid; place-items: center; width: 30px; height: 30px; border-radius: 999px; background: #f7eaf1; font-size: 12.5px; font-weight: 700; color: #5b1348;">BA</span>
+      </span>
+    </div>
+
+    <div style="padding: 26px 24px 28px;">
+
+      <div style="display: flex; align-items: flex-end; justify-content: space-between;">
+        <div>
+          <h1 class="titre" style="margin: 0; font-size: 28px; color: #1a1016;">Bonjour Awa</h1>
+          <p style="margin: 6px 0 0; font-size: 14.5px; color: #5c5364;">Trois commandes attendent d'être expédiées. Deux clients n'ont pas encore confirmé leur réception.</p>
+        </div>
+        <div style="display: flex; align-items: center; gap: 8px; border: 1px solid #e6e2e8; border-radius: 999px; padding: 4px;">
+          <span style="display: inline-flex; align-items: center; height: 32px; padding: 0 14px; border-radius: 999px; background: #241c22; color: #fff; font-size: 13px; font-weight: 600;">7 jours</span>
+          <span style="display: inline-flex; align-items: center; height: 32px; padding: 0 14px; font-size: 13px; font-weight: 500; color: #4a4150;">30 jours</span>
+          <span style="display: inline-flex; align-items: center; height: 32px; padding: 0 14px; font-size: 13px; font-weight: 500; color: #4a4150;">Cette année</span>
+        </div>
+      </div>
+
+      <!-- Trois blocs à gauche, deux courbes à droite -->
+      <div style="display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: 18px; margin-top: 22px;">
+
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+
+          <div style="border-radius: 20px; background: #5b1348; padding: 22px 22px 20px;">
+            <div class="sur" style="color: #d6b9cc;">Revenus totaux</div>
+            <div class="titre" style="margin-top: 10px; font-size: 40px; color: #fff;">1 284 000 <span style="font-size: 20px; font-weight: 700; color: #e2cfdc;">FCFA</span></div>
+            <div style="display: flex; align-items: center; gap: 8px; margin-top: 12px;">
+              <span style="display: inline-flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px; border-radius: 999px; background: rgba(255,201,60,.18); font-size: 12.5px; font-weight: 700; color: #ffc93c;">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 19V6m0 0-6 6m6-6 6 6" stroke="#ffc93c" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                18 %
+              </span>
+              <span style="font-size: 12.5px; color: #d6b9cc;">sur sept jours</span>
+            </div>
+            <div style="margin-top: 16px; padding-top: 14px; border-top: 1px solid rgba(255,255,255,.14); font-size: 13px; color: #e2cfdc;">
+              Solde disponible : <span style="font-weight: 700; color: #fff;">312 400 FCFA</span>
+            </div>
+          </div>
+
+          <div style="border-radius: 20px; background: #241c22; padding: 20px 22px;">
+            <div class="sur" style="color: #a79ba4;">Revenus du jour</div>
+            <div class="titre" style="margin-top: 8px; font-size: 30px; color: #fff;">96 500 <span style="font-size: 16px; font-weight: 700; color: #b8adb5;">FCFA</span></div>
+            <div style="margin-top: 8px; font-size: 12.5px; color: #a79ba4;">4 ventes confirmées aujourd'hui</div>
+          </div>
+
+          <div style="border: 1px solid #e9e4ea; border-radius: 20px; background: #fff; padding: 20px 22px;">
+            <div class="sur" style="color: #8a7f90;">Revenus en attente</div>
+            <div class="titre" style="margin-top: 8px; font-size: 30px; color: #1a1016;">208 000 <span style="font-size: 16px; font-weight: 700; color: #5c5364;">FCFA</span></div>
+            <div style="margin-top: 8px; font-size: 12.5px; color: #5c5364;">Sous séquestre, en attente de confirmation</div>
+          </div>
+        </div>
+
+        <!-- Le graphique -->
+        <div style="border: 1px solid #e9e4ea; border-radius: 20px; background: #fff; padding: 22px 24px 18px;">
+          <div style="display: flex; align-items: flex-start; justify-content: space-between;">
+            <div>
+              <div class="titre" style="font-size: 17px; color: #1a1016;">Séquestre et versements</div>
+              <div style="margin-top: 4px; font-size: 13px; color: #5c5364;">L'écart entre les deux, c'est ce que vos clients n'ont pas encore confirmé.</div>
+            </div>
+            <div style="display: flex; gap: 16px;">
+              <span style="display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; color: #4a4150;">
+                <span style="width: 14px; height: 2.5px; background: #5b1348; border-radius: 2px;"></span> Mis sous séquestre
+              </span>
+              <span style="display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; font-weight: 600; color: #4a4150;">
+                <span style="width: 14px; height: 2.5px; background: #7d5a12; border-radius: 2px;"></span> Versé
+              </span>
+            </div>
+          </div>
+
+          <svg viewBox="0 0 760 258" style="display: block; width: 100%; height: 258px; margin-top: 14px;" aria-hidden="true">
+            <line x1="52" y1="24" x2="748" y2="24" stroke="#5b1348" stroke-opacity=".13"/>
+            <line x1="52" y1="80" x2="748" y2="80" stroke="#5b1348" stroke-opacity=".13"/>
+            <line x1="52" y1="136" x2="748" y2="136" stroke="#5b1348" stroke-opacity=".13"/>
+            <line x1="52" y1="192" x2="748" y2="192" stroke="#5b1348" stroke-opacity=".13"/>
+            <line x1="52" y1="220" x2="748" y2="220" stroke="#5b1348" stroke-opacity=".2"/>
+            <text x="0" y="28" font-family="Plus Jakarta Sans" font-size="11" fill="#8a7f90">120 000</text>
+            <text x="0" y="84" font-family="Plus Jakarta Sans" font-size="11" fill="#8a7f90">90 000</text>
+            <text x="0" y="140" font-family="Plus Jakarta Sans" font-size="11" fill="#8a7f90">60 000</text>
+            <text x="0" y="196" font-family="Plus Jakarta Sans" font-size="11" fill="#8a7f90">30 000</text>
+            <path d="M52 168 C 108 150, 140 96, 196 104 S 284 178, 340 150 S 428 60, 484 84 S 572 148, 628 112 S 704 52, 748 66"
+                  fill="none" stroke="#5b1348" stroke-width="2" stroke-linecap="round"/>
+            <path d="M52 202 C 108 196, 140 168, 196 172 S 284 204, 340 186 S 428 128, 484 142 S 572 182, 628 160 S 704 112, 748 126"
+                  fill="none" stroke="#7d5a12" stroke-width="2" stroke-linecap="round"/>
+            <circle cx="748" cy="66" r="4" fill="#5b1348"/>
+            <circle cx="748" cy="126" r="4" fill="#7d5a12"/>
+            <text x="52" y="243" font-family="Plus Jakarta Sans" font-size="11" fill="#8a7f90">8 sept.</text>
+            <text x="190" y="243" font-family="Plus Jakarta Sans" font-size="11" fill="#8a7f90">9</text>
+            <text x="330" y="243" font-family="Plus Jakarta Sans" font-size="11" fill="#8a7f90">10</text>
+            <text x="470" y="243" font-family="Plus Jakarta Sans" font-size="11" fill="#8a7f90">11</text>
+            <text x="610" y="243" font-family="Plus Jakarta Sans" font-size="11" fill="#8a7f90">12</text>
+            <text x="712" y="243" font-family="Plus Jakarta Sans" font-size="11" fill="#8a7f90">aujourd'hui</text>
+          </svg>
+        </div>
+      </div>
+
+      <!-- Anneau, compteurs, et la file de travail -->
+      <div style="display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); gap: 18px; margin-top: 18px;">
+
+        <div style="display: flex; align-items: center; gap: 22px; border: 1px solid #e9e4ea; border-radius: 20px; background: #fff; padding: 22px;">
+          <svg width="112" height="112" viewBox="0 0 120 120" aria-hidden="true">
+            <circle cx="60" cy="60" r="46" fill="none" stroke="#efe6ec" stroke-width="15"/>
+            <circle cx="60" cy="60" r="46" fill="none" stroke="#5b1348" stroke-width="15" stroke-linecap="butt"
+                    stroke-dasharray="216 289" transform="rotate(-90 60 60)"/>
+            <text x="60" y="58" text-anchor="middle" font-family="Inter" font-weight="800" font-size="26" fill="#1a1016">75 %</text>
+            <text x="60" y="76" text-anchor="middle" font-family="Plus Jakarta Sans" font-size="11" fill="#8a7f90">confirmées</text>
+          </svg>
+          <div>
+            <div class="titre" style="font-size: 16px; color: #1a1016;">Commandes menées à terme</div>
+            <p style="margin: 8px 0 0; font-size: 13.5px; line-height: 1.55; color: #5c5364;">
+              18 sur 24 ont été confirmées par le client. Les 6 autres attendent encore.
+            </p>
+            <div style="display: flex; gap: 22px; margin-top: 16px;">
+              <div>
+                <div class="titre" style="font-size: 22px; color: #5b1348;">24</div>
+                <div style="font-size: 12px; color: #5c5364;">commandes</div>
+              </div>
+              <div>
+                <div class="titre" style="font-size: 22px; color: #5b1348;">11</div>
+                <div style="font-size: 12px; color: #5c5364;">clients</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div style="border: 1px solid #e9e4ea; border-radius: 20px; background: #fff; overflow: hidden;">
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 14px; border-bottom: 1px solid #f0ecf1;">
+            <div class="titre" style="font-size: 16px; color: #1a1016;">À expédier maintenant</div>
+            <span style="font-size: 13px; font-weight: 600; color: #5b1348;">Voir les 24 commandes</span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1.4fr 1.1fr 0.9fr 1fr 0.8fr; gap: 12px; padding: 10px 20px; background: #fbfafb;">
+            <span class="sur" style="color: #8a7f90;">Client</span>
+            <span class="sur" style="color: #8a7f90;">Commande</span>
+            <span class="sur" style="color: #8a7f90;">Montant</span>
+            <span class="sur" style="color: #8a7f90;">État</span>
+            <span class="sur" style="color: #8a7f90; text-align: right;">Action</span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1.4fr 1.1fr 0.9fr 1fr 0.8fr; gap: 12px; align-items: center; padding: 14px 20px; border-top: 1px solid #f4f1f5;">
+            <div>
+              <div style="font-size: 14.5px; font-weight: 600;">Kouadio B.</div>
+              <div style="font-size: 12.5px; color: #5c5364;">+225 07 01 02 03 04</div>
+            </div>
+            <span style="font-size: 13.5px; color: #4a4150;">KOLI-7QF3MZ</span>
+            <span style="font-size: 14px; font-weight: 700;">38 500</span>
+            <span style="display: inline-flex; align-items: center; gap: 6px; width: fit-content; height: 26px; padding: 0 10px; border-radius: 999px; background: #f7eaf1; font-size: 12.5px; font-weight: 600; color: #5b1348;">Payée</span>
+            <span style="justify-self: end; display: inline-flex; align-items: center; height: 34px; padding: 0 14px; border-radius: 999px; background: #241c22; color: #fff; font-size: 13px; font-weight: 600;">Expédier</span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1.4fr 1.1fr 0.9fr 1fr 0.8fr; gap: 12px; align-items: center; padding: 14px 20px; border-top: 1px solid #f4f1f5;">
+            <div>
+              <div style="font-size: 14.5px; font-weight: 600;">Mariam D.</div>
+              <div style="font-size: 12.5px; color: #5c5364;">+225 05 44 12 87 30</div>
+            </div>
+            <span style="font-size: 13.5px; color: #4a4150;">KOLI-K2P8RD</span>
+            <span style="font-size: 14px; font-weight: 700;">12 000</span>
+            <span style="display: inline-flex; align-items: center; gap: 6px; width: fit-content; height: 26px; padding: 0 10px; border-radius: 999px; background: #fff4d6; font-size: 12.5px; font-weight: 600; color: #7d5a12;">En livraison</span>
+            <span style="justify-self: end; display: inline-flex; align-items: center; height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid #e0dbe2; font-size: 13px; font-weight: 600; color: #3e0d33;">Suivre</span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1.4fr 1.1fr 0.9fr 1fr 0.8fr; gap: 12px; align-items: center; padding: 14px 20px; border-top: 1px solid #f4f1f5;">
+            <div>
+              <div style="font-size: 14.5px; font-weight: 600;">Serge K.</div>
+              <div style="font-size: 12.5px; color: #5c5364;">+225 01 78 55 09 21</div>
+            </div>
+            <span style="font-size: 13.5px; color: #4a4150;">KOLI-M4XT2B</span>
+            <span style="font-size: 14px; font-weight: 700;">57 000</span>
+            <span style="display: inline-flex; align-items: center; gap: 6px; width: fit-content; height: 26px; padding: 0 10px; border-radius: 999px; background: #eaf3e6; font-size: 12.5px; font-weight: 600; color: #15803d;">Confirmée</span>
+            <span style="justify-self: end; display: inline-flex; align-items: center; height: 34px; padding: 0 14px; border-radius: 999px; border: 1px solid #e0dbe2; font-size: 13px; font-weight: 600; color: #3e0d33;">Facture</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+</x-dc>
+</body>
+</html>

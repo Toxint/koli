@@ -1,0 +1,32 @@
+{
+  "artboards": [
+    { "file": "Main.dc.html", "x": 0, "y": 0, "w": 1440, "h": 3180, "title": "Accueil — bureau" },
+    { "file": "Telephone.dc.html", "x": 1560, "y": 0, "w": 390, "h": 1720, "title": "Accueil — téléphone" },
+    { "file": "Dashboard.dc.html", "x": 0, "y": 3300, "w": 1440, "h": 980, "title": "Tableau de bord vendeur" },
+    { "file": "Paiement.dc.html", "x": 1560, "y": 1840, "w": 390, "h": 1360, "title": "Page de paiement — acheteur" }
+  ],
+  "annotations": [
+    {
+      "id": "note-brief",
+      "x": 0,
+      "y": -150,
+      "w": 520,
+      "text": "KOLI — refonte visuelle, 14 septembre 2026.\nMêmes jetons que l'application : violet #5b1348 / #3e0d33, or #ffc93c, crème verte #dcecd2, filet #d2e2c9.\nPolices réelles : Inter 800 pour les titres, Plus Jakarta Sans pour le texte, Instrument Serif italique pour l'accent."
+    },
+    {
+      "id": "note-telephone",
+      "x": 1560,
+      "y": -150,
+      "w": 390,
+      "text": "Mobile d'abord : c'est ici que se décide la refonte. Le public de KOLI arrive par un lien WhatsApp, sur un téléphone d'entrée de gamme."
+    },
+    {
+      "id": "note-paiement",
+      "x": 2000,
+      "y": 1840,
+      "w": 300,
+      "text": "L'écran le plus important du produit : quelqu'un qui ne connaît pas KOLI s'apprête à envoyer de l'argent. Tout y répond à « qui tient mon argent, et jusqu'à quand ? »"
+    }
+  ],
+  "launch": { "view": "canvas" }
+}
